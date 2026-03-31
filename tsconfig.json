@@ -30,5 +30,15 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "test_*.ts",
+    "test_*.mjs",
+    "test-*.mjs",
+    "test-*.js",
+    "fix.js",
+    "fetch_db.mjs",
+    "create_test_users.mjs",
+    "setup_admins.mjs"
+  ]
 }

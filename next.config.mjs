@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    output: 'standalone',
+    ...(process.env.STANDALONE_BUILD === '1' ? { output: 'standalone' } : {}),
     devIndicators: {
         appIsrStatus: false,
         buildActivity: false,
