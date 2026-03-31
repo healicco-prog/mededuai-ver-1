@@ -1,0 +1,468 @@
+﻿python.exe : C:\Users\Dr 
+Narayana K\AppData\Local\
+Google\Cloud SDK\google-c
+loud-sdk\lib\third_party\
+google\cloud\__init__.py:
+20: UserWarning: 
+pkg_resources is 
+deprecated as an API. 
+See https://setuptools.py
+pa.io/en/latest/pkg_resou
+rces.html. The 
+pkg_resources package is 
+slated for removal as 
+early as 2025-11-30. 
+Refrain from using this 
+package or pin to 
+Setuptools<81.
+At C:\Users\Dr Narayana K
+\AppData\Local\Google\Clo
+ud SDK\google-cloud-sdk\b
+in\gcloud.ps1:114 char:3
++   & "$cloudsdk_python" 
+$run_args_array
++   ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
+    + CategoryInfo       
+       : NotSpecified:   
+  (C:\Users\Dr Nar...    
+ Setuptools<81.:Strin    
+g) [], RemoteExcepti    
+on
+    + FullyQualifiedErro 
+   rId : NativeCommandE  
+  rror
+ 
+  import pkg_resources
+----------------------------- REMOTE BUILD OUTPUT ------------------------------
+starting build "efd44415-e317-47c9-aea6-0018d4a8f2d7"
+FETCHSOURCE
+Fetching storage object: gs://run-sources-mededuai-prod-us-central1/services/mededuai-backend/1774960267.507118-8e73bbce7fbb4864acae44c2e4be9be7.zip#1774960273636851
+Copying gs://run-sources-mededuai-prod-us-central1/services/mededuai-backend/1774960267.507118-8e73bbce7fbb4864acae44c2e4be9be7.zip#1774960273636851...
+/ [0 files][    0.0 B/  2.0 MiB]                                                
+/ [1 files][  2.0 MiB/  2.0 MiB]
+Operation completed over 1 objects/2.0 MiB.
+Archive:  /tmp/source-archive.zip
+   creating: /workspace/public/
+   creating: /workspace/src/
+   creating: /workspace/supabase/
+   creating: /workspace/src/app/
+   creating: /workspace/src/components/
+   creating: /workspace/src/lib/
+   creating: /workspace/src/store/
+   creating: /workspace/src/types/
+   creating: /workspace/src/app/api/
+   creating: /workspace/src/app/auth/
+   creating: /workspace/src/app/blog/
+   creating: /workspace/src/app/contrl-panl/
+   creating: /workspace/src/app/controlpanel/
+   creating: /workspace/src/app/dashboard/
+   creating: /workspace/src/app/login/
+   creating: /workspace/src/app/signup/
+   creating: /workspace/src/app/api/blog-generator/
+   creating: /workspace/src/app/api/bulk-blog-generator/
+   creating: /workspace/src/app/api/creator/
+   creating: /workspace/src/app/api/elective-sync/
+   creating: /workspace/src/app/api/essay-answer/
+   creating: /workspace/src/app/api/essay-generator/
+   creating: /workspace/src/app/api/essay-questions/
+   creating: /workspace/src/app/api/lesson-plan/
+   creating: /workspace/src/app/api/mcq-generator/
+   creating: /workspace/src/app/api/mentor/
+   creating: /workspace/src/app/api/notes-creator/
+   creating: /workspace/src/app/api/reflection-generator/
+   creating: /workspace/src/app/api/rubrics-generator/
+   creating: /workspace/src/app/api/viva/
+   creating: /workspace/src/app/api/vocab/
+   creating: /workspace/src/app/api/creator/q-paper/
+   creating: /workspace/src/app/api/creator/topics/
+   creating: /workspace/src/app/auth/callback/
+   creating: /workspace/src/app/auth/forgot-password/
+   creating: /workspace/src/app/auth/reset-password/
+   creating: /workspace/src/app/blog/[slug]/
+   creating: /workspace/src/app/dashboard/admin/
+   creating: /workspace/src/app/dashboard/deptadmin/
+   creating: /workspace/src/app/dashboard/instadmin/
+   creating: /workspace/src/app/dashboard/masteradmin/
+   creating: /workspace/src/app/dashboard/student/
+   creating: /workspace/src/app/dashboard/superadmin/
+   creating: /workspace/src/app/dashboard/teacher/
+   creating: /workspace/src/app/dashboard/admin/attendance/
+   creating: /workspace/src/app/dashboard/admin/blog/
+   creating: /workspace/src/app/dashboard/admin/classroom-generator/
+   creating: /workspace/src/app/dashboard/admin/creator/
+   creating: /workspace/src/app/dashboard/admin/dept-elective/
+   creating: /workspace/src/app/dashboard/admin/elective/
+   creating: /workspace/src/app/dashboard/admin/emr-mcq/
+   creating: /workspace/src/app/dashboard/admin/ems/
+   creating: /workspace/src/app/dashboard/admin/essay-answer/
+   creating: /workspace/src/app/dashboard/admin/lesson-plan/
+   creating: /workspace/src/app/dashboard/admin/lms-db/
+   creating: /workspace/src/app/dashboard/admin/logbook/
+   creating: /workspace/src/app/dashboard/admin/mentoring/
+   creating: /workspace/src/app/dashboard/admin/mentorship/
+   creating: /workspace/src/app/dashboard/admin/notes/
+   creating: /workspace/src/app/dashboard/admin/notes-creator/
+   creating: /workspace/src/app/dashboard/admin/q-paper/
+   creating: /workspace/src/app/dashboard/admin/rubrics-generator/
+   creating: /workspace/src/app/dashboard/admin/timetable/
+   creating: /workspace/src/app/dashboard/admin/tokens/
+   creating: /workspace/src/app/dashboard/admin/users/
+   creating: /workspace/src/app/dashboard/deptadmin/mentoring/
+   creating: /workspace/src/app/dashboard/student/case/
+   creating: /workspace/src/app/dashboard/student/elective/
+   creating: /workspace/src/app/dashboard/student/essay-answer/
+   creating: /workspace/src/app/dashboard/student/essays/
+   creating: /workspace/src/app/dashboard/student/eval/
+   creating: /workspace/src/app/dashboard/student/imp-questions/
+   creating: /workspace/src/app/dashboard/student/mcqs/
+   creating: /workspace/src/app/dashboard/student/mentor/
+   creating: /workspace/src/app/dashboard/student/mentorship/
+   creating: /workspace/src/app/dashboard/student/notes/
+   creating: /workspace/src/app/dashboard/student/notes-creator/
+   creating: /workspace/src/app/dashboard/student/reflection/
+   creating: /workspace/src/app/dashboard/student/structurer/
+   creating: /workspace/src/app/dashboard/student/viva/
+   creating: /workspace/src/app/dashboard/student/vocab/
+   creating: /workspace/src/app/dashboard/teacher/elective/
+   creating: /workspace/src/app/dashboard/teacher/essay-answer/
+   creating: /workspace/src/app/dashboard/teacher/essays/
+   creating: /workspace/src/app/dashboard/teacher/lesson-plan/
+   creating: /workspace/src/app/dashboard/teacher/mcqs/
+   creating: /workspace/src/app/dashboard/teacher/mentorship/
+   creating: /workspace/src/app/dashboard/teacher/notes/
+   creating: /workspace/src/app/dashboard/teacher/notes-creator/
+   creating: /workspace/src/app/dashboard/teacher/rubrics-generator/
+   creating: /workspace/supabase/.temp/
+   creating: /workspace/supabase/migrations/
+  inflating: /workspace/DEPLOYMENT.md
+  inflating: /workspace/Dockerfile
+  inflating: /workspace/eslint.config.mjs
+  inflating: /workspace/next.config.mjs
+  inflating: /workspace/next.config.ts
+  inflating: /workspace/package-lock.json
+  inflating: /workspace/package.json
+  inflating: /workspace/postcss.config.mjs
+  inflating: /workspace/README.md
+  inflating: /workspace/tsconfig.json
+  inflating: /workspace/public/file.svg
+  inflating: /workspace/public/futuristic.png
+  inflating: /workspace/public/globe.svg
+  inflating: /workspace/public/medical_illustration_1.png
+  inflating: /workspace/public/next.svg
+  inflating: /workspace/public/vercel.svg
+  inflating: /workspace/public/window.svg
+  inflating: /workspace/src/middleware.ts
+  inflating: /workspace/src/app/favicon.ico
+  inflating: /workspace/src/app/globals.css
+  inflating: /workspace/src/app/layout.tsx
+  inflating: /workspace/src/app/page.tsx
+  inflating: /workspace/src/app/api/blog-generator/route.ts
+  inflating: /workspace/src/app/api/bulk-blog-generator/route.ts
+  inflating: /workspace/src/app/api/creator/route.ts
+  inflating: /workspace/src/app/api/creator/q-paper/route.ts
+  inflating: /workspace/src/app/api/creator/topics/route.ts
+  inflating: /workspace/src/app/api/elective-sync/route.ts
+  inflating: /workspace/src/app/api/essay-answer/route.ts
+  inflating: /workspace/src/app/api/essay-generator/route.ts
+  inflating: /workspace/src/app/api/essay-questions/route.ts
+  inflating: /workspace/src/app/api/lesson-plan/route.ts
+  inflating: /workspace/src/app/api/mcq-generator/route.ts
+  inflating: /workspace/src/app/api/mentor/route.ts
+  inflating: /workspace/src/app/api/notes-creator/route.ts
+  inflating: /workspace/src/app/api/reflection-generator/route.ts
+  inflating: /workspace/src/app/api/rubrics-generator/route.ts
+  inflating: /workspace/src/app/api/viva/route.ts
+  inflating: /workspace/src/app/api/vocab/route.ts
+  inflating: /workspace/src/app/auth/callback/page.tsx
+  inflating: /workspace/src/app/auth/forgot-password/page.tsx
+  inflating: /workspace/src/app/auth/reset-password/page.tsx
+  inflating: /workspace/src/app/blog/BlogListClient.tsx
+  inflating: /workspace/src/app/blog/page.tsx
+  inflating: /workspace/src/app/blog/[slug]/BlogDetailClient.tsx
+  inflating: /workspace/src/app/blog/[slug]/page.tsx
+  inflating: /workspace/src/app/contrl-panl/actions.ts
+  inflating: /workspace/src/app/contrl-panl/page.tsx
+  inflating: /workspace/src/app/controlpanel/page.tsx
+  inflating: /workspace/src/app/dashboard/DashboardLayoutClient.tsx
+  inflating: /workspace/src/app/dashboard/layout.tsx
+  inflating: /workspace/src/app/dashboard/admin/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/attendance/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/blog/BlogManagerClient.tsx
+  inflating: /workspace/src/app/dashboard/admin/blog/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/classroom-generator/ClassroomManagerClient.tsx
+  inflating: /workspace/src/app/dashboard/admin/classroom-generator/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/creator/CreatorManagerClient.tsx
+  inflating: /workspace/src/app/dashboard/admin/creator/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/dept-elective/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/elective/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/elective/Step1Institution.tsx
+  inflating: /workspace/src/app/dashboard/admin/elective/Step2Electives.tsx
+  inflating: /workspace/src/app/dashboard/admin/elective/Step3Students.tsx
+  inflating: /workspace/src/app/dashboard/admin/elective/Step4Dates.tsx
+  inflating: /workspace/src/app/dashboard/admin/elective/Step5Allotment.tsx
+  inflating: /workspace/src/app/dashboard/admin/elective/Step6Code.tsx
+  inflating: /workspace/src/app/dashboard/admin/elective/Step7Logbook.tsx
+  inflating: /workspace/src/app/dashboard/admin/elective/Step8Analytics.tsx
+  inflating: /workspace/src/app/dashboard/admin/elective/Step_StudentPreferences.tsx
+  inflating: /workspace/src/app/dashboard/admin/emr-mcq/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/ems/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/essay-answer/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/lesson-plan/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/lms-db/AdminLMSDatabaseClient.tsx
+  inflating: /workspace/src/app/dashboard/admin/lms-db/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/logbook/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentoring/BulkMessaging.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentoring/DepartmentManager.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentoring/InstitutionSetup.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentoring/MenteeManager.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentoring/MentoringHubClient.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentoring/MentorManager.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentoring/mentorshipAccess.ts
+  inflating: /workspace/src/app/dashboard/admin/mentoring/MentorshipAllocation.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentoring/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentorship/ClinicalAssessments.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentorship/DeptAssessmentsClient.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentorship/FormativeAssessments.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentorship/InternalAssessments.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentorship/NonScholasticAchievements.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentorship/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentorship/SummativeAssessments.tsx
+  inflating: /workspace/src/app/dashboard/admin/notes/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/notes-creator/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/q-paper/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/rubrics-generator/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/timetable/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/tokens/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/tokens/TokensManagerClient.tsx
+  inflating: /workspace/src/app/dashboard/admin/users/actions.ts
+  inflating: /workspace/src/app/dashboard/admin/users/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/users/UsersManager.tsx
+  inflating: /workspace/src/app/dashboard/deptadmin/page.tsx
+  inflating: /workspace/src/app/dashboard/deptadmin/mentoring/DeptMentoringHubClient.tsx
+  inflating: /workspace/src/app/dashboard/deptadmin/mentoring/FormativeAssessments.tsx
+  inflating: /workspace/src/app/dashboard/deptadmin/mentoring/page.tsx
+  inflating: /workspace/src/app/dashboard/instadmin/page.tsx
+  inflating: /workspace/src/app/dashboard/masteradmin/page.tsx
+  inflating: /workspace/src/app/dashboard/student/page.tsx
+  inflating: /workspace/src/app/dashboard/student/case/page.tsx
+  inflating: /workspace/src/app/dashboard/student/elective/page.tsx
+  inflating: /workspace/src/app/dashboard/student/essay-answer/page.tsx
+  inflating: /workspace/src/app/dashboard/student/essays/page.tsx
+  inflating: /workspace/src/app/dashboard/student/eval/page.tsx
+  inflating: /workspace/src/app/dashboard/student/imp-questions/page.tsx
+  inflating: /workspace/src/app/dashboard/student/mcqs/page.tsx
+  inflating: /workspace/src/app/dashboard/student/mentor/page.tsx
+  inflating: /workspace/src/app/dashboard/student/mentorship/page.tsx
+  inflating: /workspace/src/app/dashboard/student/mentorship/StudentMentorshipClient.tsx
+  inflating: /workspace/src/app/dashboard/student/notes/page.tsx
+  inflating: /workspace/src/app/dashboard/student/notes-creator/page.tsx
+  inflating: /workspace/src/app/dashboard/student/reflection/page.tsx
+  inflating: /workspace/src/app/dashboard/student/structurer/page.tsx
+  inflating: /workspace/src/app/dashboard/student/viva/page.tsx
+  inflating: /workspace/src/app/dashboard/student/vocab/page.tsx
+  inflating: /workspace/src/app/dashboard/superadmin/page.tsx
+  inflating: /workspace/src/app/dashboard/teacher/page.tsx
+  inflating: /workspace/src/app/dashboard/teacher/elective/page.tsx
+  inflating: /workspace/src/app/dashboard/teacher/essay-answer/page.tsx
+  inflating: /workspace/src/app/dashboard/teacher/essays/page.tsx
+  inflating: /workspace/src/app/dashboard/teacher/lesson-plan/page.tsx
+  inflating: /workspace/src/app/dashboard/teacher/mcqs/page.tsx
+  inflating: /workspace/src/app/dashboard/teacher/mentorship/MentorDashboardClient.tsx
+  inflating: /workspace/src/app/dashboard/teacher/mentorship/page.tsx
+  inflating: /workspace/src/app/dashboard/teacher/notes/page.tsx
+  inflating: /workspace/src/app/dashboard/teacher/notes-creator/page.tsx
+  inflating: /workspace/src/app/dashboard/teacher/rubrics-generator/page.tsx
+  inflating: /workspace/src/app/login/actions.ts
+  inflating: /workspace/src/app/login/page.tsx
+  inflating: /workspace/src/app/signup/page.tsx
+  inflating: /workspace/src/components/GlobalHomeButton.tsx
+  inflating: /workspace/src/components/Overview.tsx
+  inflating: /workspace/src/components/SavedNotesModal.tsx
+  inflating: /workspace/src/components/TimePicker12Hour.tsx
+  inflating: /workspace/src/components/TokenBalanceCard.tsx
+  inflating: /workspace/src/lib/blogService.ts
+  inflating: /workspace/src/lib/gemini.ts
+  inflating: /workspace/src/lib/supabase.ts
+  inflating: /workspace/src/lib/tokenService.ts
+  inflating: /workspace/src/store/assessmentStore.ts
+  inflating: /workspace/src/store/attendanceStore.ts
+  inflating: /workspace/src/store/blogStore.ts
+  inflating: /workspace/src/store/curriculumStore.ts
+  inflating: /workspace/src/store/electiveStore.ts
+  inflating: /workspace/src/store/emrStore.ts
+  inflating: /workspace/src/store/emsStore.ts
+  inflating: /workspace/src/store/lessonPlanStore.ts
+  inflating: /workspace/src/store/mentorshipStore.ts
+  inflating: /workspace/src/store/qPaperStore.ts
+  inflating: /workspace/src/store/timetableStore.ts
+  inflating: /workspace/src/store/tokenStore.ts
+  inflating: /workspace/src/store/userStore.ts
+  inflating: /workspace/src/types/supabase.ts
+  inflating: /workspace/supabase/.temp/cli-latest
+  inflating: /workspace/supabase/.temp/gotrue-version
+  inflating: /workspace/supabase/.temp/pooler-url
+  inflating: /workspace/supabase/.temp/postgres-version
+  inflating: /workspace/supabase/.temp/project-ref
+  inflating: /workspace/supabase/.temp/rest-version
+  inflating: /workspace/supabase/.temp/storage-migration
+  inflating: /workspace/supabase/.temp/storage-version
+  inflating: /workspace/supabase/migrations/0000_schema.sql
+  inflating: /workspace/supabase/migrations/0001_auth_profiles.sql
+  inflating: /workspace/supabase/migrations/0001_mentorship_ms.sql
+  inflating: /workspace/supabase/migrations/0002_topics_add_sn_section.sql
+  inflating: /workspace/supabase/migrations/0003_admin_modules_schema.sql
+BUILD
+Already have image (with digest): gcr.io/cloud-builders/docker
+Sending build context to Docker daemon  4.552MB
+Step 1/30 : FROM node:18-alpine AS base
+18-alpine: Pulling from library/node
+f18232174bc9: Pulling fs layer
+dd71dde834b5: Pulling fs layer
+1e5a4c89cee5: Pulling fs layer
+25ff2da83641: Pulling fs layer
+25ff2da83641: Verifying Checksum
+25ff2da83641: Download complete
+dd71dde834b5: Verifying Checksum
+dd71dde834b5: Download complete
+f18232174bc9: Verifying Checksum
+f18232174bc9: Download complete
+f18232174bc9: Pull complete
+1e5a4c89cee5: Verifying Checksum
+1e5a4c89cee5: Download complete
+dd71dde834b5: Pull complete
+1e5a4c89cee5: Pull complete
+25ff2da83641: Pull complete
+Digest: sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e
+Status: Downloaded newer image for node:18-alpine
+ ---> ee77c6cd7c18
+Step 2/30 : FROM base AS deps
+ ---> ee77c6cd7c18
+Step 3/30 : RUN apk add --no-cache libc6-compat
+ ---> Running in 9320adb566cb
+fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/main/x86_64/APKINDEX.tar.gz
+fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/community/x86_64/APKINDEX.tar.gz
+(1/3) Installing musl-obstack (1.2.3-r2)
+(2/3) Installing libucontext (1.3.2-r0)
+(3/3) Installing gcompat (1.1.0-r4)
+OK: 10 MiB in 20 packages
+Removing intermediate container 9320adb566cb
+ ---> 8b53b0a1377b
+Step 4/30 : WORKDIR /app
+ ---> Running in d2a30a2196a4
+Removing intermediate container d2a30a2196a4
+ ---> 270907646bb2
+Step 5/30 : COPY package.json package-lock.json* ./
+ ---> deb5fb109aff
+Step 6/30 : RUN npm ci
+ ---> Running in 4faefbb84902
+[91mnpm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: '@google/genai@1.43.0',
+npm warn EBADENGINE   required: { node: '>=20.0.0' },
+npm warn EBADENGINE   current: { node: 'v18.20.8', npm: '10.8.2' }
+npm warn EBADENGINE }
+[0m[91mnpm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: '@supabase/auth-js@2.98.0',
+npm warn EBADENGINE   required: { node: '>=20.0.0' },
+npm warn EBADENGINE   current: { node: 'v18.20.8', npm: '10.8.2' }
+npm warn EBADENGINE }
+[0m[91mnpm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: '@supabase/functions-js@2.98.0',
+npm warn EBADENGINE   required: { node: '>=20.0.0' },
+npm warn EBADENGINE   current: { node: 'v18.20.8', npm: '10.8.2' }
+npm warn EBADENGINE }
+[0m[91mnpm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: '@supabase/postgrest-js@2.98.0',
+npm warn EBADENGINE   required: { node: '>=20.0.0' },
+npm warn EBADENGINE   current: { node: 'v18.20.8', npm: '10.8.2' }
+npm warn EBADENGINE }
+[0m[91mnpm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: '@supabase/realtime-js@2.98.0',
+npm warn EBADENGINE   required: { node: '>=20.0.0' },
+npm warn EBADENGINE   current: { node: 'v18.20.8', npm: '10.8.2' }
+npm warn EBADENGINE }
+[0m[91mnpm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: '@supabase/storage-js@2.98.0',
+npm warn EBADENGINE   required: { node: '>=20.0.0' },
+npm warn EBADENGINE   current: { node: 'v18.20.8', npm: '10.8.2' }
+npm warn EBADENGINE }
+[0m[91mnpm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: '@supabase/supabase-js@2.98.0',
+npm warn EBADENGINE   required: { node: '>=20.0.0' },
+npm warn EBADENGINE   current: { node: 'v18.20.8', npm: '10.8.2' }
+npm warn EBADENGINE }
+[0m[91mnpm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: '@tailwindcss/oxide@4.2.1',
+npm warn EBADENGINE   required: { node: '>= 20' },
+npm warn EBADENGINE   current: { node: 'v18.20.8', npm: '10.8.2' }
+npm warn EBADENGINE }
+[0m[91mnpm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'eslint-visitor-keys@5.0.1',
+npm warn EBADENGINE   required: { node: '^20.19.0 || ^22.13.0 || >=24' },
+npm warn EBADENGINE   current: { node: 'v18.20.8', npm: '10.8.2' }
+npm warn EBADENGINE }
+[0m[91mnpm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'iceberg-js@0.8.1',
+npm warn EBADENGINE   required: { node: '>=20.0.0' },
+npm warn EBADENGINE   current: { node: 'v18.20.8', npm: '10.8.2' }
+npm warn EBADENGINE }
+[0m[91mnpm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'next@16.1.6',
+npm warn EBADENGINE   required: { node: '>=20.9.0' },
+npm warn EBADENGINE   current: { node: 'v18.20.8', npm: '10.8.2' }
+npm warn EBADENGINE }
+[0m[91mnpm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'resend@6.9.3',
+npm warn EBADENGINE   required: { node: '>=20' },
+npm warn EBADENGINE   current: { node: 'v18.20.8', npm: '10.8.2' }
+npm warn EBADENGINE }
+[0m[91mnpm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+[0m[91mnpm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+[0m
+added 592 packages, and audited 593 packages in 19s
+252 packages are looking for funding
+  run `npm fund` for details
+6 vulnerabilities (2 moderate, 3 high, 1 critical)
+To address issues that do not require attention, run:
+  npm audit fix
+To address all issues possible, run:
+  npm audit fix --force
+Some issues need review, and may require choosing
+a different dependency.
+Run `npm audit` for details.
+[91mnpm notice
+npm notice New major version of npm available! 10.8.2 -> 11.12.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.12.1
+npm notice To update run: npm install -g npm@11.12.1
+npm notice
+[0mRemoving intermediate container 4faefbb84902
+ ---> a6cc6e8b2686
+Step 7/30 : FROM base AS builder
+ ---> ee77c6cd7c18
+Step 8/30 : WORKDIR /app
+ ---> Running in 33b89e3bd420
+Removing intermediate container 33b89e3bd420
+ ---> 03cd2d7daa52
+Step 9/30 : COPY --from=deps /app/node_modules ./node_modules
+ ---> 0eaab28e0f81
+Step 10/30 : COPY . .
+ ---> 752c96385846
+Step 11/30 : ENV NEXT_TELEMETRY_DISABLED 1
+ ---> Running in f3f4a4129a19
+Removing intermediate container f3f4a4129a19
+ ---> 2991c142e957
+Step 12/30 : RUN npm run build
+ ---> Running in 2da4de6e75eb
+> temp_mededuai@0.1.0 build
+> next build
+[91mYou are using Node.js 18.20.8. For Next.js, Node.js version ">=20.9.0" is required.
+[0m[91mnpm notice
+npm notice New major version of npm available! 10.8.2 -> 11.12.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.12.1
+npm notice To update run: npm install -g npm@11.12.1
+npm notice
+The command '/bin/sh -c npm run build' returned a non-zero code: 1
+ERROR
+ERROR: build step 0 "gcr.io/cloud-builders/docker" failed: step exited with non-zero status: 1
+[0m
+--------------------------------------------------------------------------------

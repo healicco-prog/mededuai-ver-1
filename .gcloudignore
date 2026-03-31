@@ -1,0 +1,54 @@
+# Node
+node_modules/
+.next/
+
+# Logs
+*.log
+err.log
+err-utf8.log
+build.log
+build-error.log
+build-utf8.log
+eslint_output.txt
+out.txt
+tunnel.txt
+
+# Git
+.git/
+.gitignore
+
+# Environment
+.env
+.env.*
+.env.local
+
+# IDE
+.vscode/
+.idea/
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test scripts
+test-*.mjs
+test-*.js
+test_*.js
+test_*.mjs
+test_*.ts
+fix.js
+fetch_db.mjs
+create_test_users.mjs
+setup_admins.mjs
+fix_rls.sql
+
+# Misc
+coverage/
+*.sqlite
+*.db
+tmp/
+temp/
+tsconfig.tsbuildinfo
+server.log
+server-err.log

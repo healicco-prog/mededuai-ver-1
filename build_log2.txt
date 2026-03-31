@@ -1,0 +1,28 @@
+﻿python.exe : ERROR: 
+(gcloud.builds.log) 
+NOT_FOUND: Requested 
+entity was not found. 
+This command is 
+authenticated as 
+healicco@gmail.com which 
+is the active account 
+specified by the 
+[core/account] property.
+At C:\Users\Dr Narayana K
+\AppData\Local\Google\Clo
+ud SDK\google-cloud-sdk\b
+in\gcloud.ps1:114 char:3
++   & "$cloudsdk_python" 
+$run_args_array
++   ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
+    + CategoryInfo       
+       : NotSpecified:   
+  (ERROR: (gcloud....o   
+ unt] property.:Strin    
+g) [], RemoteExcepti    
+on
+    + FullyQualifiedErro 
+   rId : NativeCommandE  
+  rror
+ 

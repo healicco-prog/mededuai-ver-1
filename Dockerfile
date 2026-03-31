@@ -1,4 +1,4 @@
-FROM node:18-alpine AS base
+FROM node:20-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -18,8 +18,18 @@ COPY . .
 # Next.js telemetry false
 ENV NEXT_TELEMETRY_DISABLED 1
 
-# Environment variables for build time (dummy values if needed)
-# ENV NEXT_PUBLIC_SUPABASE_URL=...
+# Environment variables needed at build time for Next.js compilation
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ARG SUPABASE_SERVICE_ROLE_KEY
+ARG GEMINI_API_KEY
+ARG RESEND_API_KEY
+
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY
+ENV GEMINI_API_KEY=$GEMINI_API_KEY
+ENV RESEND_API_KEY=$RESEND_API_KEY
 
 RUN npm run build
 

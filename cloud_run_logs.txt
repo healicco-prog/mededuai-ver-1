@@ -1,0 +1,14 @@
+﻿TEXT_PAYLOAD
+? Ready in 14s
+
+
+? Starting...
+- Network:       http://0.0.0.0:3000
+- Local:         http://localhost:3000
+? Next.js 16.1.6
+Default STARTUP TCP probe succeeded after 1 attempt for container "mededuai-backend-1" on port 3000.
+Starting new instance. Reason: DEPLOYMENT_ROLLOUT - Instance started due to traffic shifting between revisions due to deployment, traffic split adjustment, or deployment health check.
+
+
+
+
