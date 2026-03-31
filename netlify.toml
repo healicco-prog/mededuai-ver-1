@@ -1,0 +1,25 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NEXT_PUBLIC_SUPABASE_URL = "https://yrelfdwkjtaidtoulwrj.supabase.co"
+  NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyZWxmZHdranRhaWR0b3Vsd3JqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxMDU3ODQsImV4cCI6MjA4ODY4MTc4NH0.FpFw_TINjRTeSRK54PFa-NoLa5R9ctx8y5h4_wmoBfk"
+  NODE_ENV = "production"
+
+# Proxy all API routes to Cloud Run backend
+[[redirects]]
+  from = "/api/*"
+  to = "https://mededuai-backend-3js7mh5u5a-uc.a.run.app/api/:splat"
+  status = 200
+  force = true
+
+# Proxy auth callback to Cloud Run backend  
+[[redirects]]
+  from = "/auth/*"
+  to = "https://mededuai-backend-3js7mh5u5a-uc.a.run.app/auth/:splat"
+  status = 200
+  force = true
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
