@@ -12,6 +12,7 @@ import {
     Menu, X, Home, Activity, Cpu, BarChart3, Server, UserPlus, Clock,
     FileEdit, PenTool
 } from "lucide-react";
+import MededuLogo from "@/components/MededuLogo";
 
 /* ── hardcoded credentials ── */
 const CREDENTIALS = [
@@ -247,8 +248,8 @@ export default function ControlPanelPage() {
                 <div className="relative w-full max-w-md">
                     {/* logo */}
                     <div className="text-center mb-10">
-                        <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-600 rounded-2xl mb-5 shadow-lg shadow-emerald-600/20">
-                            <BrainCircuit className="text-white w-8 h-8" />
+                        <div className="flex justify-center mb-5">
+                            <MededuLogo size={64} className="shadow-xl shadow-emerald-600/20" />
                         </div>
                         <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Control Panel</h1>
                         <p className="text-slate-500 mt-2 text-sm">MedEduAI · Restricted Access</p>
@@ -369,9 +370,7 @@ export default function ControlPanelPage() {
             <aside className={`fixed lg:static inset-y-0 left-0 w-72 bg-white border-r border-slate-200 flex flex-col z-50 transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
                 <div className="p-6 flex items-center justify-between border-b border-slate-100 flex-shrink-0">
                     <Link href="/" className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                            <BrainCircuit className="text-white w-6 h-6" />
-                        </div>
+                        <MededuLogo size={40} />
                         <span className="font-bold text-xl text-slate-900 tracking-tight">MedEduAI</span>
                     </Link>
                     <button
