@@ -1,0 +1,3 @@
+[submodule ".claude/worktrees/suspicious-pare"]
+    path = .claude/worktrees/suspicious-pare
+    url = https://github.com/healicco-prog/mededuai-ver-1.git
