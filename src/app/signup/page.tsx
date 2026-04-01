@@ -4,9 +4,10 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-    BrainCircuit, Home, Loader2, Mail, Lock, CheckCircle2,
+    Home, Loader2, Mail, Lock, CheckCircle2,
     UserCircle, ChevronDown, Eye, EyeOff, Phone, BookOpen, ShieldCheck
 } from 'lucide-react';
+import MededuLogo from '@/components/MededuLogo';
 import { supabase } from '@/lib/supabase';
 
 const ROLES = [
@@ -109,9 +110,7 @@ export default function SignUpPage() {
 
                 {/* Logo */}
                 <div className="flex items-center gap-3 justify-center mb-5">
-                    <div className="w-12 h-12 bg-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-600/20">
-                        <BrainCircuit className="text-white w-7 h-7" />
-                    </div>
+                    <MededuLogo size={48} className="shadow-lg shadow-emerald-600/20" />
                     <span className="font-bold text-2xl text-slate-900 tracking-tight">MedEduAI</span>
                 </div>
 

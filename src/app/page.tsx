@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from 'react';
-import { BrainCircuit, BookOpen, Mic, Stethoscope, ChevronRight, Menu, X, Star } from 'lucide-react';
+import { BookOpen, Mic, Stethoscope, ChevronRight, Menu, X, Star } from 'lucide-react';
 import Link from 'next/link';
+import MededuLogo from '@/components/MededuLogo';
 
 export default function LandingPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -14,9 +15,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/20">
-                <BrainCircuit className="text-white w-6 h-6" />
-              </div>
+              <MededuLogo size={40} className="shadow-lg shadow-emerald-500/20" />
               <span className="font-bold text-xl text-white tracking-tight">MedEduAI</span>
             </div>
 
@@ -169,7 +168,7 @@ export default function LandingPage() {
       <footer className="bg-slate-950 border-t border-white/10 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2">
-            <BrainCircuit className="text-cyan-500 w-6 h-6" />
+            <MededuLogo size={32} />
             <span className="font-bold text-xl text-white">MedEduAI</span>
           </div>
           <p className="text-slate-500 text-sm">© 2026 MedEduAI Platform. Built for the future of Medicine.</p>

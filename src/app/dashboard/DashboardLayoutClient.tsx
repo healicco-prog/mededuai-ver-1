@@ -4,9 +4,10 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
     LayoutDashboard, BookOpen, MessageSquare, Mic,
-    Settings, LogOut, Users, FileText, BrainCircuit,
+    Settings, LogOut, Users, FileText,
     GraduationCap, ClipboardCheck, AlertCircle, Home, ClipboardList, Menu, X, ClipboardType, CalendarDays, Lock, ArrowLeft, Shield, FileEdit
 } from 'lucide-react';
+import MededuLogo from '@/components/MededuLogo';
 import { usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { isEmailApproved } from '@/app/dashboard/admin/mentoring/mentorshipAccess';
@@ -124,9 +125,7 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
             <aside className={`fixed lg:static inset-y-0 left-0 w-72 bg-white border-r border-slate-200 flex flex-col z-50 transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
                 <div className="p-6 flex items-center justify-between border-b border-slate-100 flex-shrink-0">
                     <Link href="/" className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                            <BrainCircuit className="text-white w-6 h-6" />
-                        </div>
+                        <MededuLogo size={40} className="shadow-md shadow-emerald-600/15" />
                         <span className="font-bold text-xl text-slate-900 tracking-tight">MedEduAI</span>
                     </Link>
                     <button
@@ -255,7 +254,7 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                             <SidebarItem href={`/dashboard/admin/creator`} icon={<Settings />} label="LMS Auto-Gen" />
                             <SidebarItem href={`/dashboard/admin/blog`} icon={<FileText />} label="Blog Publications" />
                             <SidebarItem href={`/dashboard/admin/users`} icon={<Users />} label="User Management" />
-                            <SidebarItem href={`/dashboard/admin/tokens`} icon={<BrainCircuit />} label="Token Economy" />
+                            <SidebarItem href={`/dashboard/admin/tokens`} icon={<Settings />} label="Token Economy" />
                         </>
                     )}
                 </nav>
