@@ -1,0 +1,24 @@
+defaultService: https://www.googleapis.com/compute/v1/projects/mededuai-prod/global/backendServices/auth-backend
+fingerprint: aTDSZ94WOOI=
+hostRules:
+- hosts:
+  - admin.mededuai.com
+  pathMatcher: admin-matcher
+- hosts:
+  - api.mededuai.com
+  pathMatcher: path-matcher-1
+name: auth-url-map
+pathMatchers:
+- defaultService: https://www.googleapis.com/compute/v1/projects/mededuai-prod/global/backendServices/admin-backend
+  name: admin-matcher
+- defaultUrlRedirect:
+    hostRedirect: www.mededuai.com
+    httpsRedirect: true
+    redirectResponseCode: MOVED_PERMANENTLY_DEFAULT
+    stripQuery: false
+  name: path-matcher-1
+  pathRules:
+  - paths:
+    - /api
+    - /api/*
+    service: https://www.googleapis.com/compute/v1/projects/mededuai-prod/global/backendServices/api-backend
