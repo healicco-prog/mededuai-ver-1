@@ -3,6 +3,7 @@
 
 [build.environment]
   NODE_ENV = "production"
+  NPM_FLAGS = "--include=dev"
 
 # Proxy all API routes to Cloud Run backend
 [[redirects]]
