@@ -1,10 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-key'
-);
+// Lazily initialize the Supabase admin client at runtime
+// (not at module-load time, to ensure env vars are available on Netlify)
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+    process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-key'
+  );
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,6 +16,8 @@ export async function GET(req: NextRequest) {
     if (!userId) {
       return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
     }
+
+    const supabaseAdmin = getSupabaseAdmin();
 
     // Get user's referral code
     const { data: userData, error: userError } = await supabaseAdmin
@@ -21,6 +27,7 @@ export async function GET(req: NextRequest) {
       .single();
 
     if (userError || !userData) {
+      console.error('Referral stats - user fetch error:', userError?.message);
       return NextResponse.json({ referral_code: '', total_referred: 0, total_subscribed: 0 });
     }
 

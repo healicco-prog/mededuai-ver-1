@@ -39,11 +39,28 @@ export default function ReferralCard() {
 
     const shareText = `🩺 Check out MedEduAI — an AI-powered platform for medical education! Get your FREE account and explore AI-driven learning tools. Sign up here: ${referralLink}`;
 
-    const handleCopy = () => {
+    const handleCopy = async () => {
         if (!referralLink) return;
-        navigator.clipboard.writeText(referralLink);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(referralLink);
+            } else {
+                // Fallback for non-HTTPS or older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = referralLink;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-9999px';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+            }
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (err) {
+            console.error('Copy failed:', err);
+        }
     };
 
     const handleShare = (platform: string) => {
