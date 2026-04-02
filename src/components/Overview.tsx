@@ -3,6 +3,7 @@
 import { BrainCircuit, GraduationCap, ClipboardCheck, FileText, CheckCircle2, AlertCircle, Users, Settings } from 'lucide-react';
 import React from 'react';
 import TokenBalanceCard from './TokenBalanceCard';
+import ReferralCard from './ReferralCard';
 
 export function Overview({ role }: { role: 'student' | 'teacher' | 'admin' | 'superadmin' | 'masteradmin' | 'deptadmin' | 'instadmin' }) {
     const isStudent = role === 'student' || role === 'superadmin' || role === 'admin' || role === 'masteradmin';
@@ -157,6 +158,9 @@ export function Overview({ role }: { role: 'student' | 'teacher' | 'admin' | 'su
                     </div>
                 )}
             </div>
+
+            {/* Referral / Support Card */}
+            <ReferralCard />
         </div>
     );
 }
