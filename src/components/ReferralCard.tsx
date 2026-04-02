@@ -17,12 +17,26 @@ export default function ReferralCard() {
                 const { data: { user } } = await supabase.auth.getUser();
                 if (!user?.id) return;
 
-                const res = await fetch(`/api/referral/stats?userId=${user.id}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    setReferralCode(data.referral_code || '');
-                    setTotalReferred(data.total_referred || 0);
-                    setTotalSubscribed(data.total_subscribed || 0);
+                // Fetch referral code directly from Supabase client
+                const { data: userData, error: userError } = await supabase
+                    .from('users')
+                    .select('referral_code')
+                    .eq('id', user.id)
+                    .single();
+
+                if (userData?.referral_code) {
+                    setReferralCode(userData.referral_code);
+                }
+
+                // Fetch referral counts
+                const { data: referrals } = await supabase
+                    .from('referrals')
+                    .select('id, status')
+                    .eq('referrer_id', user.id);
+
+                if (referrals) {
+                    setTotalReferred(referrals.length);
+                    setTotalSubscribed(referrals.filter(r => r.status === 'subscribed').length);
                 }
             } catch (err) {
                 console.error('Failed to fetch referral stats:', err);
@@ -105,15 +119,18 @@ export default function ReferralCard() {
                         <input
                             type="text"
                             readOnly
-                            value={referralLink}
+                            value={referralLink || 'Loading...'}
                             className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 text-sm font-mono focus:outline-none"
                         />
                         <button
                             onClick={handleCopy}
+                            disabled={!referralLink}
                             className={`px-5 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
                                 copied
                                     ? 'bg-emerald-500 text-white'
-                                    : 'bg-slate-800 hover:bg-slate-700 text-white'
+                                    : referralLink
+                                        ? 'bg-slate-800 hover:bg-slate-700 text-white'
+                                        : 'bg-slate-300 text-slate-500 cursor-not-allowed'
                             }`}
                         >
                             {copied ? (
