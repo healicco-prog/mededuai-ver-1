@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { BrainCircuit, Home, Loader2, Lock, CheckCircle2 } from 'lucide-react';
+import { Home, Loader2, Lock, CheckCircle2 } from 'lucide-react';
+import MededuLogo from '@/components/MededuLogo';
 import { supabase } from '@/lib/supabase';
 
 export default function ResetPasswordPage() {
@@ -54,9 +55,7 @@ export default function ResetPasswordPage() {
             setError(updateError.message);
         } else {
             setStep('success');
-            // Log them out so they can log in fresh with the new password,
-            // or we could redirect them to the dashboard since they are technically authenticated now.
-            // For security, asking them to log in again is often preferred.
+            // Log them out so they can log in fresh with the new password
             await supabase.auth.signOut();
         }
         
@@ -65,7 +64,7 @@ export default function ResetPasswordPage() {
 
     if (verifying) {
         return (
-            <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50 flex flex-col items-center justify-center p-4">
                 <Loader2 className="w-8 h-8 text-emerald-600 animate-spin mb-4" />
                 <p className="text-slate-500 font-medium">Verifying reset link...</p>
             </div>
@@ -73,16 +72,20 @@ export default function ResetPasswordPage() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm max-w-md w-full">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50 flex items-center justify-center p-4">
+            {/* ambient glow */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-200/40 rounded-full blur-3xl" />
+                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-200/30 rounded-full blur-3xl" />
+            </div>
+
+            <div className="relative bg-white p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 max-w-md w-full">
                 <div className="flex items-center gap-3 justify-center mb-6">
-                    <div className="w-12 h-12 bg-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <BrainCircuit className="text-white w-7 h-7" />
-                    </div>
+                    <MededuLogo size={48} className="shadow-lg shadow-emerald-600/20" />
                     <span className="font-bold text-2xl text-slate-900 tracking-tight">MedEduAI</span>
                 </div>
 
-                <h2 className="text-center text-xl font-bold text-slate-800 mb-2">
+                <h2 className="text-center text-xl font-bold text-slate-900 mb-1">
                     {step === 'form' ? 'Create New Password' : 'Password Updated'}
                 </h2>
                 <p className="text-center text-sm text-slate-500 mb-8">
@@ -92,7 +95,7 @@ export default function ResetPasswordPage() {
                 </p>
 
                 {error && (
-                    <div className="mb-6 p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-xl text-center flex items-center justify-center gap-2">
+                    <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl text-center flex items-center justify-center gap-2 font-medium">
                         <span className="font-bold">!</span> {error}
                     </div>
                 )}
@@ -110,7 +113,7 @@ export default function ResetPasswordPage() {
                                     onChange={(e) => setPassword(e.target.value)}
                                     required
                                     placeholder="Create a new password"
-                                    className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 transition-all text-sm"
                                 />
                             </div>
                         </div>
@@ -126,15 +129,15 @@ export default function ResetPasswordPage() {
                                     onChange={(e) => setConfirmPassword(e.target.value)}
                                     required
                                     placeholder="Confirm your new password"
-                                    className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 transition-all text-sm"
                                 />
                             </div>
                         </div>
 
                         <button
                             type="submit"
-                            disabled={loading || !!error.includes("Invalid")} // Disable if token is invalid
-                            className="w-full flex items-center justify-center gap-2 py-3.5 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow mt-2"
+                            disabled={loading || !!error.includes("Invalid")}
+                            className="w-full flex items-center justify-center gap-2 py-3.5 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-500 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-600/20 mt-2"
                         >
                             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                             Reset Password
