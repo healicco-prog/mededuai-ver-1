@@ -11,12 +11,6 @@
   status = 200
   force = true
 
-# Proxy auth callback to Cloud Run backend  
-[[redirects]]
-  from = "/auth/*"
-  to = "https://mededuai-backend-3js7mh5u5a-uc.a.run.app/auth/:splat"
-  status = 200
-  force = true
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
