@@ -1,11 +1,5 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
-
-const resolvedKey = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'dummy-gemini-key'
-    ? process.env.GEMINI_API_KEY
-    : 'AIzaSyDqaLhFtaP1NkQXUYC55Q853jlD3OCklCM';
-
-const ai = new GoogleGenAI({ apiKey: resolvedKey });
+import { generateJSON } from '@/lib/gemini';
 
 export async function POST(req: Request) {
     let body: any = {};
@@ -13,7 +7,7 @@ export async function POST(req: Request) {
         body = await req.json();
         const { numBlogs, categories } = body;
 
-        let promptText = `You are an expert SEO content strategist and medical education writer.
+        const promptText = `You are an expert SEO content strategist and medical education writer.
 Your task is to generate high-quality, SEO optimized blog posts that can rank on search engines.
 
 INPUT PARAMETERS:
@@ -24,8 +18,6 @@ OUTPUT REQUIREMENT:
 Generate ${numBlogs || 1} unique blog posts distributed among the provided categories. 
 For each blog, you must autonomously generate a highly engaging Primary Topic, Target Keywords, Target Audience, Blog Length (~1500 words), and Professional Tone based on the assigned category.
 
-OUTPUT REQUIREMENT:
-Generate ${numBlogs || 1} unique blog posts.
 Return output in structured JSON. Do NOT wrap it in markdown \`\`\`json. Return ONLY raw JSON starting with { and ending with }. Escape all strings properly.
 Ensure rigorous quality for medical education technology. Follow E-E-A-T guidelines.
 Each generated blog must target a different keyword variation, avoid repeating headings, and maintain SEO diversity.
@@ -51,28 +43,10 @@ Example structure:
   ]
 }`;
 
-        let response;
-        try {
-            response = await ai.models.generateContent({
-                model: 'gemini-1.5-flash',
-                contents: promptText,
-                config: { responseMimeType: 'application/json' }
-            });
-        } catch (e: any) {
-            console.warn("gemini-1.5-flash failed, catching with gemini-2.5-flash", e.message);
-            response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: promptText,
-                config: { responseMimeType: 'application/json' }
-            });
-        }
-
-        const text = response.text || '{"blogs": []}';
-        const parsed = JSON.parse(text);
-
+        const parsed = await generateJSON(promptText);
         return NextResponse.json({ success: true, data: parsed });
     } catch (error: any) {
-        console.warn('API Key Error/Exhaustion detected in Bulk API. Falling back to simple mock data.', error.message);
+        console.warn('Bulk Blog API Error:', error.message);
         return NextResponse.json({
             success: true,
             data: {

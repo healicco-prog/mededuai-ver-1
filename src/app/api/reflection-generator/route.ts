@@ -1,18 +1,12 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
-
-const resolvedKey = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'dummy-gemini-key'
-    ? process.env.GEMINI_API_KEY
-    : 'AIzaSyDqaLhFtaP1NkQXUYC55Q853jlD3OCklCM';
-
-const ai = new GoogleGenAI({ apiKey: resolvedKey });
+import { generateJSON } from '@/lib/gemini';
 
 export async function POST(req: Request) {
     try {
         const body = await req.json();
         const { subject, topic, competency, instruction, wordCount } = body;
 
-        let promptText = `You are an expert medical educator helping a student write a high-quality clinical reflection.
+        const promptText = `You are an expert medical educator helping a student write a high-quality clinical reflection.
 Write a comprehensive reflection on the following:
 - Subject: ${subject}
 - Topic: ${topic}
@@ -40,28 +34,10 @@ Guidelines for the sections:
 6. Action Plan (Future Improvement): Steps to improve knowledge, skills, behavior, or clinical approach next time.
 `;
 
-        let response;
-        try {
-            response = await ai.models.generateContent({
-                model: 'gemini-1.5-pro',
-                contents: promptText,
-                config: { responseMimeType: 'application/json' }
-            });
-        } catch (e: any) {
-            console.warn("gemini-1.5-pro failed, falling back to gemini-2.5-flash", e.message);
-            response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: promptText,
-                config: { responseMimeType: 'application/json' }
-            });
-        }
-
-        const text = response.text || '{}';
-        const parsed = JSON.parse(text);
-
+        const parsed = await generateJSON(promptText);
         return NextResponse.json({ success: true, reflection: parsed });
     } catch (error: any) {
-        console.warn('Reflection API Error detected. Falling back to local mock data.', error.message);
+        console.warn('Reflection API Error:', error.message);
         return NextResponse.json({
             success: true,
             reflection: {

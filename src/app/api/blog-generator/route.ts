@@ -1,11 +1,5 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
-
-const resolvedKey = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'dummy-gemini-key'
-    ? process.env.GEMINI_API_KEY
-    : 'AIzaSyDqaLhFtaP1NkQXUYC55Q853jlD3OCklCM';
-
-const ai = new GoogleGenAI({ apiKey: resolvedKey });
+import { generateJSON } from '@/lib/gemini';
 
 export async function POST(req: Request) {
     let body: any = {};
@@ -13,7 +7,7 @@ export async function POST(req: Request) {
         body = await req.json();
         const { topic, category } = body;
 
-        let promptText = `Act as an expert Medical SEO content writer. Create a fully optimized blog post about: "${topic}" in the category "${category}".
+        const promptText = `Act as an expert Medical SEO content writer. Create a fully optimized blog post about: "${topic}" in the category "${category}".
 Return ONLY a raw valid JSON object. Do not return markdown blocks or backticks. Format exactly matching this structure:
 {
   "title": "A highly engaging SEO optimized title",
@@ -29,30 +23,12 @@ Return ONLY a raw valid JSON object. Do not return markdown blocks or backticks.
       { "question": "Relevant FAQ Question 2?", "answer": "Answer 2" }
   ]
 }
-Do NOT wrap in markdown \`\`\`json \`\`\`. Escape all strings properly. Ensure rigorous quality for medical education technology.`;
+Escape all strings properly. Ensure rigorous quality for medical education technology.`;
 
-        let response;
-        try {
-            response = await ai.models.generateContent({
-                model: 'gemini-1.5-flash',
-                contents: promptText,
-                config: { responseMimeType: 'application/json' }
-            });
-        } catch (e: any) {
-            console.warn("gemini-1.5-flash failed, catching with gemini-2.5-flash", e.message);
-            response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: promptText,
-                config: { responseMimeType: 'application/json' }
-            });
-        }
-
-        const text = response.text || '{}';
-        const parsed = JSON.parse(text);
-
+        const parsed = await generateJSON(promptText);
         return NextResponse.json({ success: true, blog: parsed });
     } catch (error: any) {
-        console.warn('API Key Error/Exhaustion detected. Falling back to local mock data.', error.message);
+        console.warn('Blog Gen API Error:', error.message);
         return NextResponse.json({
             success: true,
             blog: {

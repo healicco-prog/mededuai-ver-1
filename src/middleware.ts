@@ -60,6 +60,13 @@ export function middleware(request: NextRequest) {
   const roleCookie = request.cookies.get('role');
   const role = roleCookie?.value;
 
+  // ── Root path: Always show landing page ───────────
+  // Let all users (authenticated or not) see the landing/home page.
+  // Authenticated users can navigate to their dashboard via sidebar links.
+  if (pathname === '/') {
+    return NextResponse.next();
+  }
+
   // Protect all /dashboard routes
   if (pathname.startsWith('/dashboard')) {
     if (!role) {
@@ -91,15 +98,22 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Redirect authenticated users away from login pages
-  if ((pathname === '/login' || pathname === '/controlpanel') && role) {
-    return NextResponse.redirect(new URL(getHomeUrl(role), request.url));
+  // Protect control panel routes
+  if (pathname.startsWith('/contrl-panl')) {
+    if (!role) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+    if (role !== 'superadmin' && role !== 'masteradmin') {
+      return NextResponse.redirect(new URL(getHomeUrl(role), request.url));
+    }
   }
+
+  // Let authenticated users still access login/signup pages
+  // (e.g. to switch accounts or view the public login form)
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/api/:path*', '/dashboard/:path*', '/login', '/controlpanel'],
+  matcher: ['/', '/api/:path*', '/dashboard/:path*', '/contrl-panl/:path*', '/login', '/signup', '/controlpanel'],
 };
-

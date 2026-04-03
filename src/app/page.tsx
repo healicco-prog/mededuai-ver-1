@@ -1,12 +1,33 @@
 "use client";
 
-import { useState } from 'react';
-import { BookOpen, Mic, Stethoscope, ChevronRight, Menu, X, Star } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { BookOpen, Mic, Stethoscope, ChevronRight, Menu, X, Star, Download } from 'lucide-react';
 import Link from 'next/link';
 import MededuLogo from '@/components/MededuLogo';
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
 export default function LandingPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e as BeforeInstallPromptEvent);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    setInstallPrompt(null);
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-cyan-900 selection:text-white">
@@ -65,7 +86,7 @@ export default function LandingPage() {
             The all-in-one web portal for MBBS, BDS, and Nursing students. Experience personalized viva simulations, AI-generated structured notes, and smart case presentations.
           </p>
           
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-4 w-full max-w-md mx-auto">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-4 w-full max-w-lg mx-auto">
             <Link 
               href="/login"
               className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-2xl text-lg font-bold hover:shadow-lg hover:shadow-cyan-500/30 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-2"
@@ -73,6 +94,15 @@ export default function LandingPage() {
               Explore MedEduAI
               <ChevronRight className="w-5 h-5" />
             </Link>
+            {installPrompt && (
+              <button
+                onClick={handleInstall}
+                className="w-full sm:w-auto px-8 py-4 bg-white/10 border border-white/20 text-white rounded-2xl text-lg font-bold hover:bg-white/20 hover:shadow-lg hover:shadow-white/10 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-2 backdrop-blur-sm"
+              >
+                <Download className="w-5 h-5" />
+                Install App
+              </button>
+            )}
           </div>
         </div>
       </section>

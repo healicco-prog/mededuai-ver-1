@@ -1,18 +1,12 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
-
-const resolvedKey = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'dummy-gemini-key'
-    ? process.env.GEMINI_API_KEY
-    : 'AIzaSyDqaLhFtaP1NkQXUYC55Q853jlD3OCklCM';
-
-const ai = new GoogleGenAI({ apiKey: resolvedKey });
+import { generateJSON } from '@/lib/gemini';
 
 export async function POST(req: Request) {
     try {
         const body = await req.json();
         const { subject, topics, essayType, numQs } = body;
 
-        let promptText = `Generate ${numQs} high-yield ${essayType} for medical examination. 
+        const promptText = `Generate ${numQs} high-yield ${essayType} for medical examination. 
 Subject Matter: ${subject}
 Topics Covered: ${topics}
 
@@ -23,25 +17,7 @@ If generating Short Answer Questions (SAQs), keep them specific and concise.
 Just return a plain array like:
 ["Question 1...", "Question 2...", "Question 3..."]`;
 
-        let response;
-        try {
-            response = await ai.models.generateContent({
-                model: 'gemini-1.5-pro',
-                contents: promptText,
-                config: { responseMimeType: 'application/json' }
-            });
-        } catch (e: any) {
-            console.warn("gemini-1.5-pro failed, falling back to gemini-2.5-flash", e.message);
-            response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: promptText,
-                config: { responseMimeType: 'application/json' }
-            });
-        }
-
-        const text = response.text || '[]';
-        const parsed = JSON.parse(text);
-
+        const parsed = await generateJSON(promptText);
         return NextResponse.json({ success: true, questions: parsed });
     } catch (error: any) {
         console.warn('Essay Generator API Error:', error.message);

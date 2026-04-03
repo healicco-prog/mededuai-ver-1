@@ -1,11 +1,5 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
-
-const resolvedKey = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'dummy-gemini-key'
-    ? process.env.GEMINI_API_KEY
-    : 'AIzaSyDqaLhFtaP1NkQXUYC55Q853jlD3OCklCM';
-
-const ai = new GoogleGenAI({ apiKey: resolvedKey });
+import { generateText } from '@/lib/gemini';
 
 export async function POST(req: Request) {
     try {
@@ -48,7 +42,6 @@ Aim for 400-600 words.`
             : depth === 'Expert' ? 'Include expert-level analysis, research references, latest guidelines, and critical evaluation.'
             : '';
 
-        // For multiple questions, generate all answers in one call
         const questionsFormatted = questionsList.map((q: string, i: number) => `**Question ${i + 1}:** ${q}`).join('\n\n');
 
         const promptText = `You are an expert medical educator preparing model answers for ${course} students.
@@ -73,46 +66,29 @@ FORMAT INSTRUCTIONS:
 - Use proper markdown formatting with headers, bold, italics, bullet points, and tables
 - Make every answer medically accurate, well-structured, and examination-worthy`;
 
-        let response;
-        try {
-            response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: promptText,
-            });
-        } catch (e: any) {
-            console.warn("gemini-2.5-flash failed, falling back to gemini-1.5-flash", e.message);
-            response = await ai.models.generateContent({
-                model: 'gemini-1.5-flash',
-                contents: promptText,
-            });
-        }
-
-        const text = response.text || 'No answer generated.';
-
-        return NextResponse.json({ success: true, answer: text });
+        const text = await generateText(promptText);
+        return NextResponse.json({ success: true, answer: text || 'No answer generated.' });
     } catch (error: any) {
         console.warn('Essay Answer Gen API Error:', error.message);
-        const fallbackBody = await req.clone().json().catch(() => ({}));
         return NextResponse.json({
             success: true,
             answer: `# Model Answers
 
 ## Question 1
-${fallbackBody.question || fallbackBody.questions?.[0] || 'N/A'}
+(AI generation temporarily unavailable)
 
 ### Introduction
-This is a mock response. In production, detailed AI-generated model answers will appear here.
+This is a fallback response. The AI service is temporarily unavailable.
 
 ### Main Discussion
-- **Point 1**: Comprehensive explanation of the first key aspect
-- **Point 2**: Detailed analysis of the second key aspect  
-- **Point 3**: Clinical correlations and practical applications
+- **Point 1**: Please try again shortly
+- **Point 2**: The AI models will reconnect automatically
 
 ### Conclusion
-A well-structured summary reiterating the key points discussed above.
+Please retry your request.
 
 ---
-*Note: This is a mock response. Connect your API key for full functionality.*`,
+*Note: This is a fallback response. The AI service will recover automatically.*`,
             isMock: true
         });
     }

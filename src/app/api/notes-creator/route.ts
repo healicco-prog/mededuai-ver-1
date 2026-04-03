@@ -1,11 +1,5 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
-
-const resolvedKey = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'dummy-gemini-key'
-    ? process.env.GEMINI_API_KEY
-    : 'AIzaSyDqaLhFtaP1NkQXUYC55Q853jlD3OCklCM';
-
-const ai = new GoogleGenAI({ apiKey: resolvedKey });
+import { generateText } from '@/lib/gemini';
 
 export async function POST(req: Request) {
     try {
@@ -59,42 +53,22 @@ ${instructions ? `Additional instructions: ${instructions}` : ''}
 Use proper markdown formatting with headers, bold, italics, bullet points, and tables where appropriate.
 Make the notes medically accurate, well-structured, and suitable for ${course} students.`;
 
-        let response;
-        try {
-            response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: promptText,
-            });
-        } catch (e: any) {
-            console.warn("gemini-2.5-flash failed, falling back to gemini-1.5-flash", e.message);
-            response = await ai.models.generateContent({
-                model: 'gemini-1.5-flash',
-                contents: promptText,
-            });
-        }
-
-        const text = response.text || 'No content generated.';
-
-        return NextResponse.json({ success: true, notes: text });
+        const text = await generateText(promptText);
+        return NextResponse.json({ success: true, notes: text || 'No content generated.' });
     } catch (error: any) {
         console.warn('Notes Creator API Error:', error.message);
         return NextResponse.json({
             success: true,
-            notes: `# ${(await req.clone().json().catch(() => ({}))).topic || 'Topic'} - Study Notes
+            notes: `# Study Notes
 
 ## Introduction
-This is a mock response. In production, AI-generated comprehensive notes will appear here covering all aspects of the topic.
+AI-generated notes are temporarily unavailable. Please try again shortly.
 
 ## Key Concepts
-- **Concept 1**: Detailed explanation with clinical correlation
-- **Concept 2**: Important definitions and terminology
-- **Concept 3**: Pathophysiology and mechanisms
-
-## Summary
-Key takeaways and high-yield points for examination preparation.
+The AI service will reconnect automatically.
 
 ---
-*Note: This is a mock response. Connect your API key for full functionality.*`,
+*Note: This is a fallback response.*`,
             isMock: true
         });
     }

@@ -1,18 +1,12 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
-
-const resolvedKey = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'dummy-gemini-key'
-    ? process.env.GEMINI_API_KEY
-    : 'AIzaSyDqaLhFtaP1NkQXUYC55Q853jlD3OCklCM';
-
-const ai = new GoogleGenAI({ apiKey: resolvedKey });
+import { generateJSON } from '@/lib/gemini';
 
 export async function POST(req: Request) {
     try {
         const body = await req.json();
         const { course, subject, topic } = body;
 
-        let promptText = `Generate a highly structured academic MBBS Lesson Plan for the topic: ${topic} within ${subject} (${course}).
+        const promptText = `Generate a highly structured academic MBBS Lesson Plan for the topic: ${topic} within ${subject} (${course}).
         Return ONLY a raw valid JSON object. Do not return markdown blocks or backticks. Format exactly matching this structure:
         {
           "learningObjectives": ["objective 1", "objective 2", "objective 3", "objective 4"],
@@ -32,30 +26,12 @@ export async function POST(req: Request) {
           "takeHomeMessage": "One concise core message",
           "suggestedReading": ["Textbook reference 1", "Textbook reference 2"]
         }
-        Do NOT wrap in markdown \`\`\`json \`\`\`. Ensure the text is properly escaped. Fill the content intelligently and rigorously for medical education.`;
+        Fill the content intelligently and rigorously for medical education.`;
 
-        let response;
-        try {
-            response = await ai.models.generateContent({
-                model: 'gemini-1.5-flash',
-                contents: promptText,
-                config: { responseMimeType: 'application/json' }
-            });
-        } catch (e: any) {
-            console.warn("gemini-1.5-flash failed, catching with gemini-2.5-flash", e.message);
-            response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: promptText,
-                config: { responseMimeType: 'application/json' }
-            });
-        }
-
-        const text = response.text || '{}';
-        const parsed = JSON.parse(text);
-
+        const parsed = await generateJSON(promptText);
         return NextResponse.json({ success: true, plan: parsed });
     } catch (error: any) {
-        console.warn('Lesson Plan API Key Error/Exhaustion detected. Falling back to local mock data.', error.message);
+        console.warn('Lesson Plan API Error:', error.message);
         return NextResponse.json({
             success: true,
             plan: {

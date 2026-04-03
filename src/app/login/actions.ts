@@ -9,11 +9,15 @@ export async function setRoleCookieAndRedirect(role: string) {
         'master_admin': 'masteradmin',
         'institution_admin': 'instadmin',
         'department_admin': 'deptadmin',
+        'instadmin': 'instadmin',
+        'deptadmin': 'deptadmin',
+        'superadmin': 'superadmin',
+        'masteradmin': 'masteradmin',
         'teacher': 'teacher',
         'student': 'student'
     };
 
-    const frontendRole = roleMapping[role] || 'student';
+    const frontendRole = roleMapping[role] || role || 'student';
 
     const cookieStore = await cookies();
     cookieStore.set('role', frontendRole, { 

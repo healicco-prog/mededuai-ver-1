@@ -1,13 +1,92 @@
 import { GoogleGenAI } from '@google/genai';
 
-const resolvedKey = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'dummy-gemini-key'
-    ? process.env.GEMINI_API_KEY
-    : 'AIzaSyDqaLhFtaP1NkQXUYC55Q853jlD3OCklCM';
+// ─────────────────────────────────────────────────────────────
+// MedEduAI – Centralized Gemini AI Configuration
+// ─────────────────────────────────────────────────────────────
+
+const resolvedKey = process.env.GEMINI_API_KEY;
+
+if (!resolvedKey) {
+    console.error('GEMINI_API_KEY environment variable is not set. AI features will use mock fallbacks.');
+}
 
 const ai = new GoogleGenAI({ apiKey: resolvedKey });
 
-// Using gemini-2.5-flash as the latest standard model
-const DEFAULT_MODEL = 'gemini-2.5-flash';
+// Model hierarchy – ordered by preference (confirmed working on mededuai-prod)
+const MODELS = {
+    primary: 'gemini-2.5-flash',       // Primary: confirmed working
+    secondary: 'gemini-1.5-flash',     // Fallback
+    tertiary: 'gemini-2.0-flash',      // Secondary fallback
+} as const;
+
+/**
+ * Smart Gemini content generation with automatic model fallback.
+ * Tries models in order until one succeeds.
+ * 
+ * @param prompt - The prompt text to send
+ * @param options - Optional config (json mode, model preference)
+ * @returns The generated text content
+ */
+export async function generateWithFallback(
+    prompt: string,
+    options?: {
+        jsonMode?: boolean;
+        preferredModels?: string[];
+    }
+): Promise<string> {
+    const models = options?.preferredModels || [MODELS.primary, MODELS.secondary, MODELS.tertiary];
+    const config = options?.jsonMode ? { responseMimeType: 'application/json' as const } : undefined;
+
+    let lastError: Error | null = null;
+
+    for (const model of models) {
+        try {
+            const response = await ai.models.generateContent({
+                model,
+                contents: prompt,
+                ...(config ? { config } : {}),
+            });
+            return response.text || (options?.jsonMode ? '{}' : '');
+        } catch (e: any) {
+            console.warn(`[MedEduAI AI] Model ${model} failed:`, e.message);
+            lastError = e;
+        }
+    }
+
+    throw lastError || new Error('All AI models failed');
+}
+
+/**
+ * Generate structured JSON content with automatic parsing.
+ */
+export async function generateJSON<T = any>(
+    prompt: string,
+    preferredModels?: string[]
+): Promise<T> {
+    const text = await generateWithFallback(prompt, {
+        jsonMode: true,
+        preferredModels,
+    });
+    return JSON.parse(text);
+}
+
+/**
+ * Generate plain text/markdown content.
+ */
+export async function generateText(
+    prompt: string,
+    preferredModels?: string[]
+): Promise<string> {
+    return generateWithFallback(prompt, {
+        jsonMode: false,
+        preferredModels,
+    });
+}
+
+// ── Re-export the models and AI instance for advanced usage ──
+export { ai, MODELS };
+
+// ── Existing LMS functions (updated to use centralized helper) ──
 
 /**
  * LMS Content Generator Prompt Template
@@ -27,21 +106,7 @@ Follow this schema EXACTLY:
   "questions3": ["3 mark reasoning Q1", "Q2"]
 }`;
 
-    try {
-        const response = await ai.models.generateContent({
-            model: DEFAULT_MODEL,
-            contents: prompt,
-            config: {
-                responseMimeType: 'application/json',
-            }
-        });
-
-        const text = response.text || '{}';
-        return JSON.parse(text);
-    } catch (error) {
-        console.error('Error generating LMS Bundle:', error);
-        throw new Error('Failed to generate LMS content from AI.');
-    }
+    return generateJSON(prompt);
 }
 
 /**
@@ -73,21 +138,7 @@ Reply exclusively with this JSON structure:
   "missingKeywords": ["keyword1", "keyword2"]
 }`;
 
-    try {
-        const response = await ai.models.generateContent({
-            model: DEFAULT_MODEL,
-            contents: prompt,
-            config: {
-                responseMimeType: 'application/json',
-            }
-        });
-
-        const text = response.text || '{}';
-        return JSON.parse(text);
-    } catch (error) {
-        console.error('Error evaluating script:', error);
-        throw new Error('Failed to evaluate script.');
-    }
+    return generateJSON(prompt);
 }
 
 /**
@@ -102,14 +153,5 @@ Draft:
 ${roughDraft}
 """`;
 
-    try {
-        const response = await ai.models.generateContent({
-            model: DEFAULT_MODEL,
-            contents: prompt,
-        });
-        return response.text;
-    } catch (error) {
-        console.error('Error structuring answer:', error);
-        throw new Error('Failed to structure answer.');
-    }
+    return generateText(prompt);
 }

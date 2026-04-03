@@ -1,12 +1,5 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
-
-// If the local environment variable is just the scaffolding dummy key, fallback to the hardcoded authentic key
-const resolvedKey = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'dummy-gemini-key'
-    ? process.env.GEMINI_API_KEY
-    : 'AIzaSyDqaLhFtaP1NkQXUYC55Q853jlD3OCklCM';
-
-const ai = new GoogleGenAI({ apiKey: resolvedKey });
+import { generateJSON } from '@/lib/gemini';
 
 export async function POST(req: Request) {
     let body;
@@ -40,7 +33,7 @@ You are generating notes for BDS dental students. Your content must be:
 • **Focused on dental relevance** — emphasize oral anatomy, dental histology, dental materials, prosthodontics, orthodontics, oral pathology, oral medicine, conservative dentistry, periodontics, and clinical dental applications as relevant.
 • **Based on the standard of top Indian dental colleges** such as Maulana Azad Institute of Dental Sciences (MAIDS Delhi), Government Dental College Mumbai, Manipal College of Dental Sciences, SDM Dharwad, and Saveetha Dental College.
 • **Aligned with best dental resources** — incorporate depth from B.D. Chaurasia (dental anatomy), Shafer's Oral Pathology, Orban's Oral Histology, Grossman's Endodontics, T.P. Lahiri Orthodontics, and Sturdevant's Conservative Dentistry.
-• **Highlight dental-specific applications** — relate general medical topics to their dental implications (e.g., how systemic diseases affect the oral cavity, dental pharmacology dosages, oral manifestations of diseases).
+• **Highlight dental-specific applications** — relate general medical topics to their dental implications.
 • **Include BDS exam-oriented points** — prepare students for BDS university exams and MDS entrance (NEET-MDS).
 `;
         } else if (courseUpper.includes('NURSING') || courseUpper.includes('BSC')) {
@@ -49,9 +42,9 @@ COURSE SPECIALIZATION — BSc Nursing:
 You are generating notes for BSc Nursing students. Your content must be:
 • **Focused on nursing practice and patient care** — emphasize nursing procedures, patient assessment, care plans, health education, community health, maternal & child health nursing, medical-surgical nursing, and psychiatric nursing as relevant.
 • **Based on the standard of top Indian nursing colleges** such as RAK College of Nursing (Delhi), CMC Vellore Nursing, AIIMS College of Nursing, NIMHANS Nursing, Manipal College of Nursing, and Armed Forces Nursing Service.
-• **Aligned with best nursing resources** — incorporate content standards from Brunner & Suddarth's Medical-Surgical Nursing, Park's Community Medicine, D.C. Dutta's Obstetrics, B.T. Basavanthappa's Nursing textbooks, and INC (Indian Nursing Council) syllabus guidelines.
-• **Emphasize nursing-specific competencies** — nursing process (assessment, diagnosis, planning, implementation, evaluation), health promotion, drug administration & dosage calculations, ethical and legal aspects of nursing, and evidence-based nursing practice.
-• **Include nursing exam-oriented content** — prepare students for BSc Nursing university exams and competitive nursing entrance examinations.
+• **Aligned with best nursing resources** — incorporate content standards from Brunner & Suddarth's Medical-Surgical Nursing, Park's Community Medicine, D.C. Dutta's Obstetrics, B.T. Basavanthappa's Nursing textbooks, and INC guidelines.
+• **Emphasize nursing-specific competencies** — nursing process (assessment, diagnosis, planning, implementation, evaluation), health promotion, drug administration & dosage calculations, ethical and legal aspects.
+• **Include nursing exam-oriented content** — prepare students for BSc Nursing university exams and competitive examinations.
 `;
         }
 
@@ -79,48 +72,17 @@ You are generating notes for BSc Nursing students. Your content must be:
 
         promptInstructions += `\nReturn ONLY a robust, accurate valid JSON object containing exactly the keys defined above and with the values as strings.`;
 
-        let response;
-        try {
-            // First try gemini-1.5-flash-8b (fastest, highest free tier)
-            response = await ai.models.generateContent({
-                model: 'gemini-1.5-flash-8b',
-                contents: promptInstructions,
-                config: { responseMimeType: 'application/json' }
-            });
-        } catch (e: any) {
-            console.warn("gemini-1.5-flash-8b failed, falling back to gemini-1.5-flash", e.message);
-            try {
-                // Fallback to gemini-1.5-flash
-                response = await ai.models.generateContent({
-                    model: 'gemini-1.5-flash',
-                    contents: promptInstructions,
-                    config: { responseMimeType: 'application/json' }
-                });
-            } catch (e2: any) {
-                console.warn("gemini-1.5-flash failed, falling back to gemini-2.5-flash", e2.message);
-                // Final fallback
-                response = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash',
-                    contents: promptInstructions,
-                    config: { responseMimeType: 'application/json' }
-                });
-            }
-        }
-
-        const text = response.text || '{}';
-        const parsed = JSON.parse(text);
-
+        const parsed = await generateJSON(promptInstructions);
         return NextResponse.json({ success: true, generatedNotes: parsed });
     } catch (error: any) {
-        console.warn('Creator API Key Error/Exhaustion detected. Falling back to local mock data generator to preserve UI experience.', error.message);
+        console.warn('Creator API Error:', error.message);
 
-        // Generate beautiful structured mock data dynamically matching their schema so the app never breaks
+        // Generate structured mock data dynamically matching their schema
         const mockedNotes: Record<string, string> = {};
         for (const item of lmsStructure) {
             if (item.type === 'text') {
                 mockedNotes[item.id] = `**[Generated ${item.title}]**\n\nThis is a highly structured, auto-generated placeholder for the topic: **${topicName}**.\n\n* ${item.description}\n* Automatically configured to match your requested format: '${item.value}'\n\n*(Note: Live Gemini generation was bypassed due to API Key Quota/Revocation).*`;
             } else if (item.title.toLowerCase().includes('mcq')) {
-                // Generate 5 perfectly formatted Interactive MCQs for Fallback
                 const count = parseInt(item.value, 10) || 5;
                 if (count === 0) {
                     mockedNotes[item.id] = 'None requested.';
@@ -132,7 +94,6 @@ You are generating notes for BSc Nursing students. Your content must be:
                     ).join('\n\n');
                 }
             } else if (item.title.toLowerCase().includes('flashcard')) {
-                // Generate 5 fully functional interactive Flashcards
                 const count = parseInt(item.value, 10) || 5;
                 if (count === 0) {
                     mockedNotes[item.id] = 'None requested.';

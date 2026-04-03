@@ -1,12 +1,5 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
-
-// If the local environment variable is just the scaffolding dummy key, fallback to the hardcoded authentic key
-const resolvedKey = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'dummy-gemini-key'
-    ? process.env.GEMINI_API_KEY
-    : 'AIzaSyDqaLhFtaP1NkQXUYC55Q853jlD3OCklCM';
-
-const ai = new GoogleGenAI({ apiKey: resolvedKey });
+import { generateJSON } from '@/lib/gemini';
 
 export async function POST(req: Request) {
     try {
@@ -18,10 +11,7 @@ export async function POST(req: Request) {
         promptInstructions += `You strictly must follow the requested JSON format below. Return a valid JSON object where the keys are the frame IDs, and the values are the generated question text as strings.\n`;
         promptInstructions += `Generate highly accurate, academically rigorous, and relevant questions for the following requirements:\n\n`;
 
-        let schemaObject: Record<string, string> = {};
-
         for (const frame of frames) {
-            schemaObject[frame.id] = `(string) Generated question text`;
             promptInstructions += `- Frame ID "${frame.id}": Create a question of type "${frame.type}" for ${frame.marks} Marks. It is a ${frame.mainOrSub} question. `;
             if (frame.subdivided) {
                 promptInstructions += `Make sure to subdivide the question appropriately to total ${frame.marks} marks. `;
@@ -40,43 +30,12 @@ export async function POST(req: Request) {
             }
         }
 
-        promptInstructions += `\nCRITICAL JSON SCHEMA REQUIREMENT: You must return ONLY a raw, valid JSON object. Do not wrap it in markdown blockquotes like \`\`\`json. Every value must be a single correctly escaped string. Do not use unescaped internal quotes or newlines that break the JSON parser. The keys must exactly match the Frame IDs provided.\n`;
+        promptInstructions += `\nCRITICAL JSON SCHEMA REQUIREMENT: You must return ONLY a raw, valid JSON object. Do not wrap it in markdown blockquotes. Every value must be a single correctly escaped string. The keys must exactly match the Frame IDs provided.\n`;
 
-        let response;
-        try {
-            response = await ai.models.generateContent({
-                model: 'gemini-1.5-flash-8b',
-                contents: promptInstructions,
-                config: { responseMimeType: 'application/json' }
-            });
-        } catch (e: any) {
-            console.warn("gemini-1.5-flash-8b failed, falling back to gemini-1.5-flash", e.message);
-            try {
-                response = await ai.models.generateContent({
-                    model: 'gemini-1.5-flash',
-                    contents: promptInstructions,
-                    config: { responseMimeType: 'application/json' }
-                });
-            } catch (e2: any) {
-                console.warn("gemini-1.5-flash failed, falling back to gemini-2.5-flash", e2.message);
-                response = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash',
-                    contents: promptInstructions,
-                    config: { responseMimeType: 'application/json' }
-                });
-            }
-        }
-
-        // Clean up markdown blockquotes if Gemini hallucinates them
-        let text = response.text || '{}';
-        if (text.startsWith('```json')) text = text.replace(/^```json\n/, '').replace(/\n```$/, '');
-        else if (text.startsWith('```')) text = text.replace(/^```\n/, '').replace(/\n```$/, '');
-        
-        const parsed = JSON.parse(text);
-
+        const parsed = await generateJSON(promptInstructions);
         return NextResponse.json({ success: true, generatedQuestions: parsed });
     } catch (error: any) {
-        console.warn('Q-Paper API Key Error/Exhaustion detected. Falling back to local mock data generator.', error.message);
+        console.warn('Q-Paper API Error:', error.message);
 
         const body = await req.json().catch(() => ({ frames: [], topics: 'Unknown' }));
         const mockedQuestions: Record<string, string> = {};

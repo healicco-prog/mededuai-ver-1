@@ -1,11 +1,5 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
-
-const resolvedKey = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'dummy-gemini-key'
-    ? process.env.GEMINI_API_KEY
-    : 'AIzaSyDqaLhFtaP1NkQXUYC55Q853jlD3OCklCM';
-
-const ai = new GoogleGenAI({ apiKey: resolvedKey });
+import { generateWithFallback } from '@/lib/gemini';
 
 export async function POST(req: Request) {
     try {
@@ -36,31 +30,16 @@ Each object must have exactly these fields:
 Example format:
 [{"id":1,"question":"Describe the anatomy of brachial plexus with its clinical significance.","type":"long","frequency":"Very Common"}]`;
 
-        let response;
-        try {
-            response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: promptText,
-            });
-        } catch (e: any) {
-            console.warn("gemini-2.5-flash failed, falling back to gemini-1.5-flash", e.message);
-            response = await ai.models.generateContent({
-                model: 'gemini-1.5-flash',
-                contents: promptText,
-            });
-        }
+        const text = await generateWithFallback(promptText);
 
-        let text = response.text || '[]';
-        
         // Clean up the response - remove markdown code blocks if present
-        text = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+        let cleanText = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
         
         let questions;
         try {
-            questions = JSON.parse(text);
+            questions = JSON.parse(cleanText);
         } catch {
-            // If JSON parsing fails, try to extract array from the text
-            const match = text.match(/\[[\s\S]*\]/);
+            const match = cleanText.match(/\[[\s\S]*\]/);
             if (match) {
                 questions = JSON.parse(match[0]);
             } else {
@@ -71,7 +50,6 @@ Example format:
         return NextResponse.json({ success: true, questions });
     } catch (error: any) {
         console.warn('Essay Questions API Error:', error.message);
-        // Return mock questions as fallback
         return NextResponse.json({
             success: true,
             questions: Array.from({ length: 5 }, (_, i) => ({

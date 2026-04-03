@@ -1,18 +1,12 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
-
-const resolvedKey = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'dummy-gemini-key'
-    ? process.env.GEMINI_API_KEY
-    : 'AIzaSyDqaLhFtaP1NkQXUYC55Q853jlD3OCklCM';
-
-const ai = new GoogleGenAI({ apiKey: resolvedKey });
+import { generateJSON } from '@/lib/gemini';
 
 export async function POST(req: Request) {
     try {
         const body = await req.json();
         const { subject, topic, sessionType, totalMarks } = body;
 
-        let promptText = `You are an expert medical educator.
+        const promptText = `You are an expert medical educator.
 Create a detailed evaluation rubric for the following assessment.
 
 Subject: ${subject}
@@ -43,31 +37,12 @@ Return ONLY a raw valid JSON object. Do not return markdown blocks or backticks.
       "marks": 5
     }
   ]
-}
-Do NOT wrap in markdown \`\`\`json \`\`\`.`;
+}`;
 
-        let response;
-        try {
-            response = await ai.models.generateContent({
-                model: 'gemini-1.5-flash',
-                contents: promptText,
-                config: { responseMimeType: 'application/json' }
-            });
-        } catch (e: any) {
-            console.warn("gemini-1.5-flash failed, catching with gemini-2.5-flash", e.message);
-            response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: promptText,
-                config: { responseMimeType: 'application/json' }
-            });
-        }
-
-        const text = response.text || '{}';
-        const parsed = JSON.parse(text);
-
+        const parsed = await generateJSON(promptText);
         return NextResponse.json({ success: true, rubric: parsed.rubric });
     } catch (error: any) {
-        console.warn('Rubrics API Key Error/Exhaustion detected. Falling back to local mock data.', error.message);
+        console.warn('Rubrics API Error:', error.message);
         return NextResponse.json({
             success: true,
             rubric: [
