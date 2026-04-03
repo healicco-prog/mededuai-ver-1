@@ -10,7 +10,17 @@ if (!resolvedKey) {
     console.error('GEMINI_API_KEY environment variable is not set. AI features will use mock fallbacks.');
 }
 
-const ai = new GoogleGenAI({ apiKey: resolvedKey });
+// Lazy-initialize the client so the build doesn't crash when the key
+// is only provided at runtime (e.g. Cloud Run env vars).
+let _ai: GoogleGenAI | null = null;
+function getAI(): GoogleGenAI {
+    if (!_ai) {
+        const key = process.env.GEMINI_API_KEY || resolvedKey;
+        if (!key) throw new Error('GEMINI_API_KEY is not set');
+        _ai = new GoogleGenAI({ apiKey: key });
+    }
+    return _ai;
+}
 
 // Model hierarchy – ordered by preference (confirmed working on mededuai-prod)
 const MODELS = {
@@ -41,7 +51,7 @@ export async function generateWithFallback(
 
     for (const model of models) {
         try {
-            const response = await ai.models.generateContent({
+            const response = await getAI().models.generateContent({
                 model,
                 contents: prompt,
                 ...(config ? { config } : {}),
@@ -84,7 +94,7 @@ export async function generateText(
 }
 
 // ── Re-export the models and AI instance for advanced usage ──
-export { ai, MODELS };
+export { getAI, MODELS };
 
 // ── Existing LMS functions (updated to use centralized helper) ──
 

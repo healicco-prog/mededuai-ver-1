@@ -1,0 +1,938 @@
+﻿python.exe : 
+C:\Users\Dr Narayana K\
+AppData\Local\Google\Cl
+oud SDK\google-cloud-sd
+k\lib\third_party\googl
+e\cloud\__init__.py:20:
+ UserWarning: 
+pkg_resources is 
+deprecated as an API. 
+See https://setuptools.
+pypa.io/en/latest/pkg_r
+esources.html. The 
+pkg_resources package 
+is slated for removal 
+as early as 
+2025-11-30. Refrain 
+from using this 
+package or pin to 
+Setuptools<81.
+At C:\Users\Dr 
+Narayana K\AppData\Loca
+l\Google\Cloud SDK\goog
+le-cloud-sdk\bin\gcloud
+.ps1:114 char:3
++   & 
+"$cloudsdk_python" 
+$run_args_array
++   ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
+    + CategoryInfo     
+         : 
+NotSpecified:     
+(C:\Users\Dr Nar...    
+ Setuptools<81.:Strin  
+  g) [], RemoteExcepti 
+   on
+    + 
+FullyQualifiedErro    
+rId : NativeCommandE   
+ rror
+ 
+  import pkg_resources
+----------------------------- REMOTE BUILD OUTPUT ------------------------------
+starting build "d4f8bb8a-af69-4eb8-9bf3-5e855ea0d533"
+FETCHSOURCE
+Fetching storage object: gs://run-sources-mededuai-prod-us-central1/services/mededuai-backend/1775207812.643078-3864b31e393f45b389e2f326b332e188.zip#1775207833515892
+Copying gs://run-sources-mededuai-prod-us-central1/services/mededuai-backend/1775207812.643078-3864b31e393f45b389e2f326b332e188.zip#1775207833515892...
+/ [0 files][    0.0 B/ 19.2 MiB]                                                
+/ [1 files][ 19.2 MiB/ 19.2 MiB]
+Operation completed over 1 objects/19.2 MiB.
+Archive:  /tmp/source-archive.zip
+   creating: /workspace/.netlify/
+   creating: /workspace/public/
+   creating: /workspace/src/
+   creating: /workspace/supabase/
+   creating: /workspace/.netlify/deploy/
+   creating: /workspace/.netlify/edge-functions/
+   creating: /workspace/.netlify/edge-functions-dist/
+   creating: /workspace/.netlify/functions/
+   creating: /workspace/.netlify/functions-internal/
+   creating: /workspace/.netlify/plugins/
+   creating: /workspace/.netlify/static/
+   creating: /workspace/.netlify/v1/
+   creating: /workspace/.netlify/deploy/v1/
+   creating: /workspace/.netlify/deploy/v1/blobs/
+   creating: /workspace/.netlify/deploy/v1/blobs/deploy/
+   creating: /workspace/.netlify/edge-functions/.vendor/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/server/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/lib/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/shim/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/v1-7-0--edge-utils.netlify.app/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/x/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/async/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/bytes/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/crypto/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/datetime/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/encoding/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/flags/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/fmt/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/http/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/path/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/streams/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/testing/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/_util/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/util/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/_process/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/_util/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/crypto/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/process/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/readline/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/streams/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/util/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/x/htmlrewriter@v1.0.0/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/x/path_to_regexp@v6.2.1/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/x/htmlrewriter@v1.0.0/pkg/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/x/htmlrewriter@v1.0.0/src/
+   creating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/v1-7-0--edge-utils.netlify.app/logger/
+   creating: /workspace/.netlify/functions-internal/___netlify-server-handler/
+   creating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/
+   creating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/
+   creating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/build/
+   creating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/esm-chunks/
+   creating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/run/
+   creating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/shared/
+   creating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/build/content/
+   creating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/build/functions/
+   creating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/build/templates/
+   creating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/build/content/next-shims/
+   creating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/run/handlers/
+   creating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/run/storage/
+   creating: /workspace/.netlify/static/_next/
+   creating: /workspace/.netlify/static/_next/static/
+   creating: /workspace/.netlify/static/_next/static/chunks/
+   creating: /workspace/.netlify/static/_next/static/media/
+   creating: /workspace/.netlify/static/_next/static/OheuImGMnrJUR8As0RlM-/
+   creating: /workspace/.netlify/v1/functions/
+   creating: /workspace/public/icons/
+   creating: /workspace/src/app/
+   creating: /workspace/src/components/
+   creating: /workspace/src/lib/
+   creating: /workspace/src/store/
+   creating: /workspace/src/types/
+   creating: /workspace/src/app/api/
+   creating: /workspace/src/app/auth/
+   creating: /workspace/src/app/blog/
+   creating: /workspace/src/app/contrl-panl/
+   creating: /workspace/src/app/controlpanel/
+   creating: /workspace/src/app/dashboard/
+   creating: /workspace/src/app/login/
+   creating: /workspace/src/app/signup/
+   creating: /workspace/src/app/api/blog-generator/
+   creating: /workspace/src/app/api/bulk-blog-generator/
+   creating: /workspace/src/app/api/creator/
+   creating: /workspace/src/app/api/elective-sync/
+   creating: /workspace/src/app/api/essay-answer/
+   creating: /workspace/src/app/api/essay-generator/
+   creating: /workspace/src/app/api/essay-questions/
+   creating: /workspace/src/app/api/lesson-plan/
+   creating: /workspace/src/app/api/mcq-generator/
+   creating: /workspace/src/app/api/mentor/
+   creating: /workspace/src/app/api/notes-creator/
+   creating: /workspace/src/app/api/referral/
+   creating: /workspace/src/app/api/reflection-generator/
+   creating: /workspace/src/app/api/rubrics-generator/
+   creating: /workspace/src/app/api/viva/
+   creating: /workspace/src/app/api/vocab/
+   creating: /workspace/src/app/api/creator/q-paper/
+   creating: /workspace/src/app/api/creator/topics/
+   creating: /workspace/src/app/api/referral/stats/
+   creating: /workspace/src/app/auth/callback/
+   creating: /workspace/src/app/auth/forgot-password/
+   creating: /workspace/src/app/auth/reset-password/
+   creating: /workspace/src/app/blog/[slug]/
+   creating: /workspace/src/app/dashboard/admin/
+   creating: /workspace/src/app/dashboard/deptadmin/
+   creating: /workspace/src/app/dashboard/instadmin/
+   creating: /workspace/src/app/dashboard/masteradmin/
+   creating: /workspace/src/app/dashboard/student/
+   creating: /workspace/src/app/dashboard/superadmin/
+   creating: /workspace/src/app/dashboard/teacher/
+   creating: /workspace/src/app/dashboard/admin/attendance/
+   creating: /workspace/src/app/dashboard/admin/blog/
+   creating: /workspace/src/app/dashboard/admin/classroom-generator/
+   creating: /workspace/src/app/dashboard/admin/creator/
+   creating: /workspace/src/app/dashboard/admin/dept-elective/
+   creating: /workspace/src/app/dashboard/admin/elective/
+   creating: /workspace/src/app/dashboard/admin/emr-mcq/
+   creating: /workspace/src/app/dashboard/admin/ems/
+   creating: /workspace/src/app/dashboard/admin/essay-answer/
+   creating: /workspace/src/app/dashboard/admin/lesson-plan/
+   creating: /workspace/src/app/dashboard/admin/lms-db/
+   creating: /workspace/src/app/dashboard/admin/logbook/
+   creating: /workspace/src/app/dashboard/admin/mentoring/
+   creating: /workspace/src/app/dashboard/admin/mentorship/
+   creating: /workspace/src/app/dashboard/admin/notes/
+   creating: /workspace/src/app/dashboard/admin/notes-creator/
+   creating: /workspace/src/app/dashboard/admin/q-paper/
+   creating: /workspace/src/app/dashboard/admin/rubrics-generator/
+   creating: /workspace/src/app/dashboard/admin/timetable/
+   creating: /workspace/src/app/dashboard/admin/tokens/
+   creating: /workspace/src/app/dashboard/admin/users/
+   creating: /workspace/src/app/dashboard/deptadmin/mentoring/
+   creating: /workspace/src/app/dashboard/student/case/
+   creating: /workspace/src/app/dashboard/student/elective/
+   creating: /workspace/src/app/dashboard/student/essay-answer/
+   creating: /workspace/src/app/dashboard/student/essays/
+   creating: /workspace/src/app/dashboard/student/eval/
+   creating: /workspace/src/app/dashboard/student/imp-questions/
+   creating: /workspace/src/app/dashboard/student/mcqs/
+   creating: /workspace/src/app/dashboard/student/mentor/
+   creating: /workspace/src/app/dashboard/student/mentorship/
+   creating: /workspace/src/app/dashboard/student/notes/
+   creating: /workspace/src/app/dashboard/student/notes-creator/
+   creating: /workspace/src/app/dashboard/student/reflection/
+   creating: /workspace/src/app/dashboard/student/structurer/
+   creating: /workspace/src/app/dashboard/student/viva/
+   creating: /workspace/src/app/dashboard/student/vocab/
+   creating: /workspace/src/app/dashboard/teacher/elective/
+   creating: /workspace/src/app/dashboard/teacher/essay-answer/
+   creating: /workspace/src/app/dashboard/teacher/essays/
+   creating: /workspace/src/app/dashboard/teacher/lesson-plan/
+   creating: /workspace/src/app/dashboard/teacher/mcqs/
+   creating: /workspace/src/app/dashboard/teacher/mentorship/
+   creating: /workspace/src/app/dashboard/teacher/notes/
+   creating: /workspace/src/app/dashboard/teacher/notes-creator/
+   creating: /workspace/src/app/dashboard/teacher/rubrics-generator/
+   creating: /workspace/supabase/.temp/
+   creating: /workspace/supabase/migrations/
+  inflating: /workspace/.gcloudignore
+  inflating: /workspace/.gitmodules
+  inflating: /workspace/build_log.txt
+  inflating: /workspace/build_log2.txt
+  inflating: /workspace/cloudbuild.yaml
+  inflating: /workspace/cloud_run_logs.txt
+  inflating: /workspace/cr_build.txt
+  inflating: /workspace/curl_out.txt
+  inflating: /workspace/deno.lock
+  inflating: /workspace/DEPLOYMENT.md
+  inflating: /workspace/deploy_output.txt
+  inflating: /workspace/Dockerfile
+  inflating: /workspace/eslint.config.mjs
+  inflating: /workspace/generate-icons.mjs
+  inflating: /workspace/netlify.toml
+  inflating: /workspace/next-env.d.ts
+  inflating: /workspace/next.config.mjs
+  inflating: /workspace/next.config.ts
+  inflating: /workspace/package-lock.json
+  inflating: /workspace/package.json
+  inflating: /workspace/PGMentor_ReferralCard_old.tsx
+  inflating: /workspace/postcss.config.mjs
+  inflating: /workspace/README.md
+  inflating: /workspace/tsconfig.json
+  inflating: /workspace/url-map-check.yaml
+  inflating: /workspace/url-map.yaml
+  inflating: /workspace/.netlify/edge-functions-import-map.json
+  inflating: /workspace/.netlify/netlify.toml
+  inflating: /workspace/.netlify/state.json
+  inflating: /workspace/.netlify/deploy/v1/blobs/deploy/L19nbG9iYWwtZXJyb3I
+  inflating: /workspace/.netlify/deploy/v1/blobs/deploy/L19ub3QtZm91bmQ
+  inflating: /workspace/.netlify/deploy/v1/blobs/deploy/L2F1dGgvcmVzZXQtcGFzc3dvcmQ
+  inflating: /workspace/.netlify/deploy/v1/blobs/deploy/L2F1dGgvY2FsbGJhY2s
+  inflating: /workspace/.netlify/deploy/v1/blobs/deploy/L2F1dGgvZm9yZ290LXBhc3N3b3Jk
+  inflating: /workspace/.netlify/deploy/v1/blobs/deploy/L2Jsb2c
+  inflating: /workspace/.netlify/deploy/v1/blobs/deploy/L2ljb24ucG5n
+  inflating: /workspace/.netlify/deploy/v1/blobs/deploy/L2luZGV4
+  inflating: /workspace/.netlify/deploy/v1/blobs/deploy/L2NvbnRyb2xwYW5lbA
+  inflating: /workspace/.netlify/deploy/v1/blobs/deploy/L2NvbnRybC1wYW5s
+  inflating: /workspace/.netlify/deploy/v1/blobs/deploy/L2xvZ2lu
+  inflating: /workspace/.netlify/deploy/v1/blobs/deploy/L3NpZ251cA
+  inflating: /workspace/.netlify/deploy/v1/blobs/deploy/NDA0Lmh0bWw
+  inflating: /workspace/.netlify/deploy/v1/blobs/deploy/NTAwLmh0bWw
+  inflating: /workspace/.netlify/edge-functions/manifest.json
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/___netlify-edge-handler-middleware.js
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/html-rewriter-wasm.template.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/html-rewriter-wasm.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/matchers.json
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/middleware.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/next.config.json
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/README.md
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/lib/cjs.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/lib/headers.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/lib/logging.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/lib/middleware.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/lib/next-request.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/lib/response.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/lib/routing.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/lib/util.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/shim/edge.js
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/shim/node.js
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/manifest.json
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/types.d.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/async/abortable.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/async/deadline.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/async/debounce.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/async/deferred.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/async/delay.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/async/mod.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/async/mux_async_iterator.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/async/pool.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/async/retry.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/async/tee.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/bytes/index_of_needle.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/crypto/timing_safe_equal.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/datetime/to_imf.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/encoding/base64.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/encoding/base64url.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/flags/mod.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/fmt/colors.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/fmt/printf.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/http/cookie.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/assert.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/assertion_error.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/async_hooks.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/buffer.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/events.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/process.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/stream.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/string_decoder.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/util.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/_core.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/_events.d.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/_events.mjs
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/_global.d.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/_next_tick.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/_stream.d.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/_stream.mjs
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/_utils.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/buffer.d.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/buffer.mjs
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/errors.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/error_codes.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/fixed_queue.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/hide_stack_frames.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/net.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/normalize_encoding.mjs
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/options.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/primordials.mjs
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/util.mjs
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/validators.mjs
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/crypto/constants.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/crypto/_keys.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/process/per_thread.mjs
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/readline/callbacks.mjs
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/readline/utils.mjs
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/streams/destroy.mjs
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/streams/end-of-stream.mjs
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/streams/utils.mjs
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/util/comparisons.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/util/debuglog.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/util/inspect.mjs
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal/util/types.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/#_timingsafeequal_bd5c8.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/ares.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/async_wrap.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/buffer.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/cares_wrap.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/config.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/connection_wrap.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/constants.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/contextify.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/credentials.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/crypto.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/errors.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/fs.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/fs_dir.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/fs_event_wrap.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/handle_wrap.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/heap_utils.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/http_parser.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/icu.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/inspector.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/js_stream.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/messaging.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/mod.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/module_wrap.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/natives.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/native_module.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/node_file.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/node_options.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/options.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/os.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/performance.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/pipe_wrap.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/process_methods.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/report.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/serdes.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/signal_wrap.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/spawn_sync.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/stream_wrap.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/string_decoder.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/symbols.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/task_queue.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/tcp_wrap.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/timers.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/tls_wrap.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/trace_events.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/tty_wrap.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/types.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/udp_wrap.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/url.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/util.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/uv.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/v8.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/worker.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/zlib.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/_libuv_winerror.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/_listen.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/_node.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/_utils.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/internal_binding/_winerror.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/util/types.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/_process/exiting.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/_process/process.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/_process/stdio.mjs
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/_process/streams.mjs
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/node/_util/_util_callbackify.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/path/common.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/path/glob.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/path/mod.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/path/posix.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/path/separator.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/path/win32.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/path/_constants.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/path/_interface.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/path/_util.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/streams/write_all.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/testing/asserts.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/testing/_diff.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/testing/_format.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/_util/asserts.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/std@0.175.0/_util/os.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/x/htmlrewriter@v1.0.0/pkg/htmlrewriter.js
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/x/htmlrewriter@v1.0.0/pkg/htmlrewriter_bg.wasm
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/x/htmlrewriter@v1.0.0/src/index.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/x/htmlrewriter@v1.0.0/src/types.d.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/deno.land/x/path_to_regexp@v6.2.1/index.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/v1-7-0--edge-utils.netlify.app/logger/logger.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/edge-runtime/vendor/v1-7-0--edge-utils.netlify.app/logger/mod.ts
+  inflating: /workspace/.netlify/edge-functions/___netlify-edge-handler-middleware/server/middleware.js
+  inflating: /workspace/.netlify/edge-functions-dist/20c7183233eb482827e0149582036f7d146c8412af13a8f37854567733982c3f.tar.gz
+  inflating: /workspace/.netlify/edge-functions-dist/4ebfbba646f42c4c54325f87194f363eff307ccdbe4821f32679857745a33f84.eszip
+  inflating: /workspace/.netlify/edge-functions-dist/manifest.json
+  inflating: /workspace/.netlify/functions/manifest.json
+  inflating: /workspace/.netlify/functions/___netlify-server-handler.zip
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/package.json
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/run-config.json
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/server.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/___netlify-server-handler.json
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/___netlify-server-handler.mjs
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/package.json
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/index.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/build/advanced-api-routes.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/build/cache.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/build/image-cdn.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/build/plugin-context.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/build/skew-protection.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/build/verification.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/build/content/prerendered.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/build/content/server.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/build/content/static.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/build/content/next-shims/telemetry-storage.cjs
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/build/functions/edge.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/build/functions/server.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/build/templates/handler-monorepo.tmpl.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/build/templates/handler.tmpl.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/esm-chunks/chunk-6BT4RYQJ.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/esm-chunks/chunk-JNOKXHJS.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/esm-chunks/chunk-QCOH52QC.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/esm-chunks/chunk-YUXQHOYO.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/run/augment-next-response.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/run/config.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/run/constants.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/run/headers.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/run/next.cjs
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/run/handlers/cache.cjs
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/run/handlers/request-context.cjs
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/run/handlers/server.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/run/handlers/tags-handler.cjs
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/run/handlers/tracer.cjs
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/run/handlers/use-cache-handler.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/run/handlers/wait-until.cjs
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/run/storage/regional-blob-store.cjs
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/run/storage/request-scoped-in-memory-cache.cjs
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/run/storage/storage.cjs
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/shared/blob-types.cjs
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/shared/blobkey.js
+  inflating: /workspace/.netlify/functions-internal/___netlify-server-handler/.netlify/dist/shared/cache-types.cjs
+  inflating: /workspace/.netlify/plugins/package-lock.json
+  inflating: /workspace/.netlify/plugins/package.json
+  inflating: /workspace/.netlify/static/file.svg
+  inflating: /workspace/.netlify/static/futuristic.png
+  inflating: /workspace/.netlify/static/globe.svg
+  inflating: /workspace/.netlify/static/logo.png
+  inflating: /workspace/.netlify/static/medical_illustration_1.png
+  inflating: /workspace/.netlify/static/next.svg
+  inflating: /workspace/.netlify/static/vercel.svg
+  inflating: /workspace/.netlify/static/window.svg
+  inflating: /workspace/.netlify/static/_next/static/chunks/02a690a2240d50dd.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/04588aad987e5809.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/0bd6498bda341889.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/0e8b9a1cec23a085.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/0fc9ee4430fe3de4.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/15ab8dabd469af16.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/1a868ad6eeb783ba.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/1ea81d1745423342.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/2365e6e070de90e0.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/2473c16c0c2f6b5f.css
+  inflating: /workspace/.netlify/static/_next/static/chunks/24fc229241cb8d67.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/27406267c6f1da5e.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/2fb27c83fc3e70e8.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/3241252afe6ec2c5.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/325ac1eae65638b3.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/3a6b001c1440f503.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/3d943a305fa1f5b2.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/414677e6b6c954af.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/4527c9d0adac7777.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/470d59bc5f5cdd3b.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/47fc051b07fc202d.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/54028d977abba8fc.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/5a6995d4355c777c.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/5a891da9304f5388.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/5b0edd461fa32bd2.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/5c04ddcc0c34e83d.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/5cbfab521470dced.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/614a7ca92829a1a3.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/65af1519289dec18.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/65b57264daacdf04.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/69f1eefc75811526.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/6c6125f50dbce087.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/6e506f33ca3055bf.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/6ff34cce00ac898f.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/74793a5cb373aa0c.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/7b1cec58d9db7a0c.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/7cb68c402477a8aa.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/811c7e02e2ef1062.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/82abf2d65f5428ae.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/8589a63236ca80f0.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/85bc4ae059176844.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/8c6f0d75e4d0c0ec.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/903399fdcfa6c548.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/94bd0565759ca1d7.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/95043ba96bbd7d19.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/982a9f1a63636c60.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/999403d6709fd081.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/9ccee1e0b64122d1.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/9df80f043e262111.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/9e1d0c939f4d8a64.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/a21616b3617c086f.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/a319eee1b789e7e0.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/a3497fe8326903de.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/a397a3999674b76a.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/a57c723bb167f657.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/a6dad97d9634a72d.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/a6dad97d9634a72d.js.map
+  inflating: /workspace/.netlify/static/_next/static/chunks/adabfc2d4bff09a9.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/adeb49680702919c.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/aebc3b6d791f68d2.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/b0580e3fd9831017.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/b36594ea9d55f4b6.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/b4fedec9e0741dc0.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/b5314baa13390b8d.css
+  inflating: /workspace/.netlify/static/_next/static/chunks/b7de8d3b3d68c6c6.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/b95e7dcbc3e3c5cc.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/b973fa0b209744fe.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/b9ee99140c82214f.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/baa6c623d7af9952.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/be510a3d72386275.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/c05a4cdb38bc5256.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/c758cdba962423ff.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/c7d14a7e4620707d.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/ca2d9af68f720e38.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/cac4e471cd45e0fa.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/cf09f428aff218b3.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/d31e82b8b4e7eb26.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/d4395a37d60f2941.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/dad4960aa460ca24.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/e03f7128aacd18ec.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/e25680e07b77515b.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/e8e0681001ebd1d0.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/eb5ed3f122164720.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/ece74034a93dc7c9.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/edab921a3aca8779.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/ef0b495c2229bec7.css
+  inflating: /workspace/.netlify/static/_next/static/chunks/f01c28532b6544fe.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/f1abfd3832c2f0ad.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/f5637c4d0122f043.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/f88a39eb09c80153.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/ff1a16fafef87110.js
+  inflating: /workspace/.netlify/static/_next/static/chunks/turbopack-370815adf844652c.js
+  inflating: /workspace/.netlify/static/_next/static/media/4fa387ec64143e14-s.c1fdd6c2.woff2
+  inflating: /workspace/.netlify/static/_next/static/media/7178b3e590c64307-s.b97b3418.woff2
+  inflating: /workspace/.netlify/static/_next/static/media/797e433ab948586e-s.p.dbea232f.woff2
+  inflating: /workspace/.netlify/static/_next/static/media/8a480f0b521d4e75-s.8e0177b5.woff2
+  inflating: /workspace/.netlify/static/_next/static/media/bbc41e54d2fcbd21-s.799d8ef8.woff2
+  inflating: /workspace/.netlify/static/_next/static/media/caa3a2e1cccd8315-s.p.853070df.woff2
+  inflating: /workspace/.netlify/static/_next/static/media/icon.a58c08e6.png
+  inflating: /workspace/.netlify/static/_next/static/OheuImGMnrJUR8As0RlM-/_buildManifest.js
+  inflating: /workspace/.netlify/static/_next/static/OheuImGMnrJUR8As0RlM-/_clientMiddlewareManifest.json
+  inflating: /workspace/.netlify/static/_next/static/OheuImGMnrJUR8As0RlM-/_ssgManifest.js
+  inflating: /workspace/public/file.svg
+  inflating: /workspace/public/futuristic.png
+  inflating: /workspace/public/globe.svg
+  inflating: /workspace/public/logo.png
+  inflating: /workspace/public/manifest.json
+  inflating: /workspace/public/medical_illustration_1.png
+  inflating: /workspace/public/next.svg
+  inflating: /workspace/public/sw.js
+  inflating: /workspace/public/vercel.svg
+  inflating: /workspace/public/window.svg
+  inflating: /workspace/public/icons/icon-128x128.png
+  inflating: /workspace/public/icons/icon-144x144.png
+  inflating: /workspace/public/icons/icon-152x152.png
+  inflating: /workspace/public/icons/icon-192x192.png
+  inflating: /workspace/public/icons/icon-384x384.png
+  inflating: /workspace/public/icons/icon-512x512.png
+  inflating: /workspace/public/icons/icon-72x72.png
+  inflating: /workspace/public/icons/icon-96x96.png
+  inflating: /workspace/public/icons/icon-maskable-192x192.png
+  inflating: /workspace/public/icons/icon-maskable-512x512.png
+  inflating: /workspace/src/middleware.ts
+  inflating: /workspace/src/app/globals.css
+  inflating: /workspace/src/app/icon.png
+  inflating: /workspace/src/app/layout.tsx
+  inflating: /workspace/src/app/page.tsx
+  inflating: /workspace/src/app/api/blog-generator/route.ts
+  inflating: /workspace/src/app/api/bulk-blog-generator/route.ts
+  inflating: /workspace/src/app/api/creator/route.ts
+  inflating: /workspace/src/app/api/creator/q-paper/route.ts
+  inflating: /workspace/src/app/api/creator/topics/route.ts
+  inflating: /workspace/src/app/api/elective-sync/route.ts
+  inflating: /workspace/src/app/api/essay-answer/route.ts
+  inflating: /workspace/src/app/api/essay-generator/route.ts
+  inflating: /workspace/src/app/api/essay-questions/route.ts
+  inflating: /workspace/src/app/api/lesson-plan/route.ts
+  inflating: /workspace/src/app/api/mcq-generator/route.ts
+  inflating: /workspace/src/app/api/mentor/route.ts
+  inflating: /workspace/src/app/api/notes-creator/route.ts
+  inflating: /workspace/src/app/api/referral/stats/route.ts
+  inflating: /workspace/src/app/api/reflection-generator/route.ts
+  inflating: /workspace/src/app/api/rubrics-generator/route.ts
+  inflating: /workspace/src/app/api/viva/route.ts
+  inflating: /workspace/src/app/api/vocab/route.ts
+  inflating: /workspace/src/app/auth/callback/page.tsx
+  inflating: /workspace/src/app/auth/forgot-password/page.tsx
+  inflating: /workspace/src/app/auth/reset-password/page.tsx
+  inflating: /workspace/src/app/blog/BlogListClient.tsx
+  inflating: /workspace/src/app/blog/page.tsx
+  inflating: /workspace/src/app/blog/[slug]/BlogDetailClient.tsx
+  inflating: /workspace/src/app/blog/[slug]/page.tsx
+  inflating: /workspace/src/app/contrl-panl/actions.ts
+  inflating: /workspace/src/app/contrl-panl/page.tsx
+  inflating: /workspace/src/app/controlpanel/page.tsx
+  inflating: /workspace/src/app/dashboard/DashboardLayoutClient.tsx
+  inflating: /workspace/src/app/dashboard/layout.tsx
+  inflating: /workspace/src/app/dashboard/admin/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/attendance/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/blog/BlogManagerClient.tsx
+  inflating: /workspace/src/app/dashboard/admin/blog/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/classroom-generator/ClassroomManagerClient.tsx
+  inflating: /workspace/src/app/dashboard/admin/classroom-generator/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/creator/CreatorManagerClient.tsx
+  inflating: /workspace/src/app/dashboard/admin/creator/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/dept-elective/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/elective/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/elective/Step1Institution.tsx
+  inflating: /workspace/src/app/dashboard/admin/elective/Step2Electives.tsx
+  inflating: /workspace/src/app/dashboard/admin/elective/Step3Students.tsx
+  inflating: /workspace/src/app/dashboard/admin/elective/Step4Dates.tsx
+  inflating: /workspace/src/app/dashboard/admin/elective/Step5Allotment.tsx
+  inflating: /workspace/src/app/dashboard/admin/elective/Step6Code.tsx
+  inflating: /workspace/src/app/dashboard/admin/elective/Step7Logbook.tsx
+  inflating: /workspace/src/app/dashboard/admin/elective/Step8Analytics.tsx
+  inflating: /workspace/src/app/dashboard/admin/elective/Step_StudentPreferences.tsx
+  inflating: /workspace/src/app/dashboard/admin/emr-mcq/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/ems/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/essay-answer/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/lesson-plan/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/lms-db/AdminLMSDatabaseClient.tsx
+  inflating: /workspace/src/app/dashboard/admin/lms-db/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/logbook/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentoring/BulkMessaging.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentoring/DepartmentManager.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentoring/InstitutionSetup.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentoring/MenteeManager.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentoring/MentoringHubClient.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentoring/MentorManager.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentoring/mentorshipAccess.ts
+  inflating: /workspace/src/app/dashboard/admin/mentoring/MentorshipAllocation.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentoring/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentorship/ClinicalAssessments.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentorship/DeptAssessmentsClient.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentorship/FormativeAssessments.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentorship/InternalAssessments.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentorship/NonScholasticAchievements.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentorship/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/mentorship/SummativeAssessments.tsx
+  inflating: /workspace/src/app/dashboard/admin/notes/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/notes-creator/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/q-paper/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/rubrics-generator/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/timetable/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/tokens/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/tokens/TokensManagerClient.tsx
+  inflating: /workspace/src/app/dashboard/admin/users/actions.ts
+  inflating: /workspace/src/app/dashboard/admin/users/page.tsx
+  inflating: /workspace/src/app/dashboard/admin/users/UsersManager.tsx
+  inflating: /workspace/src/app/dashboard/deptadmin/page.tsx
+  inflating: /workspace/src/app/dashboard/deptadmin/mentoring/DeptMentoringHubClient.tsx
+  inflating: /workspace/src/app/dashboard/deptadmin/mentoring/FormativeAssessments.tsx
+  inflating: /workspace/src/app/dashboard/deptadmin/mentoring/page.tsx
+  inflating: /workspace/src/app/dashboard/instadmin/page.tsx
+  inflating: /workspace/src/app/dashboard/masteradmin/page.tsx
+  inflating: /workspace/src/app/dashboard/student/page.tsx
+  inflating: /workspace/src/app/dashboard/student/case/page.tsx
+  inflating: /workspace/src/app/dashboard/student/elective/page.tsx
+  inflating: /workspace/src/app/dashboard/student/essay-answer/page.tsx
+  inflating: /workspace/src/app/dashboard/student/essays/page.tsx
+  inflating: /workspace/src/app/dashboard/student/eval/page.tsx
+  inflating: /workspace/src/app/dashboard/student/imp-questions/page.tsx
+  inflating: /workspace/src/app/dashboard/student/mcqs/page.tsx
+  inflating: /workspace/src/app/dashboard/student/mentor/page.tsx
+  inflating: /workspace/src/app/dashboard/student/mentorship/page.tsx
+  inflating: /workspace/src/app/dashboard/student/mentorship/StudentMentorshipClient.tsx
+  inflating: /workspace/src/app/dashboard/student/notes/page.tsx
+  inflating: /workspace/src/app/dashboard/student/notes-creator/page.tsx
+  inflating: /workspace/src/app/dashboard/student/reflection/page.tsx
+  inflating: /workspace/src/app/dashboard/student/structurer/page.tsx
+  inflating: /workspace/src/app/dashboard/student/viva/page.tsx
+  inflating: /workspace/src/app/dashboard/student/vocab/page.tsx
+  inflating: /workspace/src/app/dashboard/superadmin/page.tsx
+  inflating: /workspace/src/app/dashboard/teacher/page.tsx
+  inflating: /workspace/src/app/dashboard/teacher/elective/page.tsx
+  inflating: /workspace/src/app/dashboard/teacher/essay-answer/page.tsx
+  inflating: /workspace/src/app/dashboard/teacher/essays/page.tsx
+  inflating: /workspace/src/app/dashboard/teacher/lesson-plan/page.tsx
+  inflating: /workspace/src/app/dashboard/teacher/mcqs/page.tsx
+  inflating: /workspace/src/app/dashboard/teacher/mentorship/MentorDashboardClient.tsx
+  inflating: /workspace/src/app/dashboard/teacher/mentorship/page.tsx
+  inflating: /workspace/src/app/dashboard/teacher/notes/page.tsx
+  inflating: /workspace/src/app/dashboard/teacher/notes-creator/page.tsx
+  inflating: /workspace/src/app/dashboard/teacher/rubrics-generator/page.tsx
+  inflating: /workspace/src/app/login/actions.ts
+  inflating: /workspace/src/app/login/page.tsx
+  inflating: /workspace/src/app/signup/page.tsx
+  inflating: /workspace/src/components/GlobalHomeButton.tsx
+  inflating: /workspace/src/components/InstallPWAButton.tsx
+  inflating: /workspace/src/components/MededuLogo.tsx
+  inflating: /workspace/src/components/Overview.tsx
+  inflating: /workspace/src/components/ReferralCard.tsx
+  inflating: /workspace/src/components/SavedNotesModal.tsx
+  inflating: /workspace/src/components/ServiceWorkerRegistrar.tsx
+  inflating: /workspace/src/components/TimePicker12Hour.tsx
+  inflating: /workspace/src/components/TokenBalanceCard.tsx
+  inflating: /workspace/src/lib/blogService.ts
+  inflating: /workspace/src/lib/cors.ts
+  inflating: /workspace/src/lib/gemini.ts
+  inflating: /workspace/src/lib/supabase.ts
+  inflating: /workspace/src/lib/tokenService.ts
+  inflating: /workspace/src/store/assessmentStore.ts
+  inflating: /workspace/src/store/attendanceStore.ts
+  inflating: /workspace/src/store/blogStore.ts
+  inflating: /workspace/src/store/curriculumStore.ts
+  inflating: /workspace/src/store/electiveStore.ts
+  inflating: /workspace/src/store/emrStore.ts
+  inflating: /workspace/src/store/emsStore.ts
+  inflating: /workspace/src/store/lessonPlanStore.ts
+  inflating: /workspace/src/store/mentorshipStore.ts
+  inflating: /workspace/src/store/qPaperStore.ts
+  inflating: /workspace/src/store/timetableStore.ts
+  inflating: /workspace/src/store/tokenStore.ts
+  inflating: /workspace/src/store/userStore.ts
+  inflating: /workspace/src/types/supabase.ts
+  inflating: /workspace/supabase/.temp/cli-latest
+  inflating: /workspace/supabase/.temp/gotrue-version
+  inflating: /workspace/supabase/.temp/pooler-url
+  inflating: /workspace/supabase/.temp/postgres-version
+  inflating: /workspace/supabase/.temp/project-ref
+  inflating: /workspace/supabase/.temp/rest-version
+  inflating: /workspace/supabase/.temp/storage-migration
+  inflating: /workspace/supabase/.temp/storage-version
+  inflating: /workspace/supabase/migrations/0000_schema.sql
+  inflating: /workspace/supabase/migrations/0001_auth_profiles.sql
+  inflating: /workspace/supabase/migrations/0001_mentorship_ms.sql
+  inflating: /workspace/supabase/migrations/0002_topics_add_sn_section.sql
+  inflating: /workspace/supabase/migrations/0003_admin_modules_schema.sql
+BUILD
+Already have image (with digest): gcr.io/cloud-builders/docker
+Sending build context to Docker daemon  29.89MB
+Step 1/44 : FROM node:20-alpine AS base
+20-alpine: Pulling from library/node
+589002ba0eae: Already exists
+d7f6aca05b78: Pulling fs layer
+62e0e1181d88: Pulling fs layer
+c7734204880f: Pulling fs layer
+c7734204880f: Verifying Checksum
+c7734204880f: Download complete
+62e0e1181d88: Verifying Checksum
+62e0e1181d88: Download complete
+d7f6aca05b78: Verifying Checksum
+d7f6aca05b78: Download complete
+d7f6aca05b78: Pull complete
+62e0e1181d88: Pull complete
+c7734204880f: Pull complete
+Digest: sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153113bb8f333c
+Status: Downloaded newer image for node:20-alpine
+ ---> ccfb9f0dc7ac
+Step 2/44 : FROM base AS deps
+ ---> ccfb9f0dc7ac
+Step 3/44 : RUN apk add --no-cache libc6-compat
+ ---> Running in 1db9109b22fc
+(1/3) Installing musl-obstack (1.2.3-r2)
+(2/3) Installing libucontext (1.3.3-r0)
+(3/3) Installing gcompat (1.1.0-r4)
+OK: 11.0 MiB in 21 packages
+Removing intermediate container 1db9109b22fc
+ ---> e5e59f7f1bd7
+Step 4/44 : WORKDIR /app
+ ---> Running in bb694213e385
+Removing intermediate container bb694213e385
+ ---> b28b14d749c8
+Step 5/44 : COPY package.json package-lock.json* ./
+ ---> e392a6f88973
+Step 6/44 : RUN npm ci
+ ---> Running in 814cf36d0a5c
+[91mnpm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+[0m[91mnpm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+[0m
+added 595 packages, and audited 596 packages in 28s
+252 packages are looking for funding
+  run `npm fund` for details
+6 vulnerabilities (2 moderate, 3 high, 1 critical)
+To address issues that do not require attention, run:
+  npm audit fix
+To address all issues possible, run:
+  npm audit fix --force
+Some issues need review, and may require choosing
+a different dependency.
+Run `npm audit` for details.
+[91mnpm notice
+npm notice New major version of npm available! 10.8.2 -> 11.12.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.12.1
+npm notice To update run: npm install -g npm@11.12.1
+npm notice
+[0mRemoving intermediate container 814cf36d0a5c
+ ---> 92beac139e51
+Step 7/44 : FROM base AS builder
+ ---> ccfb9f0dc7ac
+Step 8/44 : WORKDIR /app
+ ---> Running in f3031c862075
+Removing intermediate container f3031c862075
+ ---> 2e3d27baed4e
+Step 9/44 : COPY --from=deps /app/node_modules ./node_modules
+ ---> d0c435b479db
+Step 10/44 : COPY . .
+ ---> cfb748fee173
+Step 11/44 : ENV NEXT_TELEMETRY_DISABLED 1
+ ---> Running in 463122c6e857
+Removing intermediate container 463122c6e857
+ ---> f5bb38a403ef
+Step 12/44 : ARG NEXT_PUBLIC_SUPABASE_URL
+ ---> Running in 11be67cd7f97
+Removing intermediate container 11be67cd7f97
+ ---> 4a6b3fa17a7c
+Step 13/44 : ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ ---> Running in 4abe39f40484
+Removing intermediate container 4abe39f40484
+ ---> 31dcec9f0b3f
+Step 14/44 : ARG SUPABASE_SERVICE_ROLE_KEY
+ ---> Running in cc68664b5042
+Removing intermediate container cc68664b5042
+ ---> 1f5874ac32a6
+Step 15/44 : ARG GEMINI_API_KEY
+ ---> Running in 9c94fac042a2
+Removing intermediate container 9c94fac042a2
+ ---> 502b83ef7315
+Step 16/44 : ARG RESEND_API_KEY
+ ---> Running in bae70b3ae96c
+Removing intermediate container bae70b3ae96c
+ ---> 42c4651d8f6e
+Step 17/44 : ARG ALLOWED_ORIGINS
+ ---> Running in 4e62fbf46c4d
+Removing intermediate container 4e62fbf46c4d
+ ---> c438d8910b68
+Step 18/44 : ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ ---> Running in c93ccca4d7af
+Removing intermediate container c93ccca4d7af
+ ---> edf6c991d2de
+Step 19/44 : ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+ ---> Running in 2532922456e1
+Removing intermediate container 2532922456e1
+ ---> 0873617b1e2f
+Step 20/44 : ENV SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY
+ ---> Running in a546e56f4dd3
+Removing intermediate container a546e56f4dd3
+ ---> 965a893c7039
+Step 21/44 : ENV GEMINI_API_KEY=$GEMINI_API_KEY
+ ---> Running in 409f75301c8f
+Removing intermediate container 409f75301c8f
+ ---> 944c6d776290
+Step 22/44 : ENV RESEND_API_KEY=$RESEND_API_KEY
+ ---> Running in 4879f3263496
+Removing intermediate container 4879f3263496
+ ---> ff34d75dc5fb
+Step 23/44 : ENV ALLOWED_ORIGINS=$ALLOWED_ORIGINS
+ ---> Running in 4af3f02276bf
+Removing intermediate container 4af3f02276bf
+ ---> bece0e76cc5b
+Step 24/44 : ENV STANDALONE_BUILD=1
+ ---> Running in ea160cff81e2
+Removing intermediate container ea160cff81e2
+ ---> 20c6f78d4d94
+Step 25/44 : RUN npm run build
+ ---> Running in d85ae987571d
+> temp_mededuai@0.1.0 build
+> next build
+? Next.js 16.1.6 (Turbopack)
+[91m? The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+[0m  Creating an optimized production build ...
+? Compiled successfully in 41s
+  Running TypeScript ...
+  Collecting page data using 1 worker ...
+[91mGEMINI_API_KEY environment variable is not set. AI features will use mock fallbacks.
+[0m[91mError: API key must be set when using the Gemini API.
+    at new iI.apiKey (.next/server/chunks/[root-of-the-server]__4d8f03bf._.js:17:49915)
+    at module evaluation (.next/server/chunks/[root-of-the-server]__4d8f03bf._.js:17:48458)
+    at instantiateModule (.next/server/chunks/[turbopack]_runtime.js:740:9)
+    at getOrInstantiateModuleFromParent (.next/server/chunks/[turbopack]_runtime.js:763:12)
+    at Context.esmImport [as i] (.next/server/chunks/[turbopack]_runtime.js:228:20)
+    at module evaluation (.next/server/chunks/[root-of-the-server]__2ce5bea3._.js:1:2046)
+    at instantiateModule (.next/server/chunks/[turbopack]_runtime.js:740:9)
+    at instantiateRuntimeModule (.next/server/chunks/[turbopack]_runtime.js:768:12)
+    at getOrInstantiateRuntimeModule (.next/server/chunks/[turbopack]_runtime.js:781:12)
+    at Object.m (.next/server/chunks/[turbopack]_runtime.js:790:18)
+[0m[91m
+[0m[91m> Build error occurred
+[0m[91mError: Failed to collect page data for /api/blog-generator
+    at ignore-listed frames {
+  type: 'Error'
+}
+[0m[91mnpm notice
+npm notice New major version of npm available! 10.8.2 -> 11.12.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.12.1
+npm notice To update run: npm install -g npm@11.12.1
+npm notice
+The command '/bin/sh -c npm run build' returned a non-zero code: 1
+ERROR
+ERROR: build step 0 "gcr.io/cloud-builders/docker" failed: step exited with non-zero status: 1
+[0m
+--------------------------------------------------------------------------------
