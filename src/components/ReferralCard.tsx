@@ -14,8 +14,11 @@ export default function ReferralCard() {
     useEffect(() => {
         const fetchReferralStats = async () => {
             try {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user?.id) return;
+                const { data: { user }, error: authError } = await supabase.auth.getUser();
+                if (authError || !user?.id) {
+                    setReferralCode('AuthError: ' + (authError?.message || 'No user'));
+                    return;
+                }
 
                 // Fetch referral code directly from Supabase client
                 const { data: userData, error: userError } = await supabase
@@ -24,12 +27,16 @@ export default function ReferralCard() {
                     .eq('id', user.id)
                     .single();
 
-                if (userData?.referral_code) {
+                if (userError) {
+                    setReferralCode('DBError: ' + userError.message);
+                } else if (userData?.referral_code) {
                     setReferralCode(userData.referral_code);
+                } else {
+                    setReferralCode('Error: Code not found for user');
                 }
 
                 // Fetch referral counts
-                const { data: referrals } = await supabase
+                const { data: referrals, error: refError } = await supabase
                     .from('referrals')
                     .select('id, status')
                     .eq('referrer_id', user.id);
@@ -38,8 +45,9 @@ export default function ReferralCard() {
                     setTotalReferred(referrals.length);
                     setTotalSubscribed(referrals.filter(r => r.status === 'subscribed').length);
                 }
-            } catch (err) {
+            } catch (err: any) {
                 console.error('Failed to fetch referral stats:', err);
+                setReferralCode('Catch: ' + (err.message || 'Unknown error'));
             } finally {
                 setLoading(false);
             }
@@ -48,7 +56,9 @@ export default function ReferralCard() {
     }, []);
 
     const referralLink = referralCode
-        ? (typeof window !== 'undefined' ? `${window.location.origin}/?ref=${referralCode}` : '')
+        ? referralCode.startsWith('AuthError') || referralCode.startsWith('DBError') || referralCode.startsWith('Error') || referralCode.startsWith('Catch')
+            ? referralCode
+            : (typeof window !== 'undefined' ? `${window.location.origin}/?ref=${referralCode}` : '')
         : '';
 
     const shareText = `🩺 Check out MedEduAI — an AI-powered platform for medical education! Get your FREE account and explore AI-driven learning tools. Sign up here: ${referralLink}`;
