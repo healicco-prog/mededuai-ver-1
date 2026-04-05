@@ -216,29 +216,36 @@ export default function LandingPage() {
       <section id="testimonials" className="py-24 bg-slate-950">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">Trusted by Future Doctors</h2>
+            <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">Trusted by Learners and Teachers</h2>
           </div>
           <div className="grid md:grid-cols-2 gap-8">
             <TestimonialCard
-              name="Dr. Ananya Sharma"
-              role="MBBS Intern"
-              text="The AI mentor structured my messy case files directly into perfect university-standard presentations. A massive time saver during my grueling rotations!"
+              name="Priya Nair"
+              role="MBBS 3rd Year Student"
+              text="MedEduAI completely transformed how I prepare for exams. The AI-generated structured notes and viva simulator helped me score distinctions in my clinical postings. It feels like having a personal tutor available 24/7!"
+            />
+            <TestimonialCard
+              name="Kavitha Rao"
+              role="BSc Nursing Student"
+              text="As a nursing student, finding the right study materials was always a challenge. MedEduAI's topic notes and MCQ generator are tailored precisely to our syllabus. I feel genuinely more confident walking into exams now."
             />
             <TestimonialCard
               name="Dr. Rohan Iyer"
-              role="Assistant Professor"
-              text="MedEduAI's Evaluation Management System and auto-rubric generator means I grade batches of scripts with high precision in a fraction of the usual time."
+              role="Medical College Faculty"
+              text="The Evaluation Management System and auto-rubric generator has saved me enormous time. I can now grade answer scripts with consistent precision during busy clinical schedules — a massive quality-of-life improvement."
             />
             <TestimonialCard
-              name="Dr. Meera Nair"
-              role="BDS Final Year"
-              text="The Viva Simulator correctly pointed out when I used the wrong oral pathology descriptors. Truly remarkable system."
+              name="Dr. Meera Krishnamurthy"
+              role="Department Head, Pharmacology"
+              text="Overseeing an entire department's assessment workflow used to be exhausting. MedEduAI's Dig Eval Assist and question paper tools let me standardize evaluation across all batches and maintain academic rigour effortlessly."
             />
-            <TestimonialCard
-              name="Dr. Arjun Patel"
-              role="Medical Educator"
-              text="Unbelievable. The platform correctly adapts different modules whether I'm preparing a detailed lesson plan or formulating standard question papers."
-            />
+            <div className="md:col-span-2 max-w-2xl mx-auto w-full">
+              <TestimonialCard
+                name="Prof. Suresh Menon"
+                role="Institution Head, Medical Sciences"
+                text="Implementing MedEduAI across our institution was seamless. The role-based access — from students to department heads — ensures the right tools reach the right people. Student outcomes and faculty productivity have both measurably improved."
+              />
+            </div>
           </div>
         </div>
       </section>
