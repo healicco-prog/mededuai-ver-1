@@ -1,4 +1,5 @@
 steps:
+  # Step 1: Build the Docker image using our Dockerfile
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
@@ -9,19 +10,37 @@ steps:
       - '--build-arg'
       - 'SUPABASE_SERVICE_ROLE_KEY=${_SUPABASE_SERVICE_ROLE_KEY}'
       - '--build-arg'
-      - 'GEMINI_API_KEY=${_GEMINI_API_KEY}'
-      - '--build-arg'
       - 'RESEND_API_KEY=${_RESEND_API_KEY}'
       - '--build-arg'
       - 'ALLOWED_ORIGINS=${_ALLOWED_ORIGINS}'
+      - '--build-arg'
+      - 'GOOGLE_CLOUD_PROJECT=$PROJECT_ID'
+      - '--build-arg'
+      - 'GOOGLE_CLOUD_LOCATION=us-central1'
       - '-t'
-      - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/mededuai-backend'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/mededuai-backend'
       - '.'
 
+  # Step 2: Push the image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/mededuai-backend'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/mededuai-backend'
+
+  # Step 3: Deploy to Cloud Run with dedicated Vertex AI service account
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'mededuai-backend'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/mededuai-backend'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--service-account=mededuai-vertex-sa@$PROJECT_ID.iam.gserviceaccount.com'
+      - '--port=3000'
+      - '--allow-unauthenticated'
+      - '--set-env-vars=GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=us-central1,NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL},NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY},SUPABASE_SERVICE_ROLE_KEY=${_SUPABASE_SERVICE_ROLE_KEY},RESEND_API_KEY=${_RESEND_API_KEY},ALLOWED_ORIGINS=${_ALLOWED_ORIGINS}'
 
 images:
-  - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/mededuai-backend'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/mededuai-backend'
