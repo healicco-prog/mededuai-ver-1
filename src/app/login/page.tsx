@@ -10,8 +10,8 @@ import { setRoleCookieAndRedirect } from './actions';
 
 export default function LoginPage() {
     const router = useRouter();
-    const [email, setEmail] = useState('narayanakdr@yahoo.co.in');
-    const [password, setPassword] = useState('User@2026');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
