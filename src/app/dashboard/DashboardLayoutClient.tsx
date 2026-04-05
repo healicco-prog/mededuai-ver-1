@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {
     LayoutDashboard, BookOpen, MessageSquare, Mic,
     Settings, LogOut, Users, FileText,
-    GraduationCap, ClipboardCheck, AlertCircle, Home, ClipboardList, Menu, X, ClipboardType, CalendarDays, Lock, ArrowLeft, Shield, FileEdit
+    GraduationCap, ClipboardCheck, AlertCircle, Home, ClipboardList, Menu, X, ClipboardType, CalendarDays, Lock, ArrowLeft, Shield, FileEdit, ScanLine
 } from 'lucide-react';
 import MededuLogo from '@/components/MededuLogo';
 import { usePathname } from 'next/navigation';
@@ -168,6 +168,7 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                                     <SidebarItem href={`/dashboard/student/reflection`} icon={<FileText />} label="Reflection Generator" />
                                     <SidebarItem href={`/dashboard/student/essays`} icon={<ClipboardType />} label="Essay Qs Generator" />
                                     <SidebarItem href={`/dashboard/student/mcqs`} icon={<ClipboardCheck />} label="MCQs Generator" />
+                                    <SidebarItem href={`/dashboard/student/self-eval-system`} icon={<ClipboardList />} label="Self-Evaluation" />
                                 </>
                             ) : (
                                 <a href="https://pages.razorpay.com/medieduai-standard" target="_blank" rel="noopener noreferrer" className="block mt-3 mx-3 p-3 bg-amber-50 border border-amber-200 rounded-xl hover:bg-amber-100 transition-colors cursor-pointer group">
@@ -198,6 +199,7 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                             <SidebarItem href={`/dashboard/teacher/rubrics-generator`} icon={<ClipboardList />} label="Rubrics Generator" />
                             <SidebarItem href={`/dashboard/teacher/essays`} icon={<ClipboardType />} label="Essay Qs Generator" />
                             <SidebarItem href={`/dashboard/teacher/mcqs`} icon={<ClipboardCheck />} label="MCQs Generator" />
+                            <SidebarItem href={`/dashboard/teacher/dig-eval-assist`} icon={<ScanLine />} label="Dig Evaluation Assist" />
                         </>
                     )}
 

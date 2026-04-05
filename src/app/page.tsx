@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { BookOpen, Mic, Stethoscope, ChevronRight, Menu, X, Star, Download } from 'lucide-react';
+import { BookOpen, Mic, Stethoscope, ChevronRight, Menu, X, Star, Download, MapPin, Phone, Mail as MailIcon, Loader2, CheckCircle2, User } from 'lucide-react';
 import Link from 'next/link';
 import MededuLogo from '@/components/MededuLogo';
 
@@ -13,6 +13,54 @@ interface BeforeInstallPromptEvent extends Event {
 export default function LandingPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+
+  // Contact form state
+  const [contactName, setContactName] = useState('');
+  const [contactMobile, setContactMobile] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactSubject, setContactSubject] = useState('');
+  const [contactMessage, setContactMessage] = useState('');
+  const [contactLoading, setContactLoading] = useState(false);
+  const [contactStatus, setContactStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [contactError, setContactError] = useState('');
+
+  const handleContactSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setContactLoading(true);
+    setContactStatus('idle');
+    setContactError('');
+
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: contactName,
+          mobile: contactMobile,
+          email: contactEmail,
+          subject: contactSubject,
+          message: contactMessage,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to send message');
+      }
+
+      setContactStatus('success');
+      setContactName('');
+      setContactMobile('');
+      setContactEmail('');
+      setContactSubject('');
+      setContactMessage('');
+    } catch (err: unknown) {
+      setContactStatus('error');
+      setContactError(err instanceof Error ? err.message : 'Something went wrong');
+    } finally {
+      setContactLoading(false);
+    }
+  };
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -44,6 +92,7 @@ export default function LandingPage() {
               <a href="#features" className="text-sm font-semibold text-slate-300 hover:text-cyan-400 transition-colors">Features</a>
               <a href="#how-it-works" className="text-sm font-semibold text-slate-300 hover:text-cyan-400 transition-colors">How it Works</a>
               <a href="#testimonials" className="text-sm font-semibold text-slate-300 hover:text-cyan-400 transition-colors">Testimonials</a>
+              <a href="#contact" className="text-sm font-semibold text-slate-300 hover:text-cyan-400 transition-colors">Contact Us</a>
               <Link href="/blog" className="text-sm font-semibold text-slate-300 hover:text-cyan-400 transition-colors">Blog</Link>
               <Link href="/login" className="px-6 py-2.5 bg-white/10 border border-white/20 text-white rounded-xl text-sm font-bold hover:bg-white/20 transition-all backdrop-blur-sm shadow-lg shadow-black/20">
                 Log In
@@ -190,6 +239,156 @@ export default function LandingPage() {
               role="Medical Educator"
               text="Unbelievable. The platform correctly adapts different modules whether I'm preparing a detailed lesson plan or formulating standard question papers."
             />
+          </div>
+        </div>
+      </section>
+
+      {/* Contact Us */}
+      <section id="contact" className="py-24 bg-slate-900 border-t border-white/5 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">Contact Us</h2>
+            <p className="text-slate-400 max-w-2xl mx-auto text-lg">Have questions? We'd love to hear from you.</p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-12 max-w-5xl mx-auto">
+            {/* Contact Info */}
+            <div className="space-y-8">
+              <h3 className="text-2xl font-bold text-white mb-6">Get in Touch</h3>
+              
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 flex-shrink-0">
+                  <MapPin className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-bold text-white mb-1">Office Location</h4>
+                  <p className="text-slate-400">Showfunda Entertainment<br />Bengaluru</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 flex-shrink-0">
+                  <Phone className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-bold text-white mb-1">Phone Number</h4>
+                  <p className="text-slate-400">Mb: 9606133967</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 flex-shrink-0">
+                  <MailIcon className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-bold text-white mb-1">Email Address</h4>
+                  <p className="text-slate-400">support@healic.co</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Contact Form */}
+            <div className="bg-slate-950 p-8 border border-white/10 rounded-3xl shadow-xl shadow-black/20">
+              {contactStatus === 'success' ? (
+                <div className="text-center py-8 space-y-4">
+                  <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center justify-center mx-auto">
+                    <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white">Message Sent!</h3>
+                  <p className="text-slate-400">Thank you for reaching out. We'll get back to you soon.</p>
+                  <button
+                    onClick={() => setContactStatus('idle')}
+                    className="mt-4 px-6 py-2 bg-white/10 border border-white/20 text-white rounded-xl text-sm font-bold hover:bg-white/20 transition-all"
+                  >
+                    Send Another Message
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleContactSubmit} className="space-y-5">
+                  {contactStatus === 'error' && (
+                    <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-xl text-center font-medium">
+                      {contactError}
+                    </div>
+                  )}
+                  <div>
+                    <label htmlFor="contact-name" className="block text-sm font-medium text-slate-300 mb-2">Full Name</label>
+                    <div className="relative">
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
+                      <input
+                        type="text"
+                        id="contact-name"
+                        value={contactName}
+                        onChange={(e) => setContactName(e.target.value)}
+                        className="w-full pl-11 pr-4 py-3 bg-slate-900 border border-slate-700/50 rounded-xl !text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all font-medium"
+                        placeholder="Your full name"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="contact-mobile" className="block text-sm font-medium text-slate-300 mb-2">Mobile Number <span className="text-red-400">*</span></label>
+                    <div className="relative">
+                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
+                      <input
+                        type="tel"
+                        id="contact-mobile"
+                        value={contactMobile}
+                        onChange={(e) => setContactMobile(e.target.value)}
+                        required
+                        className="w-full pl-11 pr-4 py-3 bg-slate-900 border border-slate-700/50 rounded-xl !text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all font-medium"
+                        placeholder="+91 9876543210"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="contact-email" className="block text-sm font-medium text-slate-300 mb-2">Email Address <span className="text-red-400">*</span></label>
+                    <div className="relative">
+                      <MailIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
+                      <input
+                        type="email"
+                        id="contact-email"
+                        value={contactEmail}
+                        onChange={(e) => setContactEmail(e.target.value)}
+                        required
+                        className="w-full pl-11 pr-4 py-3 bg-slate-900 border border-slate-700/50 rounded-xl !text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all font-medium"
+                        placeholder="you@example.com"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="contact-subject" className="block text-sm font-medium text-slate-300 mb-2">Subject <span className="text-red-400">*</span></label>
+                    <input
+                      type="text"
+                      id="contact-subject"
+                      value={contactSubject}
+                      onChange={(e) => setContactSubject(e.target.value)}
+                      required
+                      className="w-full px-4 py-3 bg-slate-900 border border-slate-700/50 rounded-xl !text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all font-medium"
+                      placeholder="Subject of your message"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="contact-message" className="block text-sm font-medium text-slate-300 mb-2">Message <span className="text-red-400">*</span></label>
+                    <textarea
+                      id="contact-message"
+                      value={contactMessage}
+                      onChange={(e) => setContactMessage(e.target.value)}
+                      required
+                      rows={4}
+                      className="w-full px-4 py-3 bg-slate-900 border border-slate-700/50 rounded-xl !text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all resize-none font-medium"
+                      placeholder="How can we help you?"
+                    ></textarea>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={contactLoading}
+                    className="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl font-bold hover:shadow-lg hover:shadow-cyan-500/20 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {contactLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <MailIcon className="w-5 h-5" />}
+                    {contactLoading ? 'Sending...' : 'Send Message'}
+                  </button>
+                </form>
+              )}
+            </div>
           </div>
         </div>
       </section>

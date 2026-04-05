@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { FileText, Loader2, PenTool, Sparkles, RefreshCcw, Download, Share2, ChevronDown, ChevronUp, Clock, Copy, CheckCircle } from 'lucide-react';
+import { FileText, Loader2, PenTool, Sparkles, RefreshCcw, Download, Share2, ChevronDown, ChevronUp, Clock, Copy, CheckCircle, Save } from 'lucide-react';
 import { useCurriculumStore } from '@/store/curriculumStore';
 import { useUserStore } from '@/store/userStore';
 import { tokenService } from '@/lib/tokenService';
@@ -33,6 +33,7 @@ export default function EssayGeneratorPage() {
     const [answerKey, setAnswerKey] = useState('');
     const [showAnswerKey, setShowAnswerKey] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [saved, setSaved] = useState(false);
 
     const activeCourse = coursesList.find(c => c.id === selectedCourseId) || coursesList[0];
     const activeSubject = activeCourse?.subjects.find(s => s.id === selectedSubjectId) || activeCourse?.subjects[0];
@@ -271,6 +272,31 @@ export default function EssayGeneratorPage() {
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
+                                    <button
+                                        onClick={() => {
+                                            try {
+                                                const savedEssays = JSON.parse(localStorage.getItem('mededuai_saved_essays') || '[]');
+                                                savedEssays.push({
+                                                    id: Date.now(),
+                                                    course: activeCourse?.name,
+                                                    subject: activeSubject?.name,
+                                                    topic: activeTopic?.name,
+                                                    paperType: selectedPaperType,
+                                                    difficulty,
+                                                    questions: result,
+                                                    answerKey,
+                                                    createdAt: new Date().toISOString()
+                                                });
+                                                localStorage.setItem('mededuai_saved_essays', JSON.stringify(savedEssays));
+                                                setSaved(true);
+                                                setTimeout(() => setSaved(false), 3000);
+                                            } catch (err) { console.error(err); }
+                                        }}
+                                        className={`font-bold h-9 px-4 rounded-xl transition-all flex items-center gap-2 text-sm shadow-sm ${saved ? 'bg-emerald-600 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-emerald-50 hover:border-emerald-300'}`}
+                                    >
+                                        {saved ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+                                        {saved ? 'Saved!' : 'Save'}
+                                    </button>
                                     <button
                                         onClick={() => handleCopy(result)}
                                         className="bg-white text-slate-600 font-bold h-9 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all flex items-center gap-2 text-sm shadow-sm"

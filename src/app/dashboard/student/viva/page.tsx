@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { Mic, Square, Volume2, Ear, PlayCircle, Loader2, CheckCircle, RefreshCcw, Sparkles, Radio, Stethoscope } from 'lucide-react';
+import { Mic, Square, Volume2, Ear, PlayCircle, Loader2, CheckCircle, RefreshCcw, Sparkles, Radio, Stethoscope, Save, Copy, Download } from 'lucide-react';
 import { useCurriculumStore } from '@/store/curriculumStore';
 import { useUserStore } from '@/store/userStore';
 import { tokenService } from '@/lib/tokenService';
@@ -31,6 +31,8 @@ export default function VivaSimulatorPage() {
     const [started, setStarted] = useState(false);
     const [analyzing, setAnalyzing] = useState(false);
     const [analysisResult, setAnalysisResult] = useState('');
+    const [saved, setSaved] = useState(false);
+    const [copied, setCopied] = useState(false);
 
     const [history, setHistory] = useState<{ role: 'user' | 'examiner', content: string }[]>([]);
 
@@ -328,7 +330,44 @@ export default function VivaSimulatorPage() {
                         <div className="p-8 prose prose-slate max-w-none">
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{analysisResult}</ReactMarkdown>
                         </div>
-                        <div className="p-6 bg-slate-50 border-t border-slate-100">
+                        <div className="p-6 bg-slate-50 border-t border-slate-100 space-y-4">
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    onClick={() => {
+                                        try {
+                                            const savedVivas = JSON.parse(localStorage.getItem('mededuai_saved_viva_results') || '[]');
+                                            savedVivas.push({
+                                                id: Date.now(),
+                                                course: activeCourse?.name,
+                                                subject: activeSubject?.name,
+                                                topic: activeTopic?.name,
+                                                instructionType,
+                                                transcript: history,
+                                                analysis: analysisResult,
+                                                createdAt: new Date().toISOString()
+                                            });
+                                            localStorage.setItem('mededuai_saved_viva_results', JSON.stringify(savedVivas));
+                                            setSaved(true);
+                                            setTimeout(() => setSaved(false), 3000);
+                                        } catch (err) { console.error(err); }
+                                    }}
+                                    className={`font-bold h-10 px-5 rounded-xl transition-all flex items-center gap-2 text-sm shadow-sm ${saved ? 'bg-emerald-600 text-white' : 'bg-white text-slate-700 border border-slate-200 hover:bg-emerald-50 hover:border-emerald-300'}`}
+                                >
+                                    {saved ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+                                    {saved ? 'Saved!' : 'Save Analysis'}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(analysisResult);
+                                        setCopied(true);
+                                        setTimeout(() => setCopied(false), 2000);
+                                    }}
+                                    className="bg-white text-slate-700 font-bold h-10 px-5 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all flex items-center gap-2 text-sm shadow-sm"
+                                >
+                                    {copied ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                                    {copied ? 'Copied!' : 'Copy'}
+                                </button>
+                            </div>
                             <button
                                 onClick={() => { setStarted(false); setAnalysisResult(''); setHistory([]); }}
                                 className="w-full py-3.5 bg-gradient-to-r from-slate-800 to-slate-900 text-white font-bold rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99]"

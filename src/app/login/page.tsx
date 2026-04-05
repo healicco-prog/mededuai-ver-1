@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Home, Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
@@ -10,8 +10,8 @@ import { setRoleCookieAndRedirect } from './actions';
 
 export default function LoginPage() {
     const router = useRouter();
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    const [email, setEmail] = useState('narayanakdr@yahoo.co.in');
+    const [password, setPassword] = useState('User@2026');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');

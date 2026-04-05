@@ -3,39 +3,66 @@ import { GoogleGenAI } from '@google/genai';
 // ─────────────────────────────────────────────────────────────
 // MedEduAI – Centralized Gemini AI Configuration
 // ─────────────────────────────────────────────────────────────
+//
+// PRODUCTION (Cloud Run):
+//   Uses Vertex AI with Application Default Credentials (ADC).
+//   The Cloud Run service account (mededuai-vertex-sa) has
+//   roles/aiplatform.user — NO API KEY needed.
+//
+// LOCAL DEV:
+//   Falls back to GEMINI_API_KEY if GOOGLE_CLOUD_PROJECT is not set.
+//   Never exposed to portal users — only accessed from API routes.
+// ─────────────────────────────────────────────────────────────
 
-const resolvedKey = process.env.GEMINI_API_KEY;
+const isCloudRun = !!(
+    process.env.K_SERVICE ||              // Cloud Run service name
+    process.env.GOOGLE_CLOUD_PROJECT      // Explicitly set project
+);
 
-if (!resolvedKey) {
-    console.error('GEMINI_API_KEY environment variable is not set. AI features will use mock fallbacks.');
-}
+const GCP_PROJECT = process.env.GOOGLE_CLOUD_PROJECT || 'mededuai-prod';
+const GCP_LOCATION = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
 
-// Lazy-initialize the client so the build doesn't crash when the key
-// is only provided at runtime (e.g. Cloud Run env vars).
 let _ai: GoogleGenAI | null = null;
+
 function getAI(): GoogleGenAI {
     if (!_ai) {
-        const key = process.env.GEMINI_API_KEY || resolvedKey;
-        if (!key) throw new Error('GEMINI_API_KEY is not set');
-        _ai = new GoogleGenAI({ apiKey: key });
+        if (isCloudRun) {
+            // ── Production: Vertex AI + ADC (service account) ──────────────
+            // No API key needed — Cloud Run identity provides auth via ADC.
+            console.log(`[MedEduAI AI] Initializing Vertex AI (project=${GCP_PROJECT}, location=${GCP_LOCATION})`);
+            _ai = new GoogleGenAI({
+                vertexai: true,
+                project: GCP_PROJECT,
+                location: GCP_LOCATION,
+            });
+        } else {
+            // ── Local Dev: Google AI Studio key (fallback) ──────────────────
+            const key = process.env.GEMINI_API_KEY;
+            if (!key) {
+                throw new Error(
+                    '[MedEduAI AI] GEMINI_API_KEY is not set for local dev. ' +
+                    'Set it in .env.local or run on Cloud Run with Vertex AI.'
+                );
+            }
+            console.log('[MedEduAI AI] Initializing Google AI Studio (local dev)');
+            _ai = new GoogleGenAI({ apiKey: key });
+        }
     }
     return _ai;
 }
 
-// Model hierarchy – ordered by preference (confirmed working on mededuai-prod)
+// Model hierarchy – compatible with both Vertex AI and AI Studio
 const MODELS = {
-    primary: 'gemini-2.5-flash',       // Primary: confirmed working
-    secondary: 'gemini-1.5-flash',     // Fallback
-    tertiary: 'gemini-2.0-flash',      // Secondary fallback
+    primary: 'gemini-2.5-flash',       // Primary: best quality
+    secondary: 'gemini-1.5-flash',     // Fallback 1
+    tertiary: 'gemini-2.0-flash',      // Fallback 2
 } as const;
 
 /**
  * Smart Gemini content generation with automatic model fallback.
  * Tries models in order until one succeeds.
- * 
- * @param prompt - The prompt text to send
- * @param options - Optional config (json mode, model preference)
- * @returns The generated text content
+ * ⚠️  MUST only be called from Next.js API routes (server-side).
+ *     Never import or call from client components.
  */
 export async function generateWithFallback(
     prompt: string,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Volume2, ChevronDown, Library, Loader2, BookOpenText, Sparkles, Globe } from 'lucide-react';
+import { Volume2, ChevronDown, Library, Loader2, BookOpenText, Sparkles, Globe, Save, Copy, CheckCircle } from 'lucide-react';
 import { useCurriculumStore } from '@/store/curriculumStore';
 
 export default function VocabBuilderPage() {
@@ -13,6 +13,8 @@ export default function VocabBuilderPage() {
     const [loading, setLoading] = useState(false);
     const [openedIndex, setOpenedIndex] = useState<number | null>(null);
     const [vocabList, setVocabList] = useState<any[]>([]);
+    const [saved, setSaved] = useState(false);
+    const [copied, setCopied] = useState(false);
 
     const activeCourse = coursesList.find(c => c.id === selectedCourseId) || coursesList[0];
     const activeSubject = activeCourse?.subjects.find(s => s.id === selectedSubjectId) || activeCourse?.subjects[0];
@@ -151,6 +153,44 @@ export default function VocabBuilderPage() {
                             <Library className="w-10 h-10 text-amber-300" />
                         </div>
                         <p className="font-medium">Select a topic above and click Generate</p>
+                    </div>
+                )}
+                {vocabList.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-4">
+                        <button
+                            onClick={() => {
+                                try {
+                                    const savedVocab = JSON.parse(localStorage.getItem('mededuai_saved_vocab') || '[]');
+                                    savedVocab.push({
+                                        id: Date.now(),
+                                        course: activeCourse?.name,
+                                        subject: activeSubject?.name,
+                                        topic: activeTopic?.name,
+                                        terms: vocabList,
+                                        createdAt: new Date().toISOString()
+                                    });
+                                    localStorage.setItem('mededuai_saved_vocab', JSON.stringify(savedVocab));
+                                    setSaved(true);
+                                    setTimeout(() => setSaved(false), 3000);
+                                } catch (err) { console.error(err); }
+                            }}
+                            className={`font-bold h-10 px-5 rounded-xl transition-all flex items-center gap-2 text-sm shadow-sm ${saved ? 'bg-emerald-600 text-white' : 'bg-white text-slate-700 border border-slate-200 hover:bg-amber-50 hover:border-amber-300'}`}
+                        >
+                            {saved ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+                            {saved ? 'Saved!' : 'Save Terms'}
+                        </button>
+                        <button
+                            onClick={() => {
+                                const text = vocabList.map((v, i) => `${i+1}. ${v.term}: ${v.meaning}${v.example ? ` (Example: ${v.example})` : ''}${v.regional ? ` [${v.regional}]` : ''}`).join('\n');
+                                navigator.clipboard.writeText(text);
+                                setCopied(true);
+                                setTimeout(() => setCopied(false), 2000);
+                            }}
+                            className="bg-white text-slate-700 font-bold h-10 px-5 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all flex items-center gap-2 text-sm shadow-sm"
+                        >
+                            {copied ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                            {copied ? 'Copied!' : 'Copy All'}
+                        </button>
                     </div>
                 )}
                 <div className="space-y-3">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FileText, Loader2, Save, Send, CheckCircle, BrainCircuit, ShieldAlert, History, Calendar, ChevronDown, ChevronUp, Share2, Download, Sparkles, PenLine } from 'lucide-react';
 
 interface GeneratedReflection {
@@ -31,6 +31,17 @@ export default function ReflectionGeneratorPage() {
 
     const [savedReflections, setSavedReflections] = useState<GeneratedReflection[]>([]);
     const [expandedRefId, setExpandedRefId] = useState<string | null>(null);
+
+    useEffect(() => {
+        try {
+            const stored = localStorage.getItem('mededuai_saved_reflections');
+            if (stored) {
+                setSavedReflections(JSON.parse(stored));
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    }, []);
 
     const handleGenerate = async () => {
         if (!subject.trim() || !topic.trim()) {
@@ -74,7 +85,15 @@ export default function ReflectionGeneratorPage() {
     const handleSaveReflection = () => {
         if (!currentReflectionDraft) return;
 
-        setSavedReflections(prev => [currentReflectionDraft, ...prev]);
+        setSavedReflections(prev => {
+            const next = [currentReflectionDraft, ...prev];
+            try {
+                localStorage.setItem('mededuai_saved_reflections', JSON.stringify(next));
+            } catch (err) {
+                console.error(err);
+            }
+            return next;
+        });
         setCurrentReflectionDraft(null);
 
         alert("Reflection saved successfully!");

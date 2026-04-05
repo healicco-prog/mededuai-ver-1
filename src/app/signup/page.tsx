@@ -14,7 +14,6 @@ const ROLES = [
     { id: 'student', label: 'Student' },
     { id: 'teacher', label: 'Teacher' },
     { id: 'department_admin', label: 'Department Head' },
-    { id: 'institution_admin', label: 'Institution Head' },
 ];
 
 const COURSES = [

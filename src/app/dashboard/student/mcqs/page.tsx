@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { ListChecks, Loader2, Sparkles, CheckCircle, XCircle, RefreshCcw, Trophy, BarChart3, ChevronRight, Target } from 'lucide-react';
+import { ListChecks, Loader2, Sparkles, CheckCircle, XCircle, RefreshCcw, Trophy, BarChart3, ChevronRight, Target, Save, Copy, Download } from 'lucide-react';
 import { useCurriculumStore } from '@/store/curriculumStore';
 import { useUserStore } from '@/store/userStore';
 import { tokenService } from '@/lib/tokenService';
@@ -35,6 +35,8 @@ export default function McqGeneratorPage() {
     const [answers, setAnswers] = useState<(number | null)[]>([]);
     const [answered, setAnswered] = useState(false);
     const [showExplanation, setShowExplanation] = useState(false);
+    const [saved, setSaved] = useState(false);
+    const [copied, setCopied] = useState(false);
 
     const activeCourse = coursesList.find(c => c.id === selectedCourseId) || coursesList[0];
     const activeSubject = activeCourse?.subjects.find(s => s.id === selectedSubjectId) || activeCourse?.subjects[0];
@@ -395,7 +397,43 @@ export default function McqGeneratorPage() {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex gap-3 justify-center pt-4">
+                        <div className="flex flex-wrap gap-3 justify-center pt-4">
+                            <button
+                                onClick={() => {
+                                    try {
+                                        const savedQuizzes = JSON.parse(localStorage.getItem('mededuai_saved_mcq_results') || '[]');
+                                        savedQuizzes.push({
+                                            id: Date.now(),
+                                            course: activeCourse?.name,
+                                            subject: activeSubject?.name,
+                                            topic: activeTopic?.name,
+                                            difficulty,
+                                            score, totalQ, pct,
+                                            mcqs: mcqs.map((m, i) => ({ question: m.question, options: m.options, correctAnswer: m.correctAnswer, userAnswer: answers[i], explanation: m.explanation })),
+                                            createdAt: new Date().toISOString()
+                                        });
+                                        localStorage.setItem('mededuai_saved_mcq_results', JSON.stringify(savedQuizzes));
+                                        setSaved(true);
+                                        setTimeout(() => setSaved(false), 3000);
+                                    } catch (err) { console.error(err); }
+                                }}
+                                className={`font-bold h-12 px-6 rounded-xl transition-all flex items-center gap-2 shadow-sm ${saved ? 'bg-emerald-600 text-white' : 'bg-white text-slate-700 border border-slate-200 hover:bg-emerald-50 hover:border-emerald-300'}`}
+                            >
+                                {saved ? <CheckCircle className="w-5 h-5" /> : <Save className="w-5 h-5" />}
+                                {saved ? 'Saved!' : 'Save Results'}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const text = mcqs.map((m, i) => `Q${i+1}: ${m.question}\nYour Answer: ${answers[i] !== null ? m.options[answers[i]!] : 'Skipped'}\nCorrect: ${m.options[m.correctAnswer]}\nExplanation: ${m.explanation}`).join('\n\n');
+                                    navigator.clipboard.writeText(`MCQ Results: ${score}/${totalQ} (${pct}%)\n\n${text}`);
+                                    setCopied(true);
+                                    setTimeout(() => setCopied(false), 2000);
+                                }}
+                                className="bg-white text-slate-700 font-bold h-12 px-6 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm"
+                            >
+                                {copied ? <CheckCircle className="w-5 h-5 text-emerald-500" /> : <Copy className="w-5 h-5" />}
+                                {copied ? 'Copied!' : 'Copy Results'}
+                            </button>
                             <button
                                 onClick={handleRestart}
                                 className="bg-gradient-to-r from-slate-800 to-slate-900 text-white font-bold h-12 px-8 rounded-xl hover:shadow-lg transition-all flex items-center gap-2 hover:scale-[1.01] active:scale-[0.99]"
