@@ -25,10 +25,16 @@ export async function setRoleCookieAndGetRedirectUrl(role: string) {
         path: '/' 
     });
     
-    // Super Admin and Master Admin go to Control Panel, others to Dashboard
-    if (frontendRole === 'superadmin' || frontendRole === 'masteradmin') {
-        return '/contrl-panl';
-    } else {
-        return `/dashboard/${frontendRole}`;
-    }
+    // All users go to their dashboard after login
+    // Admin roles go to /dashboard/admin, others go to /dashboard/{role}
+    const dashboardMap: Record<string, string> = {
+        superadmin: '/dashboard/admin',
+        masteradmin: '/dashboard/admin',
+        instadmin: '/dashboard/admin',
+        deptadmin: '/dashboard/admin',
+        teacher: '/dashboard/teacher',
+        student: '/dashboard/student',
+    };
+    
+    return dashboardMap[frontendRole] || `/dashboard/${frontendRole}`;
 }
