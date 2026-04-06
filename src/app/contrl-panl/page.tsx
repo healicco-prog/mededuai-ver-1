@@ -23,7 +23,7 @@ const CREDENTIALS = [
         label: "Super Admin",
     },
     {
-        email: "aimsrcpharmac@gmail.com",
+        email: "narayanapharmac@gmail.com",
         password: "DeVanaHalli-#@Pradeep#2026",
         role: "admin" as const,
         label: "Admin",

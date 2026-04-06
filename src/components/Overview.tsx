@@ -2,7 +2,6 @@
 
 import { BrainCircuit, GraduationCap, ClipboardCheck, FileText, CheckCircle2, AlertCircle, Users, Settings } from 'lucide-react';
 import React from 'react';
-import TokenBalanceCard from './TokenBalanceCard';
 import ReferralCard from './ReferralCard';
 
 export function Overview({ role }: { role: 'student' | 'teacher' | 'admin' | 'superadmin' | 'masteradmin' | 'deptadmin' | 'instadmin' }) {
@@ -115,7 +114,6 @@ export function Overview({ role }: { role: 'student' | 'teacher' | 'admin' | 'su
 
                 {isStudent && (
                     <div className="flex flex-col gap-8">
-                        <TokenBalanceCard />
                         <div className="bg-emerald-900 p-8 rounded-3xl text-white relative overflow-hidden flex-1 flex flex-col justify-center">
                             <div className="relative z-10">
                                 <h3 className="text-2xl font-bold mb-4">MediEduAI Standard</h3>
@@ -131,7 +129,6 @@ export function Overview({ role }: { role: 'student' | 'teacher' | 'admin' | 'su
 
                 {isTeacher && !isStudent && (
                     <div className="flex flex-col gap-8">
-                        <TokenBalanceCard />
                         <div className="bg-blue-900 p-8 rounded-3xl text-white relative overflow-hidden flex-1 flex flex-col justify-center">
                             <div className="relative z-10">
                                 <h3 className="text-2xl font-bold mb-4">Teacher Portal</h3>

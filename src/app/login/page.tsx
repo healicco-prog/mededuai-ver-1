@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Home, Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import MededuLogo from '@/components/MededuLogo';
 import { supabase } from '@/lib/supabase';
-import { setRoleCookieAndRedirect } from './actions';
+import { setRoleCookieAndGetRedirectUrl } from './actions';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -48,8 +48,9 @@ export default function LoginPage() {
                     role = profileData.role;
                 }
 
-                // Set the role cookie and redirect
-                await setRoleCookieAndRedirect(role);
+                // Set the role cookie and get redirect URL
+                const redirectUrl = await setRoleCookieAndGetRedirectUrl(role);
+                router.push(redirectUrl);
             } catch (err: any) {
                 console.error("Redirection logic failed: ", err);
                 setError("Failed to fetch user profile. Please contact support.");

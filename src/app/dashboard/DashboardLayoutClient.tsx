@@ -5,20 +5,32 @@ import Link from 'next/link';
 import {
     LayoutDashboard, BookOpen, MessageSquare, Mic,
     Settings, LogOut, Users, FileText,
-    GraduationCap, ClipboardCheck, AlertCircle, Home, ClipboardList, Menu, X, ClipboardType, CalendarDays, Lock, ArrowLeft, Shield, FileEdit, ScanLine
+    GraduationCap, ClipboardCheck, AlertCircle, Home, ClipboardList, Menu, X, ClipboardType, CalendarDays, Lock, ArrowLeft, Shield, FileEdit, ScanLine, Zap
 } from 'lucide-react';
 import MededuLogo from '@/components/MededuLogo';
+import TrialCountdown from '@/components/TrialCountdown';
+import TokenUsageMeter from '@/components/TokenUsageMeter';
 import { usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { isEmailApproved } from '@/app/dashboard/admin/mentoring/mentorshipAccess';
+import { type PlanTier, type BillingStatus, canAccessFeature, getFeatureSlugFromPath } from '@/lib/subscription';
+
+interface SubscriptionData {
+    plan_tier: PlanTier;
+    billing_status: BillingStatus;
+    trial_end_date: string;
+    ai_tokens_balance: number;
+    ai_tokens_allotment: number;
+    bonus_tokens: number;
+}
 
 export default function DashboardLayoutClient({ children, role, handleLogout }: any) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [userName, setUserName] = useState('');
     const [userEmail, setUserEmail] = useState('');
-    const [userPlan, setUserPlan] = useState<string>('basic');
     const [hasControlPanelSession, setHasControlPanelSession] = useState(false);
     const [hasMentorshipAccess, setHasMentorshipAccess] = useState(false);
+    const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
     const pathname = usePathname();
 
     // Check if user has a Control Panel session
@@ -46,15 +58,30 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                     setUserName(user.user_metadata.full_name);
                 }
 
-                // Fetch user plan from usage_limits
-                const { data: planData } = await supabase
-                    .from('usage_limits')
-                    .select('plan_type')
-                    .eq('user_id', user.id)
-                    .single();
-                
-                if (planData?.plan_type) {
-                    setUserPlan(planData.plan_type);
+                // Fetch subscription
+                try {
+                    const res = await fetch(`/api/subscription?userId=${user.id}`);
+                    if (res.ok) {
+                        const sub = await res.json();
+                        setSubscription({
+                            plan_tier: sub.plan_tier || 'free',
+                            billing_status: sub.billing_status || 'trialing',
+                            trial_end_date: sub.trial_end_date || new Date().toISOString(),
+                            ai_tokens_balance: sub.ai_tokens_balance ?? 10000,
+                            ai_tokens_allotment: sub.ai_tokens_allotment ?? 10000,
+                            bonus_tokens: sub.bonus_tokens ?? 0,
+                        });
+                    }
+                } catch {
+                    // Fallback — show trial state
+                    setSubscription({
+                        plan_tier: 'free',
+                        billing_status: 'trialing',
+                        trial_end_date: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+                        ai_tokens_balance: 10000,
+                        ai_tokens_allotment: 10000,
+                        bonus_tokens: 0,
+                    });
                 }
             }
         };
@@ -68,10 +95,20 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
         }
     }, [userEmail, pathname]);
 
-    // Plan-based feature gating: Basic plan only gets LMS Notes + Mentorship MS
-    const isPremiumPlan = userPlan === 'premium' || userPlan === 'pro' || userPlan === 'enterprise';
-    // Admins and teachers always have premium-level sidebar access
-    const hasFullFeatureAccess = isPremiumPlan || role !== 'student';
+    // Subscription-based feature gating
+    const planTier = subscription?.plan_tier || 'free';
+    const billingStatus = subscription?.billing_status || 'trialing';
+    const trialEndDate = subscription?.trial_end_date || new Date().toISOString();
+
+    // Helper to check if a feature is accessible
+    const isFeatureAccessible = (featureSlug: string): boolean => {
+        // Admins always have full access
+        if (role !== 'student') return true;
+        const { allowed } = canAccessFeature(featureSlug, planTier, billingStatus, trialEndDate);
+        return allowed;
+    };
+
+    const isPaidPlan = planTier !== 'free';
 
     const isStudent = role === 'student' || role === 'masteradmin' || role === 'superadmin';
     const isTeacher = role === 'teacher' || role === 'masteradmin' || role === 'superadmin';
@@ -106,6 +143,16 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
         }
     };
     const roleDisplayLabel = getRoleDisplayLabel(role);
+
+    const getPlanBadgeColor = (tier: PlanTier) => {
+        switch (tier) {
+            case 'premium': return 'bg-purple-100 text-purple-600';
+            case 'standard': return 'bg-emerald-100 text-emerald-600';
+            case 'basic': return 'bg-blue-100 text-blue-600';
+            case 'enterprise': return 'bg-amber-100 text-amber-600';
+            default: return 'bg-slate-100 text-slate-500';
+        }
+    };
 
     // close sidebar on navigation
     useEffect(() => {
@@ -148,6 +195,36 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                     )}
                     <SidebarItem href="/" icon={<Home />} label="Home Page" />
 
+                    {/* Trial Countdown — hide for superadmin/masteradmin (unlimited) */}
+                    {subscription && !isMasterOrSuperAdmin && (
+                        <TrialCountdown
+                            trialEndDate={subscription.trial_end_date}
+                            billingStatus={subscription.billing_status}
+                            planTier={subscription.plan_tier}
+                        />
+                    )}
+
+                    {/* Token Usage Meter — show unlimited badge for admins */}
+                    {subscription && isMasterOrSuperAdmin ? (
+                        <div className="mx-3 mt-2 p-3 rounded-xl border bg-gradient-to-br from-slate-50 to-emerald-50 border-emerald-200">
+                            <div className="flex items-center gap-2 mb-1">
+                                <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-600">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                                </div>
+                                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">AI Tokens</span>
+                            </div>
+                            <div className="text-lg font-extrabold text-emerald-700">∞ Unlimited</div>
+                            <div className="text-[10px] text-slate-400 font-medium mt-0.5">Admin access — no token limits</div>
+                        </div>
+                    ) : subscription && (
+                        <TokenUsageMeter
+                            balance={subscription.ai_tokens_balance}
+                            allotment={subscription.ai_tokens_allotment}
+                            bonusTokens={subscription.bonus_tokens}
+                            planTier={subscription.plan_tier}
+                        />
+                    )}
+
                     {isStudent && (
                         <>
                             <div className="pt-4 pb-2 px-3">
@@ -160,26 +237,54 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                                 <SidebarItem href={`/dashboard/student/mentorship`} icon={<Users />} label="Mentorship MS" />
                             )}
                             <SidebarItem href={`/dashboard/student/elective`} icon={<BookOpen />} label="Elective MS" />
-                            {hasFullFeatureAccess ? (
-                                <>
-                                    <SidebarItem href={`/dashboard/student/mentor`} icon={<MessageSquare />} label="AI Mentor" badge="Standard" />
-                                    <SidebarItem href={`/dashboard/student/viva`} icon={<Mic />} label="Viva Simulator" />
-                                    <SidebarItem href={`/dashboard/student/vocab`} icon={<GraduationCap />} label="Vocabulary" />
-                                    <SidebarItem href={`/dashboard/student/reflection`} icon={<FileText />} label="Reflection Generator" />
-                                    <SidebarItem href={`/dashboard/student/essays`} icon={<ClipboardType />} label="Essay Qs Generator" />
-                                    <SidebarItem href={`/dashboard/student/mcqs`} icon={<ClipboardCheck />} label="MCQs Generator" />
-                                    <SidebarItem href={`/dashboard/student/self-eval-system`} icon={<ClipboardList />} label="Self-Evaluation" />
-                                </>
+
+                            {/* Standard+ features — shown with lock if not accessible */}
+                            {isFeatureAccessible('ai-mentor') ? (
+                                <SidebarItem href={`/dashboard/student/mentor`} icon={<MessageSquare />} label="AI Mentor" />
                             ) : (
-                                <a href="https://pages.razorpay.com/medieduai-standard" target="_blank" rel="noopener noreferrer" className="block mt-3 mx-3 p-3 bg-amber-50 border border-amber-200 rounded-xl hover:bg-amber-100 transition-colors cursor-pointer group">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <Lock className="w-3.5 h-3.5 text-amber-600 group-hover:text-amber-700" />
-                                        <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Basic Plan</span>
-                                    </div>
-                                    <p className="text-[11px] text-amber-600 leading-snug mb-2">Upgrade to MediEduAI Standard to unlock AI Mentor, Viva Simulator, Vocabulary, and more.</p>
-                                    <span className="text-[10px] font-bold text-amber-800 bg-amber-200/60 px-2 py-1 rounded inline-block">Upgrade via Razorpay →</span>
-                                </a>
+                                <LockedSidebarItem label="AI Mentor" requiredPlan="Standard" />
                             )}
+                            {isFeatureAccessible('viva-simulator') ? (
+                                <SidebarItem href={`/dashboard/student/viva`} icon={<Mic />} label="Viva Simulator" />
+                            ) : (
+                                <LockedSidebarItem label="Viva Simulator" requiredPlan="Standard" />
+                            )}
+                            {isFeatureAccessible('vocabulary') ? (
+                                <SidebarItem href={`/dashboard/student/vocab`} icon={<GraduationCap />} label="Vocabulary" />
+                            ) : (
+                                <LockedSidebarItem label="Vocabulary" requiredPlan="Standard" />
+                            )}
+                            {isFeatureAccessible('reflection-generator') ? (
+                                <SidebarItem href={`/dashboard/student/reflection`} icon={<FileText />} label="Reflection Generator" />
+                            ) : (
+                                <LockedSidebarItem label="Reflection Generator" requiredPlan="Standard" />
+                            )}
+                            {isFeatureAccessible('essay-qs-generator') ? (
+                                <SidebarItem href={`/dashboard/student/essays`} icon={<ClipboardType />} label="Essay Qs Generator" />
+                            ) : (
+                                <LockedSidebarItem label="Essay Qs Generator" requiredPlan="Standard" />
+                            )}
+                            {isFeatureAccessible('mcqs-generator') ? (
+                                <SidebarItem href={`/dashboard/student/mcqs`} icon={<ClipboardCheck />} label="MCQs Generator" />
+                            ) : (
+                                <LockedSidebarItem label="MCQs Generator" requiredPlan="Standard" />
+                            )}
+                            {isFeatureAccessible('self-evaluation') ? (
+                                <SidebarItem href={`/dashboard/student/self-eval-system`} icon={<ClipboardList />} label="Self-Evaluation" />
+                            ) : (
+                                <LockedSidebarItem label="Self-Evaluation" requiredPlan="Standard" />
+                            )}
+
+                            {/* Upgrade link */}
+                            <div className="pt-2">
+                                <Link
+                                    href="/dashboard/student/upgrade"
+                                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-semibold text-cyan-600 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200"
+                                >
+                                    <Zap size={20} />
+                                    <span className="flex-1 text-left truncate">Upgrade Plan</span>
+                                </Link>
+                            </div>
                         </>
                     )}
 
@@ -303,9 +408,7 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                             <p className="text-sm font-bold text-slate-900 capitalize leading-tight mb-0.5">{userName || `${roleDisplayLabel} User`}</p>
                             <div className="flex items-center gap-1.5 justify-end mb-0.5">
                                 <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider leading-none">{roleDisplayLabel}</p>
-                                <span className={`text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md leading-none ${
-                                    isPremiumPlan ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-500'
-                                }`}>{userPlan}</span>
+                                <span className={`text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md leading-none ${getPlanBadgeColor(planTier)}`}>{planTier}</span>
                             </div>
                             {userEmail && <p className="text-[10px] text-slate-400 font-medium leading-none">{userEmail}</p>}
                         </div>
@@ -341,6 +444,24 @@ function SidebarItem({ icon, label, href, badge }: any) {
                     {badge}
                 </span>
             )}
+        </Link>
+    );
+}
+
+function LockedSidebarItem({ label, requiredPlan }: { label: string; requiredPlan: string }) {
+    return (
+        <Link
+            href="/dashboard/student/upgrade"
+            title={`Upgrade to ${requiredPlan} to unlock ${label}`}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative group font-semibold text-slate-400 hover:bg-amber-50 hover:text-amber-600 cursor-pointer"
+        >
+            <div className="text-slate-300 group-hover:text-amber-500 transition-colors">
+                <Lock size={20} />
+            </div>
+            <span className="flex-1 text-left truncate">{label}</span>
+            <span className="text-[8px] font-bold bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-md uppercase tracking-wider opacity-70 group-hover:opacity-100">
+                {requiredPlan}
+            </span>
         </Link>
     );
 }

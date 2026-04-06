@@ -98,15 +98,9 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Protect control panel routes
-  if (pathname.startsWith('/contrl-panl')) {
-    if (!role) {
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
-    if (role !== 'superadmin' && role !== 'masteradmin') {
-      return NextResponse.redirect(new URL(getHomeUrl(role), request.url));
-    }
-  }
+  // Allow access to control panel routes so the built-in login form can be seen
+  // (The component itself handles authentication state hiding the dashboard)
+  // if (pathname.startsWith('/contrl-panl')) { ... }
 
   // Let authenticated users still access login/signup pages
   // (e.g. to switch accounts or view the public login form)

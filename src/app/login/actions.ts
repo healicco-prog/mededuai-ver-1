@@ -3,7 +3,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
-export async function setRoleCookieAndRedirect(role: string) {
+export async function setRoleCookieAndGetRedirectUrl(role: string) {
     const roleMapping: Record<string, string> = {
         'super_admin': 'superadmin',
         'master_admin': 'masteradmin',
@@ -27,8 +27,8 @@ export async function setRoleCookieAndRedirect(role: string) {
     
     // Super Admin and Master Admin go to Control Panel, others to Dashboard
     if (frontendRole === 'superadmin' || frontendRole === 'masteradmin') {
-        redirect('/contrl-panl');
+        return '/contrl-panl';
     } else {
-        redirect(`/dashboard/${frontendRole}`);
+        return `/dashboard/${frontendRole}`;
     }
 }

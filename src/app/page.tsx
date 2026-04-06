@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { BookOpen, Mic, Stethoscope, ChevronRight, Menu, X, Star, Download, MapPin, Phone, Mail as MailIcon, Loader2, CheckCircle2, User } from 'lucide-react';
+import { BookOpen, Mic, Stethoscope, ChevronRight, Menu, X, Star, Download, MapPin, Phone, Mail as MailIcon, Loader2, CheckCircle2, User, Zap, Crown, Shield, Check, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import MededuLogo from '@/components/MededuLogo';
 
@@ -91,6 +91,7 @@ export default function LandingPage() {
             <div className="hidden md:flex items-center space-x-8">
               <a href="#features" className="text-sm font-semibold text-slate-300 hover:text-cyan-400 transition-colors">Features</a>
               <a href="#how-it-works" className="text-sm font-semibold text-slate-300 hover:text-cyan-400 transition-colors">How it Works</a>
+              <a href="#pricing" className="text-sm font-semibold text-slate-300 hover:text-cyan-400 transition-colors">Pricing</a>
               <a href="#testimonials" className="text-sm font-semibold text-slate-300 hover:text-cyan-400 transition-colors">Testimonials</a>
               <a href="#contact" className="text-sm font-semibold text-slate-300 hover:text-cyan-400 transition-colors">Contact Us</a>
               <Link href="/blog" className="text-sm font-semibold text-slate-300 hover:text-cyan-400 transition-colors">Blog</Link>
@@ -245,6 +246,215 @@ export default function LandingPage() {
                 role="Institution Head, Medical Sciences"
                 text="Implementing MedEduAI across our institution was seamless. The role-based access — from students to department heads — ensures the right tools reach the right people. Student outcomes and faculty productivity have both measurably improved."
               />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section id="pricing" className="py-24 bg-slate-900 border-y border-white/5 relative overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-cyan-500/5 rounded-full blur-[150px] pointer-events-none"></div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-950/60 border border-cyan-700/50 text-cyan-300 text-sm font-semibold mb-6 backdrop-blur-md">
+              <Zap className="w-4 h-4" />
+              Simple, Transparent Pricing
+            </div>
+            <h2 className="text-3xl md:text-5xl font-bold text-white mb-6 tracking-tight">Plans for Every Role</h2>
+            <p className="text-slate-400 max-w-2xl mx-auto text-lg">Start with a 15-day free trial including 10,000 AI tokens. No credit card required. Upgrade anytime.</p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+            {/* Basic */}
+            <div className="bg-slate-950/60 backdrop-blur-sm border border-white/10 rounded-3xl p-7 hover:border-blue-500/30 transition-all duration-500 group">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                  <Zap className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-lg">Basic</h3>
+                  <p className="text-[11px] text-slate-500 font-medium">Students Only</p>
+                </div>
+              </div>
+              <div className="flex items-baseline gap-1 mb-4">
+                <span className="text-4xl font-extrabold text-white">₹200</span>
+                <span className="text-slate-500 font-medium">/month</span>
+              </div>
+              <div className="flex items-center gap-2 mb-5 p-2.5 bg-blue-500/5 border border-blue-500/10 rounded-xl">
+                <Zap className="w-4 h-4 text-blue-400" />
+                <span className="text-xs font-bold text-blue-300">50,000 AI tokens/month</span>
+              </div>
+              <div className="space-y-3 mb-6">
+                <PricingFeature text="LMS Notes" />
+                <PricingFeature text="Mentorship MS" />
+              </div>
+              <Link href="/signup" className="w-full flex items-center justify-center gap-2 py-3.5 bg-white/10 border border-white/20 text-white rounded-xl font-bold text-sm hover:bg-white/20 transition-all">
+                Get Started <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            {/* Standard - Popular */}
+            <div className="relative bg-gradient-to-b from-cyan-950/80 to-slate-950/80 backdrop-blur-sm border border-cyan-500/30 rounded-3xl p-7 shadow-lg shadow-cyan-500/10 ring-2 ring-cyan-500/10 hover:border-cyan-400/50 transition-all duration-500">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-full shadow-lg shadow-cyan-500/30">
+                Most Popular
+              </div>
+              <div className="flex items-center gap-3 mb-5 mt-1">
+                <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
+                  <Star className="w-5 h-5 text-cyan-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-lg">Standard</h3>
+                  <p className="text-[11px] text-cyan-400 font-medium">Students & Teachers</p>
+                </div>
+              </div>
+              <div className="flex items-baseline gap-1 mb-4">
+                <span className="text-4xl font-extrabold text-white">₹500</span>
+                <span className="text-slate-500 font-medium">/month</span>
+              </div>
+              <div className="flex items-center gap-2 mb-5 p-2.5 bg-cyan-500/5 border border-cyan-500/10 rounded-xl">
+                <Zap className="w-4 h-4 text-cyan-400" />
+                <span className="text-xs font-bold text-cyan-300">1,00,000 AI tokens/month</span>
+              </div>
+              <div className="space-y-3 mb-6">
+                <PricingFeature text="All Learning features" highlight />
+                <PricingFeature text="AI MentorPro & Viva Simulator" />
+                <PricingFeature text="Vocabulary & Reflection" />
+                <PricingFeature text="Essay Qs & MCQs Generator" />
+                <PricingFeature text="Self-Evaluation" />
+                <PricingFeature text="Full Teaching suite" />
+              </div>
+              <Link href="/signup" className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl font-bold text-sm hover:shadow-lg hover:shadow-cyan-500/30 transition-all transform hover:-translate-y-0.5">
+                Get Started <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            {/* Premium */}
+            <div className="bg-slate-950/60 backdrop-blur-sm border border-white/10 rounded-3xl p-7 hover:border-purple-500/30 transition-all duration-500 group">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                  <Crown className="w-5 h-5 text-purple-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-lg">Premium</h3>
+                  <p className="text-[11px] text-purple-400 font-medium">Department Heads</p>
+                </div>
+              </div>
+              <div className="flex items-baseline gap-1 mb-4">
+                <span className="text-4xl font-extrabold text-white">₹1,000</span>
+                <span className="text-slate-500 font-medium">/month</span>
+              </div>
+              <div className="flex items-center gap-2 mb-5 p-2.5 bg-purple-500/5 border border-purple-500/10 rounded-xl">
+                <Zap className="w-4 h-4 text-purple-400" />
+                <span className="text-xs font-bold text-purple-300">3,00,000 AI tokens/month</span>
+              </div>
+              <div className="space-y-3 mb-6">
+                <PricingFeature text="Everything in Standard" />
+                <PricingFeature text="Classroom Generator" />
+                <PricingFeature text="Time Table & Attendance MS" />
+                <PricingFeature text="Q-Paper Dev" />
+                <PricingFeature text="EMS – Essay & EMR – MCQs" />
+              </div>
+              <Link href="/signup" className="w-full flex items-center justify-center gap-2 py-3.5 bg-white/10 border border-white/20 text-white rounded-xl font-bold text-sm hover:bg-white/20 transition-all">
+                Get Started <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            {/* Enterprise */}
+            <div className="bg-slate-950/60 backdrop-blur-sm border border-white/10 rounded-3xl p-7 hover:border-amber-500/30 transition-all duration-500 group">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                  <Shield className="w-5 h-5 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-lg">Enterprise</h3>
+                  <p className="text-[11px] text-amber-400 font-medium">Institutions</p>
+                </div>
+              </div>
+              <div className="flex items-baseline gap-1 mb-4">
+                <span className="text-3xl font-extrabold text-white">Call Us</span>
+              </div>
+              <div className="flex items-center gap-2 mb-5 p-2.5 bg-amber-500/5 border border-amber-500/10 rounded-xl">
+                <Shield className="w-4 h-4 text-amber-400" />
+                <span className="text-xs font-bold text-amber-300">Custom token allocation</span>
+              </div>
+              <div className="space-y-3 mb-6">
+                <PricingFeature text="Mentoring Management System" />
+                <PricingFeature text="Elective Management System" />
+                <PricingFeature text="Log Book Management" />
+                <PricingFeature text="Dedicated support" />
+              </div>
+              <a href="#contact" className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl font-bold text-sm hover:shadow-lg hover:shadow-amber-500/20 transition-all">
+                <Phone className="w-4 h-4" />
+                Contact Sales
+              </a>
+            </div>
+          </div>
+
+          {/* Feature Comparison Table */}
+          <div className="bg-slate-950/60 backdrop-blur-sm border border-white/10 rounded-3xl overflow-hidden">
+            <div className="p-6 border-b border-white/5">
+              <h3 className="text-xl font-bold text-white">Complete Feature Comparison</h3>
+              <p className="text-sm text-slate-500 mt-1">All plans include a 15-day free trial with 10,000 AI tokens</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[700px]">
+                <thead>
+                  <tr className="border-b border-white/5">
+                    <th className="text-left py-4 px-6 text-sm font-bold text-slate-400">Feature</th>
+                    <th className="text-center py-4 px-4 text-sm font-bold text-blue-400">Basic</th>
+                    <th className="text-center py-4 px-4 text-sm font-bold text-cyan-400">Standard</th>
+                    <th className="text-center py-4 px-4 text-sm font-bold text-purple-400">Premium</th>
+                    <th className="text-center py-4 px-4 text-sm font-bold text-amber-400">Enterprise</th>
+                  </tr>
+                </thead>
+                <tbody className="text-sm">
+                  {[
+                    { name: 'LMS Notes', b: true, s: true, p: true, e: true },
+                    { name: 'Mentorship MS', b: true, s: true, p: true, e: true },
+                    { name: 'AI MentorPro', b: false, s: true, p: true, e: true },
+                    { name: 'Viva Simulator', b: false, s: true, p: true, e: true },
+                    { name: 'Vocabulary', b: false, s: true, p: true, e: true },
+                    { name: 'Reflection Generator', b: false, s: true, p: true, e: true },
+                    { name: 'Essay Qs Generator', b: false, s: true, p: true, e: true },
+                    { name: 'MCQs Generator', b: false, s: true, p: true, e: true },
+                    { name: 'Self-Evaluation', b: false, s: true, p: true, e: true },
+                    { name: 'Lesson Plan', b: false, s: true, p: true, e: true },
+                    { name: 'Rubrics Generator', b: false, s: true, p: true, e: true },
+                    { name: 'Dig Evaluation Assist', b: false, s: true, p: true, e: true },
+                    { name: 'Classroom Generator', b: false, s: false, p: true, e: true },
+                    { name: 'Time Table MS', b: false, s: false, p: true, e: true },
+                    { name: 'Attendance MS', b: false, s: false, p: true, e: true },
+                    { name: 'Q-Paper Dev', b: false, s: false, p: true, e: true },
+                    { name: 'EMS – Essay', b: false, s: false, p: true, e: true },
+                    { name: 'EMR – MCQs', b: false, s: false, p: true, e: true },
+                    { name: 'Mentoring MS', b: false, s: false, p: false, e: true },
+                    { name: 'Elective MS', b: false, s: false, p: false, e: true },
+                    { name: 'Log Book MS', b: false, s: false, p: false, e: true },
+                  ].map((f, i) => (
+                    <tr key={i} className={`border-b border-white/5 ${i % 2 === 0 ? 'bg-white/[0.02]' : ''}`}>
+                      <td className="py-3 px-6 text-slate-300 font-medium">{f.name}</td>
+                      <td className="text-center py-3 px-4">{f.b ? <Check className="w-5 h-5 text-emerald-400 mx-auto" /> : <span className="text-slate-600">—</span>}</td>
+                      <td className="text-center py-3 px-4">{f.s ? <Check className="w-5 h-5 text-emerald-400 mx-auto" /> : <span className="text-slate-600">—</span>}</td>
+                      <td className="text-center py-3 px-4">{f.p ? <Check className="w-5 h-5 text-emerald-400 mx-auto" /> : <span className="text-slate-600">—</span>}</td>
+                      <td className="text-center py-3 px-4">{f.e ? <Check className="w-5 h-5 text-emerald-400 mx-auto" /> : <span className="text-slate-600">—</span>}</td>
+                    </tr>
+                  ))}
+                  <tr className="border-t border-white/10 bg-cyan-500/5">
+                    <td className="py-4 px-6 text-white font-bold">AI Tokens / Month</td>
+                    <td className="text-center py-4 px-4 text-blue-300 font-bold">50K</td>
+                    <td className="text-center py-4 px-4 text-cyan-300 font-bold">1 Lakh</td>
+                    <td className="text-center py-4 px-4 text-purple-300 font-bold">3 Lakh</td>
+                    <td className="text-center py-4 px-4 text-amber-300 font-bold">Custom</td>
+                  </tr>
+                  <tr className="bg-cyan-500/5">
+                    <td className="py-4 px-6 text-white font-bold">Monthly Price</td>
+                    <td className="text-center py-4 px-4 text-blue-300 font-bold">₹200</td>
+                    <td className="text-center py-4 px-4 text-cyan-300 font-bold">₹500</td>
+                    <td className="text-center py-4 px-4 text-purple-300 font-bold">₹1,000</td>
+                    <td className="text-center py-4 px-4 text-amber-300 font-bold">Call Us</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -451,6 +661,15 @@ function TestimonialCard({ name, role, text }: any) {
           <p className="text-sm text-cyan-400 font-semibold">{role}</p>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PricingFeature({ text, highlight }: { text: string; highlight?: boolean }) {
+  return (
+    <div className="flex items-start gap-2">
+      <Check className={`w-4 h-4 mt-0.5 flex-shrink-0 ${highlight ? 'text-cyan-400' : 'text-emerald-400'}`} />
+      <span className={`text-sm ${highlight ? 'text-cyan-200 font-semibold' : 'text-slate-400'}`}>{text}</span>
     </div>
   );
 }

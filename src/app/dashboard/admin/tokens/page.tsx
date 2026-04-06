@@ -3,8 +3,8 @@ import { Metadata } from 'next';
 import { cookies } from 'next/headers';
 
 export const metadata: Metadata = {
-    title: 'Token Economy Manager | Admin',
-    description: 'Manage AI tokens, multipliers, and user balances.',
+    title: 'Token Economy | Admin | MedEduAI',
+    description: 'Manage AI tokens, plan allotments, and user balances.',
 };
 
 export default async function AdminTokensPage() {
