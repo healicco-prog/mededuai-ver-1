@@ -17,11 +17,7 @@ export default async function DashboardLayout({
         const cookieStore = await cookies();
         const currentRole = cookieStore.get('role')?.value;
         cookieStore.delete('role');
-        if (currentRole === 'masteradmin' || currentRole === 'superadmin') {
-            redirect('/contrl-panl');
-        } else {
-            redirect('/login');
-        }
+        redirect('/login');
     }
 
     return (

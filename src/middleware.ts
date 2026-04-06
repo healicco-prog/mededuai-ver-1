@@ -27,10 +27,16 @@ function getCorsHeaders(origin: string | null | undefined): Record<string, strin
 
 // ── Role-based routing helper ────────────────────────
 function getHomeUrl(role: string): string {
-  if (role === 'superadmin' || role === 'masteradmin') {
-    return '/contrl-panl';
-  }
-  return `/dashboard/${role}`;
+  // All users go to their dashboard — Control Panel is accessed from sidebar
+  const map: Record<string, string> = {
+    superadmin: '/dashboard/admin',
+    masteradmin: '/dashboard/admin',
+    instadmin: '/dashboard/admin',
+    deptadmin: '/dashboard/admin',
+    teacher: '/dashboard/teacher',
+    student: '/dashboard/student',
+  };
+  return map[role] || `/dashboard/${role}`;
 }
 
 export function middleware(request: NextRequest) {
@@ -73,11 +79,11 @@ export function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
 
-    if (pathname.startsWith('/dashboard/student') && role !== 'student' && role !== 'superadmin' && role !== 'admin') {
+    if (pathname.startsWith('/dashboard/student') && role !== 'student' && role !== 'superadmin' && role !== 'masteradmin' && role !== 'admin') {
       return NextResponse.redirect(new URL(getHomeUrl(role), request.url));
     }
 
-    if (pathname.startsWith('/dashboard/teacher') && role !== 'teacher' && role !== 'superadmin' && role !== 'admin') {
+    if (pathname.startsWith('/dashboard/teacher') && role !== 'teacher' && role !== 'superadmin' && role !== 'masteradmin' && role !== 'admin') {
       return NextResponse.redirect(new URL(getHomeUrl(role), request.url));
     }
 
