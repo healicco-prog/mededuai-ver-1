@@ -53,9 +53,9 @@ function getAI(): GoogleGenAI {
 
 // Model hierarchy – compatible with both Vertex AI and AI Studio
 const MODELS = {
-    primary: 'gemini-2.5-flash',       // Primary: best quality
-    secondary: 'gemini-1.5-flash',     // Fallback 1
-    tertiary: 'gemini-2.0-flash',      // Fallback 2
+    primary: 'gemini-1.5-flash',       // Primary: best quality & stable on Vertex AI
+    secondary: 'gemini-1.5-flash-8b',  // Fallback 1
+    tertiary: 'gemini-1.0-pro',        // Fallback 2
 } as const;
 
 /**

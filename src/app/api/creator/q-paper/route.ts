@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 import { generateJSON } from '@/lib/gemini';
 
 export async function POST(req: Request) {
+    let requestBody: any = { frames: [], topics: 'Unknown' };
     try {
-        const body = await req.json();
-        const { course, department, topics, frames, totalMarks } = body;
+        requestBody = await req.json();
+        const { course, department, topics, frames, totalMarks } = requestBody;
 
         let promptInstructions = `You are an expert medical university examiner. You need to create a question paper blueprint based on the National Medical Commission (NMC) guidelines, standard textbooks (like Gray's Anatomy, Guyton, Robbins, KD Tripathi, etc.), and standard clinical resources.\n\n`;
         promptInstructions += `Context:\n- Course: ${course}\n- Department: ${department}\n- Topics/Systems to be assessed: ${topics}\n- Total Marks: ${totalMarks}\n\n`;
@@ -37,26 +38,25 @@ export async function POST(req: Request) {
     } catch (error: any) {
         console.warn('Q-Paper API Error:', error.message);
 
-        const body = await req.json().catch(() => ({ frames: [], topics: 'Unknown' }));
         const mockedQuestions: Record<string, string> = {};
 
-        for (const frame of body.frames || []) {
+        for (const frame of requestBody.frames || []) {
             let content = "";
             const isMCQ = frame.type.toLowerCase().includes('mcq');
 
             if (isMCQ) {
                 if (frame.type.includes('2 Marks MCQ')) {
-                    content = `**Case Scenario:** A patient presents with symptoms related to ${body.topics}.\n\ni) What is the most likely diagnosis?\nA) Option 1 B) Option 2 C) Option 3 D) Option 4\n\nii) What is the next best step?\nA) Option 1 B) Option 2 C) Option 3 D) Option 4`;
+                    content = `**Case Scenario:** A patient presents with symptoms related to ${requestBody.topics}.\n\ni) What is the most likely diagnosis?\nA) Option 1 B) Option 2 C) Option 3 D) Option 4\n\nii) What is the next best step?\nA) Option 1 B) Option 2 C) Option 3 D) Option 4`;
                 } else {
-                    content = `Based on ${body.topics}, which of the following is correct?\nA) Option 1\nB) Option 2\nC) Option 3\nD) Option 4`;
+                    content = `Based on ${requestBody.topics}, which of the following is correct?\nA) Option 1\nB) Option 2\nC) Option 3\nD) Option 4`;
                 }
             } else if (frame.type.toLowerCase().includes('case')) {
-                content = `**Case Study:** A 45-year old presents with symptoms related to ${body.topics}. Explain the pathophysiology and management. [${frame.marks} Marks]`;
+                content = `**Case Study:** A 45-year old presents with symptoms related to ${requestBody.topics}. Explain the pathophysiology and management. [${frame.marks} Marks]`;
             } else {
-                content = `Discuss the principles of ${body.topics} in detail relevant to ${frame.type}. [${frame.marks} Marks]`;
+                content = `Discuss the principles of ${requestBody.topics} in detail relevant to ${frame.type}. [${frame.marks} Marks]`;
             }
 
-            mockedQuestions[frame.id] = content + `\n\n*(Note: Live Gemini generation was bypassed due to API Key Quota).*`;
+            mockedQuestions[frame.id] = content + `\n\n*(Note: Live Gemini generation was bypassed due to an error: ${error.message}).*`;
         }
 
         return NextResponse.json({ success: true, generatedQuestions: mockedQuestions, isMock: true });
