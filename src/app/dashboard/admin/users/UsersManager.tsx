@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { Users, Edit2, CheckCircle2, X, Search, Loader2, KeyRound, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
+import { Users, Edit2, CheckCircle2, X, Search, Loader2, KeyRound, Eye, EyeOff } from 'lucide-react';
 
 type UserRow = {
     id: string;
@@ -11,6 +11,7 @@ type UserRow = {
     created_at: string;
     last_sign_in: string | null;
     has_profile: boolean;
+    admin_set_password: string | null;
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -30,39 +31,271 @@ const ROLE_COLORS: Record<string, string> = {
     superadmin: 'bg-rose-100 text-rose-700', super_admin: 'bg-rose-100 text-rose-700',
 };
 
-export default function UsersManager({ currentUserRole }: { currentUserRole: 'masteradmin' | 'superadmin' }) {
-    const [users, setUsers] = useState<UserRow[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [searchQuery, setSearchQuery] = useState('');
+/* ── Per-row component — inline PGMentor-style password reset ── */
+function UserRow_({
+    u, isEditing, editable, editRole, saving,
+    onEditRole, onStartEdit, onCancelEdit, onSaveRole,
+    onPasswordSet, // callback(userId, newPassword) → updates parent state
+    formatDate, currentUserRole,
+}: {
+    u: UserRow;
+    isEditing: boolean;
+    editable: boolean;
+    editRole: string;
+    saving: boolean;
+    onEditRole: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+    onStartEdit: () => void;
+    onCancelEdit: () => void;
+    onSaveRole: () => void;
+    onPasswordSet: (userId: string, newPw: string) => Promise<void>;
+    formatDate: (d: string | null) => string;
+    currentUserRole: string;
+}) {
+    // Displayed password show/hide
+    const [showPw, setShowPw] = useState(false);
 
-    // Inline edit state
+    // Inline reset state (PGMentor style)
+    const [resetMode, setResetMode] = useState(false);
+    const [resetPw, setResetPw] = useState('');
+    const [showResetPw, setShowResetPw] = useState(false);
+    const [setting, setSetting] = useState(false);
+    const [setDone, setSetDone] = useState(false);
+
+    const handleSet = async () => {
+        if (resetPw.length < 6) return;
+        setSetting(true);
+        await onPasswordSet(u.id, resetPw);
+        setSetting(false);
+        setSetDone(true);
+        setResetMode(false);
+        setResetPw('');
+        setTimeout(() => setSetDone(false), 3000);
+    };
+
+    const cancelReset = () => {
+        setResetMode(false);
+        setResetPw('');
+        setShowResetPw(false);
+    };
+
+    return (
+        <tr className="hover:bg-slate-50/40 transition-colors">
+            {/* Name */}
+            <td className="px-4 py-3">
+                <span className="font-bold text-slate-900 text-sm truncate block">
+                    {u.full_name || 'Unknown'}
+                </span>
+            </td>
+
+            {/* Email */}
+            <td className="px-3 py-3">
+                <span className="text-slate-600 text-xs truncate block">{u.email}</span>
+            </td>
+
+            {/* Role */}
+            <td className="px-3 py-3">
+                {isEditing ? (
+                    <select
+                        value={editRole}
+                        onChange={onEditRole}
+                        disabled={saving}
+                        className="w-full px-2 py-1 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 text-xs"
+                    >
+                        <option value="student">Student</option>
+                        <option value="teacher">Teacher</option>
+                        <option value="department_admin">Dept Admin</option>
+                        <option value="institution_admin">Inst Admin</option>
+                        {currentUserRole === 'superadmin' && (
+                            <option value="master_admin">Master Admin</option>
+                        )}
+                    </select>
+                ) : (
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${ROLE_COLORS[u.role] || 'bg-slate-100 text-slate-600'}`}>
+                        {ROLE_LABELS[u.role] || u.role}
+                    </span>
+                )}
+            </td>
+
+            {/* Joined */}
+            <td className="px-3 py-3 text-xs text-slate-500 whitespace-nowrap">
+                {formatDate(u.created_at)}
+            </td>
+
+            {/* Last Login */}
+            <td className="px-3 py-3 text-xs text-slate-500 whitespace-nowrap">
+                {formatDate(u.last_sign_in)}
+            </td>
+
+            {/* Admin-Set Password (display only) */}
+            <td className="px-3 py-3">
+                {u.admin_set_password ? (
+                    <div className="flex items-center gap-1">
+                        <span className={`font-mono text-xs text-slate-700 truncate max-w-[100px] ${showPw ? '' : 'tracking-widest'}`}>
+                            {showPw ? u.admin_set_password : '••••••••'}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => setShowPw(v => !v)}
+                            className="flex-shrink-0 p-1 text-slate-300 hover:text-slate-600 rounded transition-colors"
+                        >
+                            {showPw ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                        </button>
+                    </div>
+                ) : (
+                    <span className="text-[10px] text-slate-400 italic">Not set</span>
+                )}
+            </td>
+
+            {/* ── Password Reset — inline PGMentor style ── */}
+            <td className="px-3 py-2">
+                {resetMode ? (
+                    /* Active: input + Set + Cancel */
+                    <div className="flex items-center gap-1.5">
+                        <div className="relative flex-1 min-w-0">
+                            <input
+                                type={showResetPw ? 'text' : 'password'}
+                                value={resetPw}
+                                onChange={e => setResetPw(e.target.value)}
+                                placeholder="New password…"
+                                autoFocus
+                                onKeyDown={e => { if (e.key === 'Enter') handleSet(); if (e.key === 'Escape') cancelReset(); }}
+                                className="w-full bg-white border border-violet-300 rounded-lg pl-2.5 pr-7 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowResetPw(v => !v)}
+                                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                            >
+                                {showResetPw ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                            </button>
+                        </div>
+                        {/* Set button */}
+                        <button
+                            type="button"
+                            onClick={handleSet}
+                            disabled={setting || resetPw.length < 6}
+                            title="Set new password"
+                            className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-50"
+                        >
+                            {setting ? <Loader2 className="w-3 h-3 animate-spin" /> : <KeyRound className="w-3 h-3" />}
+                            Set
+                        </button>
+                        {/* Cancel */}
+                        <button
+                            type="button"
+                            onClick={cancelReset}
+                            className="flex-shrink-0 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                        >
+                            <X className="w-3 h-3" />
+                        </button>
+                    </div>
+                ) : (
+                    /* Default: Reset button (or ✓ after set) */
+                    <button
+                        type="button"
+                        onClick={() => setResetMode(true)}
+                        disabled={setDone}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                            setDone
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : 'bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100'
+                        }`}
+                    >
+                        {setDone ? (
+                            <><CheckCircle2 className="w-3 h-3" /> Done</>
+                        ) : (
+                            <><KeyRound className="w-3 h-3" /> Reset</>
+                        )}
+                    </button>
+                )}
+            </td>
+
+            {/* Profile dot */}
+            <td className="px-3 py-3 text-center">
+                {u.has_profile ? (
+                    <span className="inline-block w-2 h-2 bg-emerald-500 rounded-full" title="Has profile row" />
+                ) : (
+                    <span className="inline-block w-2 h-2 bg-amber-400 rounded-full" title="Auth only" />
+                )}
+            </td>
+
+            {/* Actions (role edit only) */}
+            <td className="px-3 py-3 text-right">
+                {isEditing ? (
+                    <div className="flex items-center justify-end gap-1.5">
+                        <button
+                            onClick={onCancelEdit}
+                            disabled={saving}
+                            className="p-1.5 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors disabled:opacity-50"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                            onClick={onSaveRole}
+                            disabled={saving}
+                            className="p-1.5 text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-1 font-bold text-[11px] px-3 disabled:opacity-50"
+                        >
+                            {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                            Save
+                        </button>
+                    </div>
+                ) : editable ? (
+                    <button
+                        onClick={onStartEdit}
+                        title="Edit role"
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    >
+                        <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                ) : (
+                    <span className="text-[10px] text-slate-300 font-bold uppercase">Protected</span>
+                )}
+            </td>
+        </tr>
+    );
+}
+
+/* ── Main Component ── */
+export default function UsersManager({
+    currentUserRole,
+    initialUsers = [],
+}: {
+    currentUserRole: 'masteradmin' | 'superadmin';
+    initialUsers?: UserRow[];
+}) {
+    const [users, setUsers] = useState<UserRow[]>(initialUsers);
+    const [loading, setLoading] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
     const [editingUserId, setEditingUserId] = useState<string | null>(null);
     const [editRole, setEditRole] = useState('');
-
-    // Password modal state
-    const [passwordUserId, setPasswordUserId] = useState<string | null>(null);
-    const [passwordUserEmail, setPasswordUserEmail] = useState('');
-    const [newPassword, setNewPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
     const [saving, setSaving] = useState(false);
     const [successMsg, setSuccessMsg] = useState('');
     const [errorMsg, setErrorMsg] = useState('');
 
+    /* Retry fetch (for error state only) */
     const fetchUsers = useCallback(async () => {
         setLoading(true);
+        setErrorMsg('');
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 15000);
         try {
-            const res = await fetch('/api/admin/users');
+            const res = await fetch('/api/admin/users', { signal: controller.signal });
             if (!res.ok) throw new Error(`API error: ${res.status}`);
-            const data = await res.json();
-            setUsers(data);
-        } catch (err) {
-            console.error('[UsersManager] fetch error:', err);
+            setUsers(await res.json());
+        } catch (err: any) {
+            setErrorMsg(err.name === 'AbortError' ? 'Timed out — click Retry' : err.message);
         } finally {
+            clearTimeout(timer);
             setLoading(false);
         }
     }, []);
 
-    useEffect(() => { fetchUsers(); }, [fetchUsers]);
+    // Automatically fetch users on mount since server-side fetch was removed
+    useEffect(() => {
+        if (users.length === 0 && !loading && !errorMsg) {
+            fetchUsers();
+        }
+    }, [users.length, loading, errorMsg, fetchUsers]);
 
     const filtered = users.filter(u => {
         const q = searchQuery.toLowerCase();
@@ -71,10 +304,8 @@ export default function UsersManager({ currentUserRole }: { currentUserRole: 'ma
             (u.role || '').toLowerCase().includes(q);
     });
 
-    const handleStartEdit = (u: UserRow) => {
-        setEditingUserId(u.id);
-        setEditRole(u.role);
-    };
+    /* Role edit */
+    const handleStartEdit = (u: UserRow) => { setEditingUserId(u.id); setEditRole(u.role); };
 
     const handleSaveRole = async (userId: string) => {
         setSaving(true);
@@ -97,40 +328,27 @@ export default function UsersManager({ currentUserRole }: { currentUserRole: 'ma
         }
     };
 
-    const openPasswordModal = (u: UserRow) => {
-        setPasswordUserId(u.id);
-        setPasswordUserEmail(u.email);
-        setNewPassword('');
-        setShowPassword(false);
-        setErrorMsg('');
-    };
-
-    const handleChangePassword = async () => {
-        if (!passwordUserId || !newPassword) return;
-        if (newPassword.length < 6) {
-            setErrorMsg('Password must be at least 6 characters');
-            return;
-        }
-        setSaving(true);
-        setErrorMsg('');
+    /* Inline password set (PGMentor style) */
+    const handlePasswordSet = async (userId: string, newPw: string) => {
         try {
             const res = await fetch('/api/admin/users', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: passwordUserId, newPassword }),
+                body: JSON.stringify({ userId, newPassword: newPw }),
             });
             if (!res.ok) {
                 const e = await res.json();
                 throw new Error(e.error || 'Failed');
             }
-            setSuccessMsg(`Password changed for ${passwordUserEmail}`);
+            // Update displayed password column immediately
+            setUsers(prev => prev.map(u =>
+                u.id === userId ? { ...u, admin_set_password: newPw } : u
+            ));
+            setSuccessMsg('Password updated successfully');
             setTimeout(() => setSuccessMsg(''), 4000);
-            setPasswordUserId(null);
-            setNewPassword('');
         } catch (err: any) {
             setErrorMsg(err.message);
-        } finally {
-            setSaving(false);
+            setTimeout(() => setErrorMsg(''), 4000);
         }
     };
 
@@ -141,7 +359,7 @@ export default function UsersManager({ currentUserRole }: { currentUserRole: 'ma
 
     const canEditUser = (u: UserRow) => {
         const r = u.role.toLowerCase().replace(/_/g, '');
-        if (r === 'superadmin') return false; // nobody edits superadmin
+        if (r === 'superadmin') return false;
         if (currentUserRole === 'masteradmin' && r === 'masteradmin') return false;
         return true;
     };
@@ -153,7 +371,7 @@ export default function UsersManager({ currentUserRole }: { currentUserRole: 'ma
                     ✓ {successMsg}
                 </div>
             )}
-            {errorMsg && !passwordUserId && (
+            {errorMsg && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-5 py-3 rounded-xl font-semibold text-sm">
                     ⚠ {errorMsg}
                 </div>
@@ -168,9 +386,7 @@ export default function UsersManager({ currentUserRole }: { currentUserRole: 'ma
                         </div>
                         <div>
                             <h3 className="font-bold text-slate-800">All Platform Users</h3>
-                            <p className="text-xs text-slate-500">
-                                {users.length} total users from Supabase Auth
-                            </p>
+                            <p className="text-xs text-slate-500">{users.length} total users</p>
                         </div>
                     </div>
                     <div className="relative">
@@ -189,199 +405,67 @@ export default function UsersManager({ currentUserRole }: { currentUserRole: 'ma
                 <div className="overflow-auto flex-1" style={{ maxHeight: '65vh' }}>
                     {loading ? (
                         <div className="p-12 flex justify-center items-center gap-3 text-slate-500">
-                            <Loader2 className="w-6 h-6 animate-spin" />
-                            Loading all auth users…
+                            <Loader2 className="w-6 h-6 animate-spin" /> Loading users…
+                        </div>
+                    ) : errorMsg && users.length === 0 ? (
+                        <div className="p-12 flex flex-col items-center gap-4">
+                            <p className="text-sm text-red-600 font-medium">⚠ {errorMsg}</p>
+                            <button onClick={fetchUsers} className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700">
+                                Retry
+                            </button>
                         </div>
                     ) : (
-                        <table className="w-full text-left table-fixed" style={{ minWidth: '900px' }}>
+                        <table className="w-full text-left table-fixed" style={{ minWidth: '1200px' }}>
                             <thead className="bg-slate-50 border-b border-slate-100 text-[10px] uppercase tracking-widest text-slate-500 sticky top-0 z-10">
                                 <tr>
-                                    <th className="px-4 py-3 font-bold w-[20%]">Name</th>
-                                    <th className="px-3 py-3 font-bold w-[22%]">Email</th>
-                                    <th className="px-3 py-3 font-bold w-[13%]">Role</th>
-                                    <th className="px-3 py-3 font-bold w-[11%]">Joined</th>
-                                    <th className="px-3 py-3 font-bold w-[11%]">Last Login</th>
-                                    <th className="px-3 py-3 font-bold w-[6%] text-center">Profile</th>
-                                    <th className="px-3 py-3 font-bold w-[17%] text-right">Actions</th>
+                                    <th className="px-4 py-3 font-bold w-[13%]">Name</th>
+                                    <th className="px-3 py-3 font-bold w-[15%]">Email</th>
+                                    <th className="px-3 py-3 font-bold w-[9%]">Role</th>
+                                    <th className="px-3 py-3 font-bold w-[8%]">Joined</th>
+                                    <th className="px-3 py-3 font-bold w-[8%]">Last Login</th>
+                                    <th className="px-3 py-3 font-bold w-[15%]">
+                                        <span className="flex items-center gap-1.5">
+                                            <KeyRound className="w-3 h-3 text-amber-500" />
+                                            Password (Set)
+                                        </span>
+                                    </th>
+                                    <th className="px-3 py-3 font-bold w-[22%]">
+                                        <span className="flex items-center gap-1.5">
+                                            <KeyRound className="w-3 h-3 text-violet-500" />
+                                            Password Reset
+                                        </span>
+                                    </th>
+                                    <th className="px-3 py-3 font-bold w-[4%] text-center">●</th>
+                                    <th className="px-3 py-3 font-bold w-[6%] text-right">Edit</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {filtered.map(u => {
-                                    const isEditing = editingUserId === u.id;
-                                    const editable = canEditUser(u);
-
-                                    return (
-                                        <tr key={u.id} className="hover:bg-slate-50/50 transition-colors group">
-                                            <td className="px-4 py-3">
-                                                <span className="font-bold text-slate-900 text-sm truncate block">
-                                                    {u.full_name || 'Unknown'}
-                                                </span>
-                                            </td>
-                                            <td className="px-3 py-3">
-                                                <span className="text-slate-600 text-sm truncate block">{u.email}</span>
-                                            </td>
-                                            <td className="px-3 py-3">
-                                                {isEditing ? (
-                                                    <select
-                                                        value={editRole}
-                                                        onChange={e => setEditRole(e.target.value)}
-                                                        disabled={saving}
-                                                        className="w-full px-2 py-1 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 text-xs"
-                                                    >
-                                                        <option value="student">Student</option>
-                                                        <option value="teacher">Teacher</option>
-                                                        <option value="department_admin">Dept Admin</option>
-                                                        <option value="institution_admin">Inst Admin</option>
-                                                        {currentUserRole === 'superadmin' && (
-                                                            <option value="master_admin">Master Admin</option>
-                                                        )}
-                                                    </select>
-                                                ) : (
-                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${ROLE_COLORS[u.role] || 'bg-slate-100 text-slate-600'}`}>
-                                                        {ROLE_LABELS[u.role] || u.role}
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="px-3 py-3 text-xs text-slate-500">
-                                                {formatDate(u.created_at)}
-                                            </td>
-                                            <td className="px-3 py-3 text-xs text-slate-500">
-                                                {formatDate(u.last_sign_in)}
-                                            </td>
-                                            <td className="px-3 py-3 text-center">
-                                                {u.has_profile ? (
-                                                    <span className="inline-block w-2 h-2 bg-emerald-500 rounded-full" title="Has profile in users table" />
-                                                ) : (
-                                                    <span className="inline-block w-2 h-2 bg-amber-400 rounded-full" title="Auth only — no profile row" />
-                                                )}
-                                            </td>
-                                            <td className="px-3 py-3 text-right">
-                                                {isEditing ? (
-                                                    <div className="flex items-center justify-end gap-1.5">
-                                                        <button
-                                                            onClick={() => setEditingUserId(null)}
-                                                            disabled={saving}
-                                                            className="p-1.5 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors disabled:opacity-50"
-                                                        >
-                                                            <X className="w-3.5 h-3.5" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleSaveRole(u.id)}
-                                                            disabled={saving}
-                                                            className="p-1.5 text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-1 font-bold text-[11px] px-3 disabled:opacity-50"
-                                                        >
-                                                            {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
-                                                            Save
-                                                        </button>
-                                                    </div>
-                                                ) : editable ? (
-                                                    <div className="flex items-center justify-end gap-1">
-                                                        <button
-                                                            onClick={() => handleStartEdit(u)}
-                                                            title="Edit role"
-                                                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                        >
-                                                            <Edit2 className="w-3.5 h-3.5" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => openPasswordModal(u)}
-                                                            title="Change password"
-                                                            className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                                                        >
-                                                            <KeyRound className="w-3.5 h-3.5" />
-                                                        </button>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-[10px] text-slate-300 font-bold uppercase">Protected</span>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
+                                {filtered.map(u => (
+                                    <UserRow_
+                                        key={u.id}
+                                        u={u}
+                                        isEditing={editingUserId === u.id}
+                                        editable={canEditUser(u)}
+                                        editRole={editRole}
+                                        saving={saving}
+                                        onEditRole={e => setEditRole(e.target.value)}
+                                        onStartEdit={() => handleStartEdit(u)}
+                                        onCancelEdit={() => setEditingUserId(null)}
+                                        onSaveRole={() => handleSaveRole(u.id)}
+                                        onPasswordSet={handlePasswordSet}
+                                        formatDate={formatDate}
+                                        currentUserRole={currentUserRole}
+                                    />
+                                ))}
                             </tbody>
                         </table>
                     )}
                 </div>
 
-                {!loading && filtered.length === 0 && (
+                {!loading && filtered.length === 0 && !errorMsg && (
                     <div className="p-8 text-center text-slate-500">No users found.</div>
                 )}
             </div>
-
-            {/* Password Change Modal */}
-            {passwordUserId && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md">
-                        <div className="flex items-center justify-between p-7 pb-5 border-b border-slate-100">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2.5 bg-amber-100 rounded-xl">
-                                    <KeyRound className="w-5 h-5 text-amber-600" />
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-extrabold text-slate-900">Change Password</h3>
-                                    <p className="text-sm text-slate-400">{passwordUserEmail}</p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => { setPasswordUserId(null); setErrorMsg(''); }}
-                                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        <div className="p-7 space-y-5">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">New Password</label>
-                                <div className="relative">
-                                    <input
-                                        type={showPassword ? 'text' : 'password'}
-                                        value={newPassword}
-                                        onChange={e => setNewPassword(e.target.value)}
-                                        placeholder="Enter new password (min 6 chars)"
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 pr-12 font-medium text-slate-900 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
-                                        autoFocus
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700"
-                                    >
-                                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                    </button>
-                                </div>
-                                {newPassword.length > 0 && newPassword.length < 6 && (
-                                    <p className="text-xs text-red-500 mt-1.5 font-medium">Password must be at least 6 characters</p>
-                                )}
-                            </div>
-
-                            {errorMsg && (
-                                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm font-semibold">
-                                    ⚠ {errorMsg}
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="flex gap-3 px-7 pb-7">
-                            <button
-                                onClick={() => { setPasswordUserId(null); setErrorMsg(''); }}
-                                disabled={saving}
-                                className="px-5 py-3 font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors disabled:opacity-50"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleChangePassword}
-                                disabled={saving || newPassword.length < 6}
-                                className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-                                {saving ? 'Changing…' : 'Change Password'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

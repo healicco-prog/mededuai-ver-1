@@ -5,13 +5,12 @@
   NODE_ENV = "production"
   NPM_FLAGS = "--include=dev"
 
-# Proxy all API routes to Cloud Run backend
+# Proxy all API routes to Cloud Run backend (Hard redirect at CDN level)
 [[redirects]]
   from = "/api/*"
-  to = "https://mededuai-backend-3js7mh5u5a-uc.a.run.app/api/:splat"
+  to = "https://mededuai-backend-945029424967.us-central1.run.app/api/:splat"
   status = 200
   force = true
-
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"

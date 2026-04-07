@@ -10,10 +10,16 @@ export default async function AdminUsersPage() {
         return <div className="p-8 text-slate-500">Access Denied</div>;
     }
 
+    // We no longer query the database server-side here because this page is deployed to
+    // Netlify frontend which does not have the SUPABASE_SERVICE_ROLE_KEY.
+    // The UsersManager component will fetch the data on mount from the Cloud Run API.
     return (
         <div className="h-full flex flex-col">
             <h2 className="text-2xl font-bold mb-6">User Management</h2>
-            <UsersManager currentUserRole={role as 'masteradmin' | 'superadmin'} />
+            <UsersManager
+                currentUserRole={role as 'masteradmin' | 'superadmin'}
+                initialUsers={[]}
+            />
         </div>
     );
 }
