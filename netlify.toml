@@ -1,16 +1,41 @@
+###############################################################################
+# MedEduAI — Netlify Deployment Configuration
+#
+# ARCHITECTURE:
+#   Netlify Frontend (this) ──► Cloud Run Backend (API + all secrets)
+#
+# SECURITY RULES:
+#   ✅ SAFE in Netlify env: NEXT_PUBLIC_* (designed to be public)
+#   ❌ NEVER in Netlify env: SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY,
+#                             RESEND_API_KEY, JWT_SECRET, or any admin key
+#
+# All /api/* requests are transparently proxied to Cloud Run at CDN level.
+# The frontend build NEVER touches secret env vars.
+###############################################################################
+
 [build]
   command = "npm run build"
+  publish = ".next"
 
 [build.environment]
+  # ── Tell Next.js we're on Netlify (enables API proxy rewrites in next.config.mjs) ──
+  NETLIFY = "true"
   NODE_ENV = "production"
   NPM_FLAGS = "--include=dev"
+  # ── These are the ONLY safe/public vars needed at build time ──
+  # Set their actual values in Netlify UI: Site > Environment variables
+  # NEXT_PUBLIC_SUPABASE_URL    = (set in Netlify UI)
+  # NEXT_PUBLIC_SUPABASE_ANON_KEY = (set in Netlify UI)
+  # NEXT_PUBLIC_SITE_URL        = (set in Netlify UI)
 
-# Proxy all API routes to Cloud Run backend (Hard redirect at CDN level)
+# ── Proxy: ALL /api/* requests → Cloud Run backend (CDN redirect, status 200) ──
+# This handles the API routing *at the Netlify CDN layer* as a fallback safety.
 [[redirects]]
-  from = "/api/*"
-  to = "https://mededuai-backend-945029424967.us-central1.run.app/api/:splat"
+  from   = "/api/*"
+  to     = "https://mededuai-backend-3js7mh5u5a-uc.a.run.app/api/:splat"
   status = 200
-  force = true
+  force  = true
+  headers = { X-Forwarded-Host = "mededuai.netlify.app" }
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"

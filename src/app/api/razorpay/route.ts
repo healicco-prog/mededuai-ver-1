@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '../../../lib/supabaseAdmin';
 import crypto from 'crypto';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 // Razorpay credentials
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || '';
@@ -26,6 +21,7 @@ const PLAN_TOKENS: Record<string, number> = {
 // ── POST: Create Razorpay Order ────────────────────────────
 export async function POST(req: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const { userId, planTier } = await req.json();
 
     if (!userId || !planTier || !PLAN_PRICES[planTier]) {
@@ -90,6 +86,7 @@ export async function POST(req: NextRequest) {
 // ── PUT: Verify Payment & Activate Subscription ────────────
 export async function PUT(req: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, userId, planTier } = await req.json();
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {

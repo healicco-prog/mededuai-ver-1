@@ -1,5 +1,7 @@
 steps:
-  # Step 1: Build the Docker image using our Dockerfile
+  # ── Step 1: Build Docker image ──────────────────────────────────────────────
+  # Only NEXT_PUBLIC_* vars baked at build time (safe/public).
+  # All secrets injected at Cloud Run runtime via substitutions — never in image.
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
@@ -8,11 +10,7 @@ steps:
       - '--build-arg'
       - 'NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY}'
       - '--build-arg'
-      - 'SUPABASE_SERVICE_ROLE_KEY=${_SUPABASE_SERVICE_ROLE_KEY}'
-      - '--build-arg'
-      - 'RESEND_API_KEY=${_RESEND_API_KEY}'
-      - '--build-arg'
-      - 'ALLOWED_ORIGINS=${_ALLOWED_ORIGINS}'
+      - 'NEXT_PUBLIC_SITE_URL=${_NEXT_PUBLIC_SITE_URL}'
       - '--build-arg'
       - 'GOOGLE_CLOUD_PROJECT=$PROJECT_ID'
       - '--build-arg'
@@ -21,26 +19,43 @@ steps:
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/mededuai-backend'
       - '.'
 
-  # Step 2: Push the image to Artifact Registry
+  # ── Step 2: Push image to Artifact Registry ─────────────────────────────────
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/mededuai-backend'
 
-  # Step 3: Deploy to Cloud Run with dedicated Vertex AI service account
+  # ── Step 3: Deploy to Cloud Run ─────────────────────────────────────────────
+  # Single --set-env-vars with all vars. Secrets come from CLI substitutions only.
+  # Memory bumped to 2Gi — needed for mammoth Word doc parsing + Gemini AI calls.
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
+    entrypoint: bash
     args:
-      - 'run'
-      - 'deploy'
-      - 'mededuai-backend'
-      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/mededuai-backend'
-      - '--region=us-central1'
-      - '--platform=managed'
-      - '--service-account=mededuai-vertex-sa@$PROJECT_ID.iam.gserviceaccount.com'
-      - '--port=3000'
-      - '--allow-unauthenticated'
-      - '--set-env-vars=GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=us-central1,NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL},NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY},SUPABASE_SERVICE_ROLE_KEY=${_SUPABASE_SERVICE_ROLE_KEY},RESEND_API_KEY=${_RESEND_API_KEY},ALLOWED_ORIGINS=${_ALLOWED_ORIGINS}'
+      - '-c'
+      - |
+        gcloud run deploy mededuai-backend \
+          --image="us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/mededuai-backend" \
+          --region=us-central1 \
+          --platform=managed \
+          --port=3000 \
+          --allow-unauthenticated \
+          --memory=2Gi \
+          --cpu=2 \
+          --min-instances=0 \
+          --max-instances=10 \
+          --timeout=300 \
+          --set-env-vars="NODE_ENV=production" \
+          --set-env-vars="GOOGLE_CLOUD_PROJECT=$PROJECT_ID" \
+          --set-env-vars="GOOGLE_CLOUD_LOCATION=us-central1" \
+          --set-env-vars="NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL}" \
+          --set-env-vars="NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY}" \
+          --set-env-vars="NEXT_PUBLIC_SITE_URL=${_NEXT_PUBLIC_SITE_URL}" \
+          --set-env-vars="ALLOWED_ORIGINS=${_ALLOWED_ORIGINS}" \
+          --set-env-vars="SUPABASE_SERVICE_ROLE_KEY=${_SUPABASE_SERVICE_ROLE_KEY}" \
+          --set-env-vars="RESEND_API_KEY=${_RESEND_API_KEY}" \
+          --set-env-vars="GEMINI_API_KEY=${_GEMINI_API_KEY}"
 
 images:
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/mededuai-backend'
+
+timeout: '1800s'

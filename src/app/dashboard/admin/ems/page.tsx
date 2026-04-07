@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from 'react';
-import { ClipboardCheck, Sparkles, UploadCloud, Users, CheckCircle2, FileSearch, HelpCircle, Camera, Settings, Trash2, ChevronLeft, ChevronRight, X, Crop as CropIcon, FolderOpen, Save } from 'lucide-react';
+import { ClipboardCheck, Sparkles, UploadCloud, Users, CheckCircle2, FileSearch, HelpCircle, Camera, Settings, Trash2, ChevronLeft, ChevronRight, X, Crop as CropIcon, FolderOpen, Save, FileText, Upload, AlertCircle, CheckCircle } from 'lucide-react';
 import { useQPaperStore } from '@/store/qPaperStore';
 import { useEmsStore } from '@/store/emsStore';
 import ReactCrop, { type Crop } from 'react-image-crop';
@@ -22,11 +22,20 @@ export default function EvaluationManagementSystem() {
     const [course, setCourse] = useState('');
     const [department, setDepartment] = useState('');
     const [examName, setExamName] = useState('');
-    const [paperSource, setPaperSource] = useState<'qpaper' | 'generator'>('qpaper');
+    const [paperSource, setPaperSource] = useState<'qpaper' | 'generator' | 'upload'>('qpaper');
     const [selectedPaperId, setSelectedPaperId] = useState('');
     const [questionPaperText, setQuestionPaperText] = useState('');
     const [isPaperLocked, setIsPaperLocked] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+
+    // Upload Word Paper State
+    const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+    const [isParsingWord, setIsParsingWord] = useState(false);
+    const [parseError, setParseError] = useState('');
+    const [parsedQuestions, setParsedQuestions] = useState<{ text: string; marks: number }[]>([]);
+    const [parsedTotalMarks, setParsedTotalMarks] = useState(0);
+    const [isDragOver, setIsDragOver] = useState(false);
+    const wordFileRef = useRef<HTMLInputElement>(null);
 
     // Upload Script State
     const [studentRoll, setStudentRoll] = useState('');
@@ -55,6 +64,47 @@ export default function EvaluationManagementSystem() {
     ]);
 
     const [evaluatedStudents, setEvaluatedStudents] = useState<any[]>([]);
+
+    const handleWordUpload = async (file: File) => {
+        setUploadedFile(file);
+        setIsParsingWord(true);
+        setParseError('');
+        setParsedQuestions([]);
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await fetch('/api/upload-qpaper', { method: 'POST', body: formData });
+            const data = await res.json();
+
+            if (!res.ok || !data.success) {
+                setParseError(data.error || 'Failed to parse the document.');
+                setIsParsingWord(false);
+                return;
+            }
+
+            // Populate form fields from parsed data
+            if (data.institution) setInstituteName(data.institution);
+            if (data.course) setCourse(data.course);
+            if (data.department) setDepartment(data.department);
+            if (data.paperTitle) setExamName(data.paperTitle);
+
+            setParsedQuestions(data.questions);
+            setParsedTotalMarks(data.totalMarks || 0);
+
+            // Build the question paper text (questions separated by ---)
+            const paperText = data.questions
+                .map((q: { text: string; marks: number }, i: number) =>
+                    `**Q${i + 1}. [${q.marks} Marks]**\n\n${q.text}`
+                )
+                .join('\n\n---\n\n');
+            setQuestionPaperText(paperText);
+        } catch (err: any) {
+            setParseError('Network error: ' + err.message);
+        } finally {
+            setIsParsingWord(false);
+        }
+    };
 
     const handleEvaluateAll = () => {
         setEvaluating(true);
@@ -327,9 +377,10 @@ export default function EvaluationManagementSystem() {
                         <div className="border border-slate-200 rounded-2xl p-6 bg-white shadow-sm space-y-6">
                             <div>
                                 <label className="block text-xs font-bold text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2"><HelpCircle className="w-4 h-4 text-indigo-500" /> Add Question Paper</label>
-                                <div className="flex gap-4 mb-4 bg-slate-100 p-1.5 rounded-xl w-max">
+                                <div className="flex flex-wrap gap-2 mb-4 bg-slate-100 p-1.5 rounded-xl w-max">
                                     <button onClick={() => setPaperSource('qpaper')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${paperSource === 'qpaper' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-800'}`}>Select from Q-Paper Dev</button>
                                     <button onClick={() => setPaperSource('generator')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${paperSource === 'generator' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-800'}`}><Sparkles className="inline w-4 h-4 mr-1"/> Blueprint Generator</button>
+                                    <button onClick={() => { setPaperSource('upload'); setUploadedFile(null); setParsedQuestions([]); setParseError(''); }} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1.5 ${paperSource === 'upload' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-500 hover:text-slate-800'}`}><Upload className="w-3.5 h-3.5"/> Upload Question Paper</button>
                                 </div>
 
                                 {paperSource === 'generator' && (
@@ -362,6 +413,119 @@ export default function EvaluationManagementSystem() {
                                                 />
                                             </div>
                                         </div>
+                                    </div>
+                                )}
+
+                                {/* ── Upload Word Paper Panel ── */}
+                                {paperSource === 'upload' && (
+                                    <div className="animate-in fade-in duration-300 space-y-5">
+                                        {/* Drop Zone */}
+                                        {!uploadedFile && (
+                                            <div
+                                                onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
+                                                onDragLeave={() => setIsDragOver(false)}
+                                                onDrop={e => {
+                                                    e.preventDefault();
+                                                    setIsDragOver(false);
+                                                    const f = e.dataTransfer.files[0];
+                                                    if (f) handleWordUpload(f);
+                                                }}
+                                                onClick={() => wordFileRef.current?.click()}
+                                                className={`relative border-2 border-dashed rounded-3xl p-12 flex flex-col items-center justify-center gap-4 cursor-pointer transition-all select-none ${
+                                                    isDragOver
+                                                        ? 'border-emerald-500 bg-emerald-50 scale-[1.01]'
+                                                        : 'border-slate-300 bg-slate-50 hover:border-emerald-400 hover:bg-emerald-50/40'
+                                                }`}
+                                            >
+                                                <input
+                                                    ref={wordFileRef}
+                                                    type="file"
+                                                    accept=".docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
+                                                    className="hidden"
+                                                    onChange={e => { const f = e.target.files?.[0]; if (f) handleWordUpload(f); }}
+                                                />
+                                                <div className={`w-20 h-20 rounded-2xl flex items-center justify-center transition-colors ${
+                                                    isDragOver ? 'bg-emerald-100' : 'bg-slate-100'
+                                                }`}>
+                                                    <FileText className={`w-10 h-10 transition-colors ${
+                                                        isDragOver ? 'text-emerald-600' : 'text-slate-400'
+                                                    }`} />
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="font-bold text-slate-800 text-lg">Drop your Word file here</p>
+                                                    <p className="text-slate-500 text-sm mt-1">or <span className="text-emerald-600 font-bold underline underline-offset-2">browse files</span></p>
+                                                    <p className="text-xs text-slate-400 mt-3 bg-slate-100 px-3 py-1.5 rounded-full inline-block">Supports .docx and .doc formats</p>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Parsing Spinner */}
+                                        {isParsingWord && (
+                                            <div className="flex flex-col items-center gap-5 py-10 bg-slate-50 rounded-3xl border border-slate-200">
+                                                <div className="relative w-16 h-16">
+                                                    <div className="absolute inset-0 border-4 border-emerald-100 rounded-full" />
+                                                    <div className="absolute inset-0 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                                                    <FileText className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 text-emerald-600" />
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="font-bold text-slate-800">AI is Reading Your Question Paper...</p>
+                                                    <p className="text-sm text-slate-500 mt-1">Extracting questions and mark allocations</p>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Error State */}
+                                        {parseError && !isParsingWord && (
+                                            <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl p-5">
+                                                <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
+                                                <div>
+                                                    <p className="font-bold text-red-800">Parsing Failed</p>
+                                                    <p className="text-sm text-red-600 mt-1">{parseError}</p>
+                                                    <button onClick={() => { setUploadedFile(null); setParseError(''); }} className="mt-3 text-sm font-bold text-red-700 underline">Try a different file</button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Parsed Results */}
+                                        {parsedQuestions.length > 0 && !isParsingWord && (
+                                            <div className="space-y-4 animate-in fade-in duration-300">
+                                                <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-9 h-9 bg-emerald-100 rounded-full flex items-center justify-center">
+                                                            <CheckCircle className="w-5 h-5 text-emerald-600" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-bold text-emerald-900 text-sm">Successfully Parsed!</p>
+                                                            <p className="text-xs text-emerald-700">{parsedQuestions.length} questions · {parsedTotalMarks} total marks · {uploadedFile?.name}</p>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => { setUploadedFile(null); setParsedQuestions([]); setParseError(''); setQuestionPaperText(''); }}
+                                                        className="text-xs font-bold text-slate-500 hover:text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                                                    >Remove</button>
+                                                </div>
+
+                                                <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                                                    <div className="bg-slate-50 border-b border-slate-200 px-5 py-3 flex justify-between items-center">
+                                                        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Extracted Questions</span>
+                                                        <span className="text-xs font-bold bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full">{parsedTotalMarks} Total Marks</span>
+                                                    </div>
+                                                    <div className="divide-y divide-slate-100 max-h-64 overflow-y-auto">
+                                                        {parsedQuestions.map((q, idx) => (
+                                                            <div key={idx} className="flex items-start gap-4 px-5 py-3.5 hover:bg-slate-50 transition-colors">
+                                                                <div className="w-7 h-7 bg-indigo-100 rounded-full flex items-center justify-center font-bold text-indigo-700 text-xs shrink-0 mt-0.5">Q{idx + 1}</div>
+                                                                <p className="flex-1 text-sm text-slate-700 font-medium line-clamp-2">{q.text}</p>
+                                                                <span className="shrink-0 text-xs font-bold text-white bg-indigo-500 px-2.5 py-1 rounded-full">{q.marks}M</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                <p className="text-xs text-slate-500 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
+                                                    <span className="text-amber-600">✦</span> Institution, course, department and exam name fields have been auto-filled from the document where detected. You can edit them above.
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 
@@ -414,7 +578,7 @@ export default function EvaluationManagementSystem() {
                             </div>
                         </div>
 
-                        {paperSource === 'qpaper' && (
+                        {(paperSource === 'qpaper' || (paperSource === 'upload' && parsedQuestions.length > 0)) && (
                             <div className="flex gap-4 pt-4">
                                 <button
                                     onClick={() => {

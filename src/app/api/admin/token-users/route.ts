@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getSupabaseAdmin } from '../../../../lib/supabaseAdmin';
 
 export async function GET(_req: NextRequest) {
+  const supabaseAdmin = getSupabaseAdmin();
   // Fetch all users with their subscription data
   const { data: users, error: uErr } = await supabaseAdmin
     .from('users')
@@ -52,6 +48,7 @@ export async function GET(_req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const { userId, newBalance, reason, adminId } = await req.json();
     if (!userId || newBalance === undefined) {
       return NextResponse.json({ error: 'userId and newBalance required' }, { status: 400 });
@@ -82,6 +79,7 @@ export async function PATCH(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const { userId, plan_tier, billing_status, ai_tokens_balance, ai_tokens_allotment, role } = await req.json();
     if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 });
 

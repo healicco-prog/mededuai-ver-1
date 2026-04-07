@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { Home, Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import MededuLogo from '@/components/MededuLogo';
 import { supabase } from '@/lib/supabase';
-import { setRoleCookieAndGetRedirectUrl } from './actions';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -34,27 +33,38 @@ export default function LoginPage() {
 
         if (data?.user) {
             try {
-                // Get the user's role from the profiles table
-                const { data: profileData, error: profileError } = await supabase
-                    .from('profiles')
-                    .select('role')
-                    .eq('id', data.user.id)
-                    .single();
+                // Determine role: prefer user_metadata, then try profiles table as fallback
+                let role = 'student'; // safe default
 
-                let role = 'student'; // Default role
                 if (data.user.user_metadata?.role) {
                     role = data.user.user_metadata.role;
-                } else if (profileData && profileData.role) {
-                    role = profileData.role;
+                } else {
+                    // Try fetching from profiles table (may fail for some users due to RLS timing)
+                    try {
+                        const { data: profileData } = await supabase
+                            .from('profiles')
+                            .select('role')
+                            .eq('id', data.user.id)
+                            .single();
+                        if (profileData?.role) role = profileData.role;
+                    } catch {
+                        // Silently ignore — we'll use default 'student' role
+                        console.warn('Could not fetch profile role, using metadata or default.');
+                    }
                 }
 
-                // Set the role cookie and get redirect URL
-                const redirectUrl = await setRoleCookieAndGetRedirectUrl(role);
-                router.push(redirectUrl);
+                // Use API route to set the role cookie (avoids Server Action 404 issues)
+                const res = await fetch('/api/auth/set-role', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role }),
+                });
+                const { redirectUrl } = await res.json();
+                router.push(redirectUrl || '/dashboard/student');
             } catch (err: any) {
-                console.error("Redirection logic failed: ", err);
-                setError("Failed to fetch user profile. Please contact support.");
-                setLoading(false);
+                console.error('Login redirection error:', err);
+                // Even if cookie setting fails, the user is authenticated — redirect to dashboard
+                router.push('/dashboard/student');
             }
         }
     };

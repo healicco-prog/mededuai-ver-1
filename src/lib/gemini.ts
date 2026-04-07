@@ -53,9 +53,9 @@ function getAI(): GoogleGenAI {
 
 // Model hierarchy – compatible with both Vertex AI and AI Studio
 const MODELS = {
-    primary: 'gemini-1.5-flash',       // Primary: best quality & stable on Vertex AI
-    secondary: 'gemini-1.5-flash-8b',  // Fallback 1
-    tertiary: 'gemini-1.0-pro',        // Fallback 2
+    primary: 'gemini-2.5-flash',       // Primary: best quality & stable
+    secondary: 'gemini-2.5-flash',     // Fallback 1
+    tertiary: 'gemini-2.5-flash',      // Fallback 2
 } as const;
 
 /**
@@ -104,7 +104,22 @@ export async function generateJSON<T = any>(
         jsonMode: true,
         preferredModels,
     });
-    return JSON.parse(text);
+    
+    // Strip markdown formatting like ```json ... ```
+    let cleanText = text.trim();
+    if (cleanText.startsWith('```')) {
+        const lines = cleanText.split('\n');
+        if (lines[0].startsWith('```')) lines.shift();
+        if (lines[lines.length - 1].startsWith('```')) lines.pop();
+        cleanText = lines.join('\n').trim();
+    }
+    
+    try {
+        return JSON.parse(cleanText);
+    } catch (e) {
+        console.warn("[MedEduAI AI] Failed to parse JSON. Raw text:", text);
+        throw e;
+    }
 }
 
 /**

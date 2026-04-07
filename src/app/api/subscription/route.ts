@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getSupabaseAdmin } from '../../../lib/supabaseAdmin';
 
 // ── GET: Fetch subscription for a user ─────────────────────
 export async function GET(req: NextRequest) {
+  const supabaseAdmin = getSupabaseAdmin();
   const userId = req.nextUrl.searchParams.get('userId');
   if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 });
 
@@ -88,6 +84,7 @@ export async function GET(req: NextRequest) {
 // ── PUT: Admin actions (extend trial, add bonus tokens) ────
 export async function PUT(req: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const { action, targetUserId, adminId, amount, reason } = await req.json();
 
     if (!targetUserId || !adminId || !action) {

@@ -1,11 +1,17 @@
 /** @type {import('next').NextConfig} */
+const isNetlify = process.env.NETLIFY === 'true';
+const CLOUD_RUN_URL = 'https://mededuai-backend-3js7mh5u5a-uc.a.run.app';
+
 const nextConfig = {
-  output: 'standalone',
+  // standalone output is for Cloud Run Docker (node server.js).
+  // On Netlify, the @netlify/plugin-nextjs handles the output — do NOT set standalone.
+  ...(isNetlify ? {} : { output: 'standalone' }),
 
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'localhost' },
       { protocol: 'https', hostname: 'mededuai.com' },
+      { protocol: 'https', hostname: '*.supabase.co' },
     ],
   },
 
@@ -24,16 +30,18 @@ const nextConfig = {
   },
 
   async rewrites() {
-    // When running on Netlify, completely proxy all backend APIs to Cloud Run
-    // This allows Netlify to purely serve the frontend without needing backend secrets
-    if (process.env.NETLIFY === 'true') {
+    // When running on Netlify, proxy ALL API calls to Cloud Run.
+    // This ensures ZERO backend secrets are needed in the Netlify build/runtime.
+    // Netlify's [[redirects]] also provides a CDN-level fallback for this.
+    if (isNetlify) {
       return [
         {
           source: '/api/:path*',
-          destination: 'https://mededuai-backend-945029424967.us-central1.run.app/api/:path*',
+          destination: `${CLOUD_RUN_URL}/api/:path*`,
         },
       ];
     }
+    // On Cloud Run (standalone): API routes are handled locally by Next.js server.
     return [];
   },
 };

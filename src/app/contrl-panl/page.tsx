@@ -197,32 +197,44 @@ export default function ControlPanelPage() {
                 const { role, label } = JSON.parse(saved);
                 setAuthRole(role);
                 setAuthLabel(label);
-                // Also ensure the role cookie is set for middleware/dashboard access
-                setControlPanelRole(role === 'admin' ? 'superadmin' : role);
+                // Re-sync role cookie silently — errors are non-blocking
+                setControlPanelRole(role === 'admin' ? 'superadmin' : role).catch(() => {});
             } catch { /* ignore */ }
         }
     }, []);
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
         setIsLoggingIn(true);
 
-        setTimeout(async () => {
+        try {
             const match = CREDENTIALS.find(
                 (c) => c.email === email.trim() && c.password === password
             );
+
             if (match) {
-                // Set the role cookie so middleware allows access to /dashboard/* routes
-                await setControlPanelRole(match.role === 'admin' ? 'superadmin' : match.role);
+                // Race the server action against a 8-second timeout to prevent infinite spinner
+                const timeout = new Promise<never>((_, reject) =>
+                    setTimeout(() => reject(new Error("Request timed out. Please try again.")), 8000)
+                );
+                await Promise.race([
+                    setControlPanelRole(match.role === 'admin' ? 'superadmin' : match.role),
+                    timeout,
+                ]);
+
                 setAuthRole(match.role);
                 setAuthLabel(match.label);
                 sessionStorage.setItem("cp_auth", JSON.stringify({ role: match.role, label: match.label }));
             } else {
                 setError("Invalid email or password. Please try again.");
             }
+        } catch (err: any) {
+            console.error("Control panel login error:", err);
+            setError(err.message || "Authentication failed. Please try again.");
+        } finally {
             setIsLoggingIn(false);
-        }, 800);
+        }
     };
 
     const handleLogout = async () => {
