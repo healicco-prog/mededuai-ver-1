@@ -127,9 +127,6 @@ export async function POST(req: Request) {
         if (generatedNotes['l9'] && generatedNotes['l9'] !== 'None requested.') {
             lmsPayload['flashcards'] = { raw: generatedNotes['l9'] };
         }
-        if (generatedNotes['l10'] && generatedNotes['l10'] !== 'None requested.') {
-            lmsPayload['ppt_content'] = { raw: generatedNotes['l10'] };
-        }
 
         // Check if lms_content exists for this topic
         const { data: existingLms } = await supabase

@@ -17,14 +17,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV STANDALONE_BUILD=1
 
 # ── ONLY truly-public vars are baked in at build time ──
-# Supabase URL and anon key are safe to expose (they're designed to be public)
-ARG NEXT_PUBLIC_SUPABASE_URL
-ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
-ARG NEXT_PUBLIC_SITE_URL
-
-ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
-ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
-ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+# Next.js will automatically pick these up from copies .env.production
+# (We don't declare them as ARG/ENV here because gcloud run deploy doesn't pass build-args natively, and making them empty ENVs overrides local .env files)
 
 # ── Secrets are NOT baked in — they come from Cloud Run env vars at runtime ──
 # SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY, GEMINI_API_KEY are runtime-only

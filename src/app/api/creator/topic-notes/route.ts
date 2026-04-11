@@ -18,7 +18,7 @@ export async function GET(req: Request) {
 
         const { data: content, error } = await supabase
             .from('lms_content')
-            .select('introduction, detailed_notes, summary, marks_10_questions, marks_5_questions, marks_3_reasoning, marks_2_case_mcqs, marks_1_mcqs, flashcards, ppt_content, last_generated_at')
+            .select('introduction, detailed_notes, summary, marks_10_questions, marks_5_questions, marks_3_reasoning, marks_2_case_mcqs, marks_1_mcqs, flashcards, last_generated_at')
             .eq('topic_id', topicId)
             .maybeSingle();
 

@@ -53,11 +53,6 @@ function formatDbNotes(notes: Record<string, any>): string {
         const flashText = typeof flashcards === 'string' ? flashcards : flashcards?.raw || JSON.stringify(flashcards);
         if (flashText) parts.push(`## 🃏 Flashcards\n\n${flashText}`);
     }
-    const ppt = notes.ppt_content;
-    if (ppt) {
-        const pptText = typeof ppt === 'string' ? ppt : ppt?.raw || JSON.stringify(ppt);
-        if (pptText) parts.push(`## 📊 PPT Content\n\n${pptText}`);
-    }
     return parts.join('\n\n---\n\n');
 }
 

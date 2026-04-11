@@ -1,82 +1,12 @@
-# Node
+.git
 node_modules/
 .next/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Logs & debug files
-*.log
-*.txt
-b5.txt
-build_check.json
-newbuild.json
-newbuild_log.txt
-latest_build.txt
-local_build.txt
-build-error.log
-build-utf8.log
-cr_build_log.txt
-curl_out.txt
-deploy_output.txt
-cloud_run_logs.txt
-netlify_build*.log
-deploy-error.log
-build_log*.txt
-cr_build.txt
-tunnel.txt
-eslint_output.txt
-out.txt
-server.log
-server-err.log
-
-# Git
-.git/
-.gitignore
-.gitmodules
-
-# Environment — NEVER upload secrets
-.env
-.env.*
-.env.local
-.env.*.local
-
-# IDE
-.vscode/
-.idea/
-.claude/
-.netlify/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Netlify config
-netlify.toml
-
-# Test & setup scripts (dev only)
-test-*.mjs
-test-*.js
-test_*.js
-test_*.mjs
-test_*.ts
-fix.js
-fix_rls.sql
-fetch_db.mjs
-create_test_users.mjs
-setup_admins.mjs
-generate-icons.mjs
-
-# Misc
+dist/
 coverage/
-*.sqlite
-*.db
-tmp/
-temp/
-tsconfig.tsbuildinfo
-deno.lock
-supabase/
-url-map*.yaml
-PGMentor_ReferralCard_old.tsx
-README.md
-DEPLOYMENT.md
+*.pem
+*.key
+.env
+.env.local
+.env.cloudrun
+.env.development
+!.env.production

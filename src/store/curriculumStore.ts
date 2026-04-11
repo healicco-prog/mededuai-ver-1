@@ -23,8 +23,7 @@ export const defaultLMSStructure: LMSNotesStructureItem[] = [
     { id: 'l6', title: '3 Marks Reasoning Question', description: 'Select No', value: '3', type: 'number' },
     { id: 'l7', title: '2 Marks Case-based MCQs', description: 'Select No', value: '3', type: 'number' },
     { id: 'l8', title: '1 Mark MCQs Question', description: 'Select No', value: '5', type: 'number' },
-    { id: 'l9', title: 'Flashcards', description: 'Number of flashcards', value: '10', type: 'number' },
-    { id: 'l10', title: 'PPT', description: 'Number of slides required.', value: '8', type: 'number' }
+    { id: 'l9', title: 'Flashcards', description: 'Number of flashcards', value: '10', type: 'number' }
 ];
 
 // ========== MBBS Full Curriculum ==========
@@ -3415,9 +3414,6 @@ export const useCurriculumStore = create<CurriculumState>()(
                             course.lmsNotesStructure.forEach((item: any) => {
                                 if (item.id === 'l9' && item.title === 'Flashcards' && item.description === 'Select No') {
                                     item.description = 'Number of flashcards';
-                                }
-                                if (item.id === 'l10' && item.title === 'PPT' && item.description === 'Select No') {
-                                    item.description = 'Number of slides required.';
                                 }
                             });
                         }

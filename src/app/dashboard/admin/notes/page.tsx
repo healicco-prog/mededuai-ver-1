@@ -717,8 +717,8 @@ export default function TeacherLMSNotes() {
                     if (n.marks_1_mcqs)          mapped['l8'] = n.marks_1_mcqs;
                     if (n.flashcards?.raw)       mapped['l9'] = n.flashcards.raw;
                     else if (typeof n.flashcards === 'string') mapped['l9'] = n.flashcards;
-                    if (n.ppt_content?.raw)      mapped['l10'] = n.ppt_content.raw;
-                    else if (typeof n.ppt_content === 'string') mapped['l10'] = n.ppt_content;
+                    if (n.ppt_content?.raw)      delete n.ppt_content;
+                    else if (typeof n.ppt_content === 'string') delete n.ppt_content;
                     setDbNotes(mapped);
                 } else {
                     setDbNotes({});
