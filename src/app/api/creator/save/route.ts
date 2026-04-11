@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { verifyAuthAndRole } from '@/lib/authMiddleware';
 
 interface SavePayload {
     courseName: string;
@@ -53,6 +54,15 @@ function parseQuestions(rawText: string): string[] {
 }
 
 export async function POST(req: Request) {
+    const { user, role } = await verifyAuthAndRole(req);
+    if (!user || user.role !== 'authenticated' || !role) {
+        return NextResponse.json({ success: false, error: 'Unauthorized.' }, { status: 401 });
+    }
+
+    if (role === 'student') {
+        return NextResponse.json({ success: false, error: 'Forbidden. Students cannot overwrite curriculum data.' }, { status: 403 });
+    }
+
     try {
         const body: SavePayload = await req.json();
         const { courseName, subjectName, sectionName, topicName, generatedNotes } = body;

@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
 import { generateText } from '@/lib/gemini';
+import { verifyAuth } from '@/lib/authMiddleware';
 
 export async function POST(req: Request) {
+    const user = await verifyAuth(req);
+    if (!user) {
+        return NextResponse.json({ success: false, error: 'Unauthorized.' }, { status: 401 });
+    }
+
     try {
         const body = await req.json();
         const { course, subject, topic, style, depth, instructions } = body;

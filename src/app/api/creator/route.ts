@@ -1,7 +1,17 @@
 import { NextResponse } from 'next/server';
 import { generateJSON } from '@/lib/gemini';
+import { verifyAuthAndRole } from '@/lib/authMiddleware';
 
 export async function POST(req: Request) {
+    const { user, role } = await verifyAuthAndRole(req);
+    if (!user || user.role !== 'authenticated' || !role) {
+        return NextResponse.json({ success: false, error: 'Unauthorized. Please check your credentials.' }, { status: 401 });
+    }
+    
+    if (role === 'student') {
+        return NextResponse.json({ success: false, error: 'Forbidden. Students cannot use the Curriculum Builder.' }, { status: 403 });
+    }
+
     let body;
     let topicName = "Unknown Topic";
     let lmsStructure: any[] = [];

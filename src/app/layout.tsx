@@ -4,6 +4,7 @@ import "./globals.css";
 import GlobalHomeButton from "../components/GlobalHomeButton";
 import ServiceWorkerRegistrar from "../components/ServiceWorkerRegistrar";
 import InstallPWAButton from "../components/InstallPWAButton";
+import FetchInterceptor from "../components/FetchInterceptor";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -67,6 +68,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <FetchInterceptor />
         {children}
         <GlobalHomeButton />
         <ServiceWorkerRegistrar />
