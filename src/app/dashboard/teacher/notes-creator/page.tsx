@@ -90,8 +90,16 @@ export default function NotesCreatorPage() {
             setTopicInput('');
         }
 
+        let appendMode = false;
+        if (result) {
+            const overwrite = window.confirm("You already have generated notes. Do you want to overwrite them?\n\nClick 'OK' to replace them, or 'Cancel' to append the new notes at the bottom.");
+            appendMode = !overwrite;
+        }
+
         setLoading(true);
-        setResult('');
+        if (!appendMode) {
+            setResult('');
+        }
         setSaved(false);
 
         try {
@@ -110,7 +118,11 @@ export default function NotesCreatorPage() {
             const data = await res.json();
 
             if (data.success) {
-                setResult(data.notes || 'No notes were generated.');
+                if (appendMode) {
+                    setResult(prev => prev + '\n\n---\n\n' + (data.notes || 'No new notes were generated.'));
+                } else {
+                    setResult(data.notes || 'No notes were generated.');
+                }
                 tokenService.processTransaction(currentUser.id, 'Notes Creator', 'gemini-2.5-flash');
             }
         } catch (e) {

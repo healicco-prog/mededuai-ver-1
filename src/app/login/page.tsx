@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Home, Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import MededuLogo from '@/components/MededuLogo';
-import { supabase } from '@/lib/supabase';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -20,52 +19,49 @@ export default function LoginPage() {
         setLoading(true);
         setError('');
 
-        const { data, error: authError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
+        try {
+            // All auth happens server-side to bypass ISP-level DNS blocks on Supabase
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password }),
+            });
 
-        if (authError) {
-            setError(authError.message);
-            setLoading(false);
-            return;
-        }
+            const data = await res.json();
 
-        if (data?.user) {
-            try {
-                // Determine role: prefer user_metadata, then try profiles table as fallback
-                let role = 'student'; // safe default
-
-                if (data.user.user_metadata?.role) {
-                    role = data.user.user_metadata.role;
-                } else {
-                    // Try fetching from profiles table (may fail for some users due to RLS timing)
-                    try {
-                        const { data: profileData } = await supabase
-                            .from('profiles')
-                            .select('role')
-                            .eq('id', data.user.id)
-                            .single();
-                        if (profileData?.role) role = profileData.role;
-                    } catch {
-                        // Silently ignore — we'll use default 'student' role
-                        console.warn('Could not fetch profile role, using metadata or default.');
-                    }
-                }
-
-                // Use API route to set the role cookie (avoids Server Action 404 issues)
-                const res = await fetch('/api/auth/set-role', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ role }),
-                });
-                const { redirectUrl } = await res.json();
-                router.push(redirectUrl || '/dashboard/student');
-            } catch (err: any) {
-                console.error('Login redirection error:', err);
-                // Even if cookie setting fails, the user is authenticated — redirect to dashboard
-                router.push('/dashboard/student');
+            if (!res.ok) {
+                setError(data.error || 'Login failed. Please check your credentials.');
+                return;
             }
+
+            // Persist session tokens directly into localStorage so the Supabase SDK
+            // can pick them up on the next page WITHOUT making any extra network calls.
+            // This avoids the ISP-blocked supabase.auth.setSession() network call.
+            if (data.session) {
+                const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+                const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] ?? '';
+                const storageKey = `sb-${projectRef}-auth-token`;
+                try {
+                    localStorage.setItem(storageKey, JSON.stringify({
+                        access_token: data.session.access_token,
+                        refresh_token: data.session.refresh_token,
+                        token_type: 'bearer',
+                        expires_at: data.session.expires_at,
+                        expires_in: data.session.expires_in,
+                        user: data.session.user,
+                    }));
+                } catch (_) {
+                    // localStorage may be unavailable in some environments — not critical
+                }
+            }
+
+            // Redirect to the role-appropriate dashboard
+            router.push(data.redirectUrl || '/dashboard/student');
+        } catch (err: any) {
+            console.error('Login error:', err);
+            setError('An unexpected error occurred. Please try again.');
+        } finally {
+            setLoading(false);
         }
     };
 

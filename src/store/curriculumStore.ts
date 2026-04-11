@@ -18,13 +18,13 @@ export const defaultLMSStructure: LMSNotesStructureItem[] = [
     { id: 'l1', title: 'Introduction', description: 'Mention how it has to be', value: 'Exam-oriented bullet points', type: 'text' },
     { id: 'l2', title: 'Detailed Notes', description: 'Mention how it has to be / approx words', value: 'Essay format', type: 'text' },
     { id: 'l3', title: 'Summary', description: 'Mention how it has to be', value: 'Concise revision or image summary', type: 'text' },
-    { id: 'l4', title: '10 Marks Question', description: 'Select No', value: '0', type: 'number' },
-    { id: 'l5', title: '5 Marks Question', description: 'Select No', value: '0', type: 'number' },
-    { id: 'l6', title: '3 Marks Reasoning Question', description: 'Select No', value: '0', type: 'number' },
-    { id: 'l7', title: '2 Marks Case-based MCQs', description: 'Select No', value: '0', type: 'number' },
-    { id: 'l8', title: '1 Mark MCQs Question', description: 'Select No', value: '0', type: 'number' },
-    { id: 'l9', title: 'Flashcards', description: 'Number of flashcards', value: '0', type: 'number' },
-    { id: 'l10', title: 'PPT', description: 'Number of slides required.', value: '0', type: 'number' }
+    { id: 'l4', title: '10 Marks Question', description: 'Select No', value: '2', type: 'number' },
+    { id: 'l5', title: '5 Marks Question', description: 'Select No', value: '3', type: 'number' },
+    { id: 'l6', title: '3 Marks Reasoning Question', description: 'Select No', value: '3', type: 'number' },
+    { id: 'l7', title: '2 Marks Case-based MCQs', description: 'Select No', value: '3', type: 'number' },
+    { id: 'l8', title: '1 Mark MCQs Question', description: 'Select No', value: '5', type: 'number' },
+    { id: 'l9', title: 'Flashcards', description: 'Number of flashcards', value: '10', type: 'number' },
+    { id: 'l10', title: 'PPT', description: 'Number of slides required.', value: '8', type: 'number' }
 ];
 
 // ========== MBBS Full Curriculum ==========
@@ -3407,7 +3407,7 @@ export const useCurriculumStore = create<CurriculumState>()(
         }),
         {
             name: 'curriculum-storage', // key in local storage
-            version: 25, // bump to trigger MBBS detailed Emergency Medicine topics migration
+            version: 26, // bump to fix lmsNotesStructure default values (l4-l10 were 0)
             migrate: (persistedState: any, version: number) => {
                 if (version === 0 && persistedState.coursesList) {
                     persistedState.coursesList.forEach((course: any) => {
@@ -3589,6 +3589,21 @@ export const useCurriculumStore = create<CurriculumState>()(
                     if (mbbsCourse) {
                         mbbsCourse.subjects = [...mbbsSubjects];
                     }
+                }
+                // Version 25 → 26: Fix lmsNotesStructure l4–l10 values that were defaulting to '0'
+                if (version < 26 && persistedState.coursesList) {
+                    const newDefaults: Record<string, string> = {
+                        l4: '2', l5: '3', l6: '3', l7: '3', l8: '5', l9: '10', l10: '8'
+                    };
+                    persistedState.coursesList.forEach((course: any) => {
+                        if (course.lmsNotesStructure) {
+                            course.lmsNotesStructure.forEach((item: any) => {
+                                if (newDefaults[item.id] !== undefined && (item.value === '0' || item.value === 0)) {
+                                    item.value = newDefaults[item.id];
+                                }
+                            });
+                        }
+                    });
                 }
                 return persistedState;
             }

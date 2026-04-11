@@ -15,7 +15,7 @@ export async function POST(req: Request) {
         // ── Course-specific prompt customization ──
         let courseDirective = '';
         const courseUpper = (courseName || '').toUpperCase().trim();
-        
+
         if (courseUpper.includes('MBBS')) {
             courseDirective = `
 COURSE SPECIALIZATION — MBBS (Bachelor of Medicine & Bachelor of Surgery):
@@ -56,14 +56,59 @@ You are generating notes for BSc Nursing students. Your content must be:
 
         for (const item of lmsStructure) {
             schemaObject[item.id] = `(string) Generated content for ${item.title}`;
-            promptInstructions += `- Key "${item.id}" (${item.title}): ${item.description} - Default format: ${item.value}\n`;
+            const count = parseInt(item.value, 10) || 0;
+            const titleLower = item.title.toLowerCase();
 
-            if (item.title.toLowerCase().includes('mcq')) {
-                promptInstructions += `  CRITICAL INSTRUCTION: You MUST generate EXACTLY ${item.value || 5} Multiple Choice Questions.\n  FORMAT STRICTLY AS: \n  1. Question Text\n  a) Choice 1 b) Choice 2 c) Choice 3 d) Choice 4\n  Answer: a) Choice 1\n\n  Repeat this exact format for all questions.\n`;
-            } else if (item.title.toLowerCase().includes('flashcard')) {
-                promptInstructions += `  CRITICAL INSTRUCTION: You MUST generate EXACTLY ${item.value || 5} Flashcards.\n  FORMAT STRICTLY AS:\n  Front: [Concept Name]\n  Back: [Detailed Definition]\n\n`;
+            promptInstructions += `- Key "${item.id}" (${item.title}): ${item.description} - Requested count/format: ${item.value}\n`;
+
+            if (titleLower.includes('10 mark')) {
+                if (count === 0) {
+                    promptInstructions += `  Return exactly: 'None requested.'\n`;
+                } else {
+                    promptInstructions += `  CRITICAL INSTRUCTION: Generate EXACTLY ${count} long-essay (10 marks) questions on "${topicName}".\n  FORMAT STRICTLY AS:\n  1. [Full question text suitable for a 10-mark university exam answer]\n  2. ...\n  Each question should require a comprehensive answer covering all major aspects of the topic.\n`;
+                }
+            } else if (titleLower.includes('5 mark')) {
+                if (count === 0) {
+                    promptInstructions += `  Return exactly: 'None requested.'\n`;
+                } else {
+                    promptInstructions += `  CRITICAL INSTRUCTION: Generate EXACTLY ${count} short-essay (5 marks) questions on "${topicName}".\n  FORMAT STRICTLY AS:\n  1. [Full question text suitable for a 5-mark university exam answer]\n  2. ...\n  Each question should be answerable in 5-6 points or a focused paragraph.\n`;
+                }
+            } else if (titleLower.includes('3 mark') || titleLower.includes('reasoning')) {
+                if (count === 0) {
+                    promptInstructions += `  Return exactly: 'None requested.'\n`;
+                } else {
+                    promptInstructions += `  CRITICAL INSTRUCTION: Generate EXACTLY ${count} reasoning/short-answer (3 marks) questions on "${topicName}".\n  FORMAT STRICTLY AS:\n  1. [Reasoning question requiring 2-3 sentence justification]\n  2. ...\n  Questions must test applied understanding (e.g. "Why...", "Explain the mechanism of...", "Justify...").\n`;
+                }
+            } else if (titleLower.includes('2 mark') || titleLower.includes('case')) {
+                if (count === 0) {
+                    promptInstructions += `  Return exactly: 'None requested.'\n`;
+                } else {
+                    promptInstructions += `  CRITICAL INSTRUCTION: Generate EXACTLY ${count} case-based MCQ sets (2 marks each) on "${topicName}".\n  FORMAT STRICTLY AS:\n  1. Case: [2-3 sentence clinical scenario related to ${topicName}]\n     Q1: [First Sub-question based on case]\n     a) Option A  b) Option B  c) Option C  d) Option D\n     Answer: a) Option A. Reason: [Brief explanation]\n     Q2: [Second Sub-question based on case]\n     a) Option A  b) Option B  c) Option C  d) Option D\n     Answer: b) Option B. Reason: [Brief explanation]\n  2. ...\n`;
+                }
+            } else if (titleLower.includes('1 mark') || titleLower.includes('mcq')) {
+                if (count === 0) {
+                    promptInstructions += `  Return exactly: 'None requested.'\n`;
+                } else {
+                    promptInstructions += `  CRITICAL INSTRUCTION: Generate EXACTLY ${count} single-best-answer MCQs (1 mark each) on "${topicName}".\n  FORMAT STRICTLY AS:\n  1. Question Text\n  a) Choice A  b) Choice B  c) Choice C  d) Choice D\n  Answer: a) Choice A. Reason: [Brief explanation]\n  2. ...\n  Questions should be direct fact-recall or single-concept application.\n`;
+                }
+            } else if (titleLower.includes('flashcard')) {
+                if (count === 0) {
+                    promptInstructions += `  Return exactly: 'None requested.'\n`;
+                } else {
+                    promptInstructions += `  CRITICAL INSTRUCTION: You MUST generate EXACTLY ${count} Flashcards.\n  FORMAT STRICTLY AS:\n  Front: [Concept Name]\n  Back: [Detailed Definition / Key Points]\n\n`;
+                }
+            } else if (titleLower.includes('ppt') || titleLower.includes('slide') || titleLower.includes('presentation')) {
+                if (count === 0) {
+                    promptInstructions += `  Return exactly: 'None requested.'\n`;
+                } else {
+                    promptInstructions += `  CRITICAL INSTRUCTION: Generate EXACTLY ${count} detailed presentation slides for "${topicName}".\n  FORMAT STRICTLY AS (each slide separated by the exact delimiter "---SLIDE---"):\n  ## Slide Title Here\n  - [Bullet point 1 stretching across detailed explanation...]\n  - [Bullet point 2 with deep clinical insights...]\n  - [Bullet point 3 explaining mechanisms...]\n  - [Bullet point 4...]\n  - [Bullet point 5...]\n  - [Bullet point 6...]\n  - [Bullet point 7...]\n  - [Bullet point 8...]\n\n  ---SLIDE---\n  ## Next Slide Title\n  - [8 to 10 bullet points minimum per slide...]\n\n  IMPORTANT RULES FOR PPT:\n  1. DO NOT just repeat the topic name. You MUST EXPAND on the topic using deep medical/academic knowledge.\n  2. EVERY slide (except Title slide) MUST have 8 to 10 lines of detailed bullet points.\n  3. First slide is a Title Slide (3-4 lines overview).\n  4. Last slide is Summary/Key Takeaways.\n  5. Do NOT number the slides. Just use ## for the heading.\n`;
+                }
             } else if (item.type === 'number') {
-                promptInstructions += `  NOTE: Provide EXACTLY the number of items requested (${item.value}). If 0, just return 'None requested.'.\n`;
+                if (count === 0) {
+                    promptInstructions += `  Return exactly: 'None requested.'\n`;
+                } else {
+                    promptInstructions += `  NOTE: Provide EXACTLY ${count} items as a numbered list.\n`;
+                }
             } else {
                 const wordNote = item.wordCount ? ` Aim for approximately ${item.wordCount} words in total.` : '';
                 promptInstructions += `  NOTE: Provide well formatted markdown (using **bold**, bullet points, etc. as appropriate).${wordNote}\n`;
@@ -74,45 +119,20 @@ You are generating notes for BSc Nursing students. Your content must be:
 
         const parsed = await generateJSON(promptInstructions);
         return NextResponse.json({ success: true, generatedNotes: parsed });
+
     } catch (error: any) {
-        console.warn('Creator API Error:', error.message);
+        // Always log the real error so it appears in Cloud Run logs
+        console.error('[Creator API] AI generation failed:', {
+            message: error?.message,
+            status: error?.status,
+            code: error?.code,
+            stack: error?.stack?.split('\n').slice(0, 5).join(' | '),
+        });
 
-        // Generate structured mock data dynamically matching their schema
-        const mockedNotes: Record<string, string> = {};
-        for (const item of lmsStructure) {
-            if (item.type === 'text') {
-                mockedNotes[item.id] = `**[Generated ${item.title}]**\n\nThis is a highly structured, auto-generated placeholder for the topic: **${topicName}**.\n\n* ${item.description}\n* Automatically configured to match your requested format: '${item.value}'\n\n*(Note: Live Gemini generation was bypassed due to API Key Quota/Revocation).*`;
-            } else if (item.title.toLowerCase().includes('mcq')) {
-                const count = parseInt(item.value, 10) || 5;
-                if (count === 0) {
-                    mockedNotes[item.id] = 'None requested.';
-                } else {
-                    mockedNotes[item.id] = Array.from({ length: 5 }).map((_, i) =>
-                        `${i + 1}. Which of the following is an accurate statement regarding ${topicName} (Mock Question ${i + 1})?\n` +
-                        `a) This is the correct mock answer b) This is a distractor c) Another wrong choice d) None of the above\n` +
-                        `Answer: a`
-                    ).join('\n\n');
-                }
-            } else if (item.title.toLowerCase().includes('flashcard')) {
-                const count = parseInt(item.value, 10) || 5;
-                if (count === 0) {
-                    mockedNotes[item.id] = 'None requested.';
-                } else {
-                    mockedNotes[item.id] = Array.from({ length: 5 }).map((_, i) =>
-                        `Front: What is the primary characteristic of ${topicName} (Card ${i + 1})?\n` +
-                        `Back: The primary characteristic involves essential mock physiology principles.`
-                    ).join('\n\n');
-                }
-            } else if (item.type === 'number') {
-                const count = parseInt(item.value, 10) || 0;
-                if (count === 0) {
-                    mockedNotes[item.id] = 'None requested.';
-                } else {
-                    mockedNotes[item.id] = Array.from({ length: count }).map((_, i) => `${i + 1}. [Practice ${item.title}] regarding ${topicName}?`).join('\n\n');
-                }
-            }
-        }
-
-        return NextResponse.json({ success: true, generatedNotes: mockedNotes, isMock: true });
+        return NextResponse.json({ 
+            success: false, 
+            error: error?.message || 'Live Gemini generation failed. Please check your API Quota or API Key.', 
+            isMock: false 
+        });
     }
 }

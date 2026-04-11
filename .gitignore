@@ -47,12 +47,14 @@ tunnel.txt
 .env.development.local
 .env.production.local
 .env.test.local
+!.env.example
 
 ########################################
-# Supabase local files
+# Supabase & GCP local files
 ########################################
 .supabase
 .supabase/
+service-account.json
 
 ########################################
 # OS files
@@ -114,6 +116,16 @@ coverage/
 *.db
 tmp/
 temp/
+*keys*.json
+*keys*.txt
+keys_out.txt
+temp_keys.txt
+cloudrun_env.yaml
+all_keys.json
+api_keys_output.json
+*.log
+tsc_output.txt
+tsc_cmd.txt
 
 ########################################
 # Claude / Antigravity local config

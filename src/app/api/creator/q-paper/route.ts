@@ -37,28 +37,11 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true, generatedQuestions: parsed });
     } catch (error: any) {
         console.warn('Q-Paper API Error:', error.message);
-
-        const mockedQuestions: Record<string, string> = {};
-
-        for (const frame of requestBody.frames || []) {
-            let content = "";
-            const isMCQ = frame.type.toLowerCase().includes('mcq');
-
-            if (isMCQ) {
-                if (frame.type.includes('2 Marks MCQ')) {
-                    content = `**Case Scenario:** A patient presents with symptoms related to ${requestBody.topics}.\n\ni) What is the most likely diagnosis?\nA) Option 1 B) Option 2 C) Option 3 D) Option 4\n\nii) What is the next best step?\nA) Option 1 B) Option 2 C) Option 3 D) Option 4`;
-                } else {
-                    content = `Based on ${requestBody.topics}, which of the following is correct?\nA) Option 1\nB) Option 2\nC) Option 3\nD) Option 4`;
-                }
-            } else if (frame.type.toLowerCase().includes('case')) {
-                content = `**Case Study:** A 45-year old presents with symptoms related to ${requestBody.topics}. Explain the pathophysiology and management. [${frame.marks} Marks]`;
-            } else {
-                content = `Discuss the principles of ${requestBody.topics} in detail relevant to ${frame.type}. [${frame.marks} Marks]`;
-            }
-
-            mockedQuestions[frame.id] = content + `\n\n*(Note: Live Gemini generation was bypassed due to an error: ${error.message}).*`;
-        }
-
-        return NextResponse.json({ success: true, generatedQuestions: mockedQuestions, isMock: true });
+        
+        return NextResponse.json({ 
+            success: false, 
+            error: error?.message || 'Live Gemini generation failed. Please check your API Quota or API Key.', 
+            isMock: false 
+        });
     }
 }

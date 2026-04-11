@@ -7,26 +7,24 @@ export async function POST(req: Request) {
         const { course, subject, topic, answerType, depth, question, questions, instructions } = body;
 
         const typeGuides: Record<string, string> = {
-            long_answer: `Write a detailed long essay answer (10 marks level). Structure should include:
+            long_answer: `Write a detailed essay answer specifically designed for 10 marks. Structure should include:
 - **Introduction** (1-2 paragraphs)
 - **Main Body** with multiple well-organized sections and subheadings
 - **Diagrams description** (describe relevant diagrams/flowcharts in text)
 - **Clinical significance** where applicable
 - **Conclusion** summarizing key points
-Aim for 800-1200 words.`,
-            short_answer: `Write a concise short answer (5 marks level). Structure should include:
+The answer MUST be comprehensive enough to score exactly 10 marks in a university medical exam.`,
+            short_answer: `Write a concise short essay answer specifically designed for 5 marks. Structure should include:
 - Brief introduction (1-2 sentences)
 - Key points with brief explanations
 - Use bullet points for clarity
 - Include important facts and figures
-Aim for 300-500 words.`,
-            viva_answer: `Write a viva-style answer suitable for oral examination. Structure should include:
-- **Opening statement** (how you'd begin your answer)
-- **Key points** in logical sequence
-- **Follow-up anticipation** (likely follow-up questions with answers)
-- Use conversational yet academic tone
-- Include mnemonics and key memory aids
-Aim for 400-600 words.`
+The answer MUST be structured to score exactly 5 marks in a university medical exam.`,
+            viva_answer: `Write a reasoning/short answer specifically designed for 3 marks. Structure should include:
+- **Direct Justification** (clear, 1-2 sentence core reasoning)
+- **Key Mechanism/Points** logically sequenced
+- Use a concise, academic tone
+The answer MUST be focused enough to score exactly 3 marks in a university medical exam.`
         };
 
         // Support both single question and multiple questions

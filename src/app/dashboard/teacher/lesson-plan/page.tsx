@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { FileText, Download, Target, Plus, Search, Trash2, ArrowLeft, Loader2, Clock, Sparkles, Filter, ArrowUpDown, Copy, Share2, Mail, Linkedin, MessageCircle, BookOpen } from 'lucide-react';
+import { FileText, Download, Target, Plus, Search, Trash2, ArrowLeft, Loader2, Clock, Sparkles, Filter, ArrowUpDown, Copy, Share2, Mail, Globe, MessageCircle, BookOpen } from 'lucide-react';
 import { useLessonPlanStore, LessonPlan, defaultLessonPlan } from '@/store/lessonPlanStore';
 import { useCurriculumStore } from '@/store/curriculumStore';
 import { useReactToPrint } from 'react-to-print';
@@ -264,7 +264,7 @@ export default function LessonPlanGenerator() {
                                             <div className="absolute bottom-full right-0 mb-2 bg-white border border-slate-200 shadow-xl rounded-xl p-2 hidden group-hover/share:flex flex-col gap-1 z-10 w-40">
                                                 <button onClick={(e) => handleShare('email', plan, e)} className="flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-50 p-2 rounded-lg w-full text-left font-medium"><Mail className="w-4 h-4 text-slate-400" /> Email</button>
                                                 <button onClick={(e) => handleShare('whatsapp', plan, e)} className="flex items-center gap-2 text-sm text-slate-700 hover:bg-emerald-50 text-emerald-700 p-2 rounded-lg w-full text-left font-medium"><MessageCircle className="w-4 h-4" /> WhatsApp</button>
-                                                <button onClick={(e) => handleShare('linkedin', plan, e)} className="flex items-center gap-2 text-sm text-slate-700 hover:bg-blue-50 text-blue-700 p-2 rounded-lg w-full text-left font-medium"><Linkedin className="w-4 h-4" /> LinkedIn</button>
+                                                <button onClick={(e) => handleShare('linkedin', plan, e)} className="flex items-center gap-2 text-sm text-slate-700 hover:bg-blue-50 text-blue-700 p-2 rounded-lg w-full text-left font-medium"><Globe className="w-4 h-4" /> LinkedIn</button>
                                                 <div className="h-px bg-slate-100 my-1"></div>
                                                 <button onClick={(e) => handleExportPDF(e, plan)} className="flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-50 p-2 rounded-lg w-full text-left font-medium"><Download className="w-4 h-4 text-slate-400" /> Export PDF</button>
                                             </div>
@@ -342,7 +342,7 @@ export default function LessonPlanGenerator() {
                                 <div className="absolute top-full right-0 mt-2 bg-white border border-slate-200 shadow-xl rounded-xl p-2 hidden group-hover/shareEditor:flex flex-col gap-1 z-10 w-40">
                                     <button onClick={(e) => handleShare('email', activePlan, e)} className="flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-50 p-2 rounded-lg w-full text-left font-medium"><Mail className="w-4 h-4 text-slate-400" /> Email</button>
                                     <button onClick={(e) => handleShare('whatsapp', activePlan, e)} className="flex items-center gap-2 text-sm text-slate-700 hover:bg-emerald-50 text-emerald-700 p-2 rounded-lg w-full text-left font-medium"><MessageCircle className="w-4 h-4" /> WhatsApp</button>
-                                    <button onClick={(e) => handleShare('linkedin', activePlan, e)} className="flex items-center gap-2 text-sm text-slate-700 hover:bg-blue-50 text-blue-700 p-2 rounded-lg w-full text-left font-medium"><Linkedin className="w-4 h-4" /> LinkedIn</button>
+                                    <button onClick={(e) => handleShare('linkedin', activePlan, e)} className="flex items-center gap-2 text-sm text-slate-700 hover:bg-blue-50 text-blue-700 p-2 rounded-lg w-full text-left font-medium"><Globe className="w-4 h-4" /> LinkedIn</button>
                                 </div>
                             </div>
                         </div>

@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server';
 import { getAI } from '@/lib/gemini';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
+function getSupabase() {
+    return createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+    );
+}
 
 export async function POST(req: Request) {
     try {
@@ -120,6 +122,7 @@ Be thorough, fair, and constructive. Award marks based strictly on the rubric.`;
         // Save to Supabase
         let evaluationId = null;
         if (userId) {
+            const supabase = getSupabase();
             const { data, error } = await supabase
                 .from('dig_eval_scripts')
                 .insert({

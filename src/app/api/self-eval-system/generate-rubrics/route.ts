@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server';
 import { generateWithFallback } from '@/lib/gemini';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
+function getSupabase() {
+    return createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+    );
+}
 
 export async function POST(req: Request) {
     try {
@@ -55,6 +57,7 @@ Rules:
         // Save to Supabase automatically
         let rubricId = null;
         if (userId) {
+            const supabase = getSupabase();
             const { data, error } = await supabase
                 .from('answer_rubrics')
                 .insert({

@@ -4,21 +4,27 @@ import { GoogleGenAI } from '@google/genai';
 // MedEduAI – Centralized Gemini AI Configuration
 // ─────────────────────────────────────────────────────────────
 //
-// PRODUCTION (Cloud Run):
-//   Uses Vertex AI with Application Default Credentials (ADC).
-//   The Cloud Run service account (mededuai-vertex-sa) has
-//   roles/aiplatform.user — NO API KEY needed.
+// PRIORITY: If GEMINI_API_KEY is set → use Google AI Studio (API key mode).
+//           Otherwise → fall back to Vertex AI with ADC.
 //
-// LOCAL DEV:
-//   Falls back to GEMINI_API_KEY if GOOGLE_CLOUD_PROJECT is not set.
-//   Never exposed to portal users — only accessed from API routes.
+// Cloud Run auto-injects GOOGLE_CLOUD_PROJECT which causes the SDK
+// to override API key auth. We MUST delete it at module scope
+// BEFORE anything else captures it.
 // ─────────────────────────────────────────────────────────────
 
-const isCloudRun = !!(
-    process.env.K_SERVICE ||              // Cloud Run service name
-    process.env.GOOGLE_CLOUD_PROJECT      // Explicitly set project
-);
+// ─── CRITICAL: Clean environment BEFORE any reads ───────────
+// Cloud Run auto-injects GOOGLE_CLOUD_PROJECT. If an API key is
+// present, purge all project variables to force API-key mode.
+const _apiKey = process.env.GEMINI_API_KEY;
+if (_apiKey) {
+    delete process.env.GOOGLE_CLOUD_PROJECT;
+    delete process.env.GOOGLE_CLOUD_LOCATION;
+    delete process.env.GOOGLE_CLOUD_REGION;
+    delete process.env.GCLOUD_PROJECT;
+    delete process.env.GCP_PROJECT;
+}
 
+const isCloudRun = !!(process.env.K_SERVICE);  // Only use K_SERVICE (not project vars we just deleted)
 const GCP_PROJECT = process.env.GOOGLE_CLOUD_PROJECT || 'mededuai-prod';
 const GCP_LOCATION = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
 
@@ -26,9 +32,12 @@ let _ai: GoogleGenAI | null = null;
 
 function getAI(): GoogleGenAI {
     if (!_ai) {
-        if (isCloudRun) {
+        if (_apiKey) {
+            // ── Google AI Studio / API Key ──────────────────
+            console.log('[MedEduAI AI] Initializing Google AI Studio using API Key (Cloud Run or Local)');
+            _ai = new GoogleGenAI({ apiKey: _apiKey });
+        } else if (isCloudRun) {
             // ── Production: Vertex AI + ADC (service account) ──────────────
-            // No API key needed — Cloud Run identity provides auth via ADC.
             console.log(`[MedEduAI AI] Initializing Vertex AI (project=${GCP_PROJECT}, location=${GCP_LOCATION})`);
             _ai = new GoogleGenAI({
                 vertexai: true,
@@ -36,16 +45,10 @@ function getAI(): GoogleGenAI {
                 location: GCP_LOCATION,
             });
         } else {
-            // ── Local Dev: Google AI Studio key (fallback) ──────────────────
-            const key = process.env.GEMINI_API_KEY;
-            if (!key) {
-                throw new Error(
-                    '[MedEduAI AI] GEMINI_API_KEY is not set for local dev. ' +
-                    'Set it in .env.local or run on Cloud Run with Vertex AI.'
-                );
-            }
-            console.log('[MedEduAI AI] Initializing Google AI Studio (local dev)');
-            _ai = new GoogleGenAI({ apiKey: key });
+            throw new Error(
+                '[MedEduAI AI] GEMINI_API_KEY is not set for local dev. ' +
+                'Set it in .env.local or run on Cloud Run with Vertex AI.'
+            );
         }
     }
     return _ai;
@@ -53,9 +56,9 @@ function getAI(): GoogleGenAI {
 
 // Model hierarchy – compatible with both Vertex AI and AI Studio
 const MODELS = {
-    primary: 'gemini-2.5-flash',       // Primary: best quality & stable
-    secondary: 'gemini-2.5-flash',     // Fallback 1
-    tertiary: 'gemini-2.5-flash',      // Fallback 2
+    primary: 'gemini-2.5-flash',       // Primary: fast, stable, widely available
+    secondary: 'gemini-2.5-flash',     // Fallback 1: proven stable
+    tertiary: 'gemini-2.5-flash',        // Fallback 2: highest quality
 } as const;
 
 /**
@@ -69,24 +72,38 @@ export async function generateWithFallback(
     options?: {
         jsonMode?: boolean;
         preferredModels?: string[];
+        maxRetries?: number;
     }
 ): Promise<string> {
     const models = options?.preferredModels || [MODELS.primary, MODELS.secondary, MODELS.tertiary];
     const config = options?.jsonMode ? { responseMimeType: 'application/json' as const } : undefined;
+    const maxRetries = options?.maxRetries ?? 3;
 
     let lastError: Error | null = null;
 
     for (const model of models) {
-        try {
-            const response = await getAI().models.generateContent({
-                model,
-                contents: prompt,
-                ...(config ? { config } : {}),
-            });
-            return response.text || (options?.jsonMode ? '{}' : '');
-        } catch (e: any) {
-            console.warn(`[MedEduAI AI] Model ${model} failed:`, e.message);
-            lastError = e;
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                const response = await getAI().models.generateContent({
+                    model,
+                    contents: prompt,
+                    ...(config ? { config } : {}),
+                });
+                return response.text || (options?.jsonMode ? '{}' : '');
+            } catch (e: any) {
+                console.error(`[MedEduAI AI] Model ${model} failed (attempt ${attempt}/${maxRetries}): ${e.message}`, { status: e.status, code: e.code });
+                lastError = e;
+                
+                // If it's the last attempt for this model, break and try the next model
+                if (attempt === maxRetries) {
+                    break;
+                }
+                
+                // Exponential backoff: 1s, 2s, 4s...
+                const backoffMs = Math.pow(2, attempt - 1) * 1000 + (Math.random() * 500); 
+                console.log(`[MedEduAI AI] Retrying in ${Math.round(backoffMs)}ms...`);
+                await new Promise(resolve => setTimeout(resolve, backoffMs));
+            }
         }
     }
 

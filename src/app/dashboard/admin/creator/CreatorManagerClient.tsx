@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { BrainCircuit, Play, CheckCircle2, RotateCcw, AlertTriangle, Plus, Sparkles, BookOpen, Layers, Trash2, Edit2, Upload, X, Check, GripVertical } from 'lucide-react';
 
 import { useCurriculumStore, type Course, type Subject, type Section, type Topic, type LMSNotesStructureItem, defaultLMSStructure } from '../../../../store/curriculumStore';
@@ -404,6 +404,32 @@ export default function LMSCreatorAdmin() {
 
                 if (data.success && data.generatedNotes) {
                     fetchedNotes = data.generatedNotes;
+
+                    // ── Auto-Save to Supabase ──
+                    // Fire-and-forget: persist generated notes to the database.
+                    // We don't await this so it doesn't block the UI loop.
+                    fetch('/api/creator/save', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            courseName: engineCourse.name,
+                            subjectName: engineSubject.name,
+                            sectionName: engineSection.name,
+                            topicName: pName,
+                            generatedNotes: fetchedNotes,
+                        }),
+                    })
+                    .then(r => r.json())
+                    .then(saveResult => {
+                        if (saveResult.success) {
+                            console.log(`[Auto-Save] ✅ "${pName}" saved to DB (topic: ${saveResult.topicId})`);
+                        } else {
+                            console.warn(`[Auto-Save] ⚠️ "${pName}" save failed:`, saveResult.error);
+                        }
+                    })
+                    .catch(saveErr => {
+                        console.warn(`[Auto-Save] ⚠️ Network error saving "${pName}":`, saveErr);
+                    });
                 } else {
                     console.error("Gemini generation failed, using fallback:", data.error);
                     const errorMsg = typeof data.error === 'string' ? data.error : JSON.stringify(data.error);
@@ -455,6 +481,58 @@ export default function LMSCreatorAdmin() {
             setCurrentTopicName('');
         }, 500);
     };
+
+    // ── Load Existing Notes from DB ──────────────────────────────────────
+    // When the engine course/subject/section changes, fetch any already-saved
+    // notes from the database and hydrate the local coursesList state so that
+    // topics with existing content are shown as "Created" (green tick).
+    const loadExistingNotes = useCallback(async () => {
+        if (!engineCourse || !engineSubject || !engineSection) return;
+
+        try {
+            const params = new URLSearchParams({
+                courseName: engineCourse.name,
+                subjectName: engineSubject.name,
+                sectionName: engineSection.name,
+            });
+            const res = await fetch(`/api/creator/load?${params}`);
+            const data = await res.json();
+
+            if (!data.success || !data.notes || Object.keys(data.notes).length === 0) return;
+
+            // Merge DB notes into coursesList topics by matching topic name
+            setCoursesList(prev => prev.map(c => {
+                if (c.id !== engineCourse.id) return c;
+                return {
+                    ...c, subjects: c.subjects.map(s => {
+                        if (s.id !== engineSubject.id) return s;
+                        return {
+                            ...s, sections: s.sections.map(sec => {
+                                if (sec.id !== engineSection.id) return sec;
+                                return {
+                                    ...sec, topics: sec.topics.map(t => {
+                                        const existingNotes = data.notes[t.name];
+                                        // Only hydrate if topic doesn't already have notes in memory
+                                        if (existingNotes && (!t.generatedNotes || Object.keys(t.generatedNotes).length === 0)) {
+                                            return { ...t, generatedNotes: existingNotes };
+                                        }
+                                        return t;
+                                    })
+                                };
+                            })
+                        };
+                    })
+                };
+            }));
+        } catch (err) {
+            console.warn('[DB Load] Failed to fetch existing notes:', err);
+        }
+    }, [engineCourse?.id, engineSubject?.id, engineSection?.id]);
+
+    // Run on mount and whenever the section selection changes
+    useEffect(() => {
+        loadExistingNotes();
+    }, [loadExistingNotes]);
 
     return (
         <div className="space-y-8 max-w-5xl mx-auto">

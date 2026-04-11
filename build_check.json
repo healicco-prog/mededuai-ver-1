@@ -1,0 +1,450 @@
+﻿{
+  "builds": [
+    {
+      "id": "b9674b3c-a5e6-4ba5-8981-eb7080c3c39d",
+      "status": "FAILURE",
+      "source": {
+        "storageSource": {
+          "bucket": "mededuai-prod_cloudbuild",
+          "object": "source/1775523126.450247-d440e65d74c642e0babf8c0e2df96346.tgz",
+          "generation": "1775523130144741"
+        }
+      },
+      "createTime": "2026-04-07T00:52:11.711146435Z",
+      "startTime": "2026-04-07T00:52:12.502980301Z",
+      "finishTime": "2026-04-07T00:55:29.772563Z",
+      "results": {
+        "buildStepImages": [
+          "sha256:9257b79f81760968aada8000fbb57cafff50966a76d2e9b4749b303444db6a33",
+          "",
+          ""
+        ],
+        "buildStepOutputs": [
+          "",
+          "",
+          ""
+        ]
+      },
+      "steps": [
+        {
+          "name": "gcr.io/cloud-builders/docker",
+          "args": [
+            "build",
+            "--build-arg",
+            "NEXT_PUBLIC_SUPABASE_URL=https://yrelfdwkjtaidtoulwrj.supabase.co",
+            "--build-arg",
+            "NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyZWxmZHdranRhaWR0b3Vsd3JqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxMDU3ODQsImV4cCI6MjA4ODY4MTc4NH0.FpFw_TINjRTeSRK54PFa-NoLa5R9ctx8y5h4_wmoBfk",
+            "--build-arg",
+            "NEXT_PUBLIC_SITE_URL=https://mededuai-backend-bgnd-3js7mh5u5a-uc.a.run.app",
+            "--build-arg",
+            "GOOGLE_CLOUD_PROJECT=mededuai-prod",
+            "--build-arg",
+            "GOOGLE_CLOUD_LOCATION=us-central1",
+            "-t",
+            "us-central1-docker.pkg.dev/mededuai-prod/cloud-run-source-deploy/mededuai-backend",
+            "."
+          ],
+          "timing": {
+            "startTime": "2026-04-07T00:52:18.178433147Z",
+            "endTime": "2026-04-07T00:55:17.598620763Z"
+          },
+          "status": "FAILURE",
+          "pullTiming": {
+            "startTime": "2026-04-07T00:52:18.178433147Z",
+            "endTime": "2026-04-07T00:52:18.185282155Z"
+          },
+          "exitCode": 1
+        },
+        {
+          "name": "gcr.io/cloud-builders/docker",
+          "args": [
+            "push",
+            "us-central1-docker.pkg.dev/mededuai-prod/cloud-run-source-deploy/mededuai-backend"
+          ],
+          "status": "QUEUED"
+        },
+        {
+          "name": "gcr.io/google.com/cloudsdktool/cloud-sdk",
+          "args": [
+            "run",
+            "deploy",
+            "mededuai-backend",
+            "--image=us-central1-docker.pkg.dev/mededuai-prod/cloud-run-source-deploy/mededuai-backend",
+            "--region=us-central1",
+            "--platform=managed",
+            "--service-account=mededuai-vertex-sa@mededuai-prod.iam.gserviceaccount.com",
+            "--port=3000",
+            "--allow-unauthenticated",
+            "--memory=1Gi",
+            "--cpu=1",
+            "--min-instances=0",
+            "--max-instances=10",
+            "--set-env-vars=NODE_ENV=production,GOOGLE_CLOUD_PROJECT=mededuai-prod,GOOGLE_CLOUD_LOCATION=us-central1,NEXT_PUBLIC_SUPABASE_URL=https://yrelfdwkjtaidtoulwrj.supabase.co,NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyZWxmZHdranRhaWR0b3Vsd3JqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxMDU3ODQsImV4cCI6MjA4ODY4MTc4NH0.FpFw_TINjRTeSRK54PFa-NoLa5R9ctx8y5h4_wmoBfk,NEXT_PUBLIC_SITE_URL=https://mededuai-backend-bgnd-3js7mh5u5a-uc.a.run.app,ALLOWED_ORIGINS=https://www.mededuai.com",
+            "--update-env-vars=SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyZWxmZHdranRhaWR0b3Vsd3JqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzEwNTc4NCwiZXhwIjoyMDg4NjgxNzg0fQ.YFqGcueb4VKoMUyIfpgiw7pXIKlYjeSp7ajdMp2NVlY,RESEND_API_KEY=re_6QfYAbdJ_Nme12TLYW2xZqYcNi4WXxjMn,GEMINI_API_KEY=AIzaSyBEwRv8Ew05CDWDqGENhfOGHWCNpXLYmIw"
+          ],
+          "entrypoint": "gcloud",
+          "status": "QUEUED"
+        }
+      ],
+      "timeout": "3600s",
+      "images": [
+        "us-central1-docker.pkg.dev/mededuai-prod/cloud-run-source-deploy/mededuai-backend"
+      ],
+      "projectId": "mededuai-prod",
+      "logsBucket": "gs://945029424967.cloudbuild-logs.googleusercontent.com",
+      "sourceProvenance": {
+        "resolvedStorageSource": {
+          "bucket": "mededuai-prod_cloudbuild",
+          "object": "source/1775523126.450247-d440e65d74c642e0babf8c0e2df96346.tgz",
+          "generation": "1775523130144741"
+        },
+        "fileHashes": {
+          "gs://mededuai-prod_cloudbuild/source/1775523126.450247-d440e65d74c642e0babf8c0e2df96346.tgz#1775523130144741": {
+            "fileHash": [
+              {
+                "type": "MD5",
+                "value": "cZbdT2B0qA9Lu0EVBDs2Vg=="
+              },
+              {
+                "type": "SHA256",
+                "value": "Hf2rJQluGGaKM1ZrmG7GPaSB/EQxctm5x0G9rL4t8Gs="
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "logging": "LEGACY",
+        "pool": {}
+      },
+      "logUrl": "https://console.cloud.google.com/cloud-build/builds/b9674b3c-a5e6-4ba5-8981-eb7080c3c39d?project=945029424967",
+      "substitutions": {
+        "_NEXT_PUBLIC_SUPABASE_URL": "https://yrelfdwkjtaidtoulwrj.supabase.co",
+        "_RESEND_API_KEY": "re_6QfYAbdJ_Nme12TLYW2xZqYcNi4WXxjMn",
+        "_SUPABASE_SERVICE_ROLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyZWxmZHdranRhaWR0b3Vsd3JqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzEwNTc4NCwiZXhwIjoyMDg4NjgxNzg0fQ.YFqGcueb4VKoMUyIfpgiw7pXIKlYjeSp7ajdMp2NVlY",
+        "_ALLOWED_ORIGINS": "https://www.mededuai.com",
+        "_GEMINI_API_KEY": "AIzaSyBEwRv8Ew05CDWDqGENhfOGHWCNpXLYmIw",
+        "_NEXT_PUBLIC_SITE_URL": "https://mededuai-backend-bgnd-3js7mh5u5a-uc.a.run.app",
+        "_NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyZWxmZHdranRhaWR0b3Vsd3JqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxMDU3ODQsImV4cCI6MjA4ODY4MTc4NH0.FpFw_TINjRTeSRK54PFa-NoLa5R9ctx8y5h4_wmoBfk"
+      },
+      "timing": {
+        "BUILD": {
+          "startTime": "2026-04-07T00:52:17.557527755Z",
+          "endTime": "2026-04-07T00:55:17.598740091Z"
+        },
+        "STORAGE_SOURCE": {
+          "startTime": "2026-04-07T00:52:14.666768179Z",
+          "endTime": "2026-04-07T00:52:17.556628061Z"
+        },
+        "FETCHSOURCE": {
+          "startTime": "2026-04-07T00:52:14.666768179Z",
+          "endTime": "2026-04-07T00:52:17.556628061Z"
+        }
+      },
+      "artifacts": {
+        "images": [
+          "us-central1-docker.pkg.dev/mededuai-prod/cloud-run-source-deploy/mededuai-backend"
+        ]
+      },
+      "queueTtl": "3600s",
+      "serviceAccount": "projects/mededuai-prod/serviceAccounts/945029424967-compute@developer.gserviceaccount.com",
+      "name": "projects/945029424967/locations/global/builds/b9674b3c-a5e6-4ba5-8981-eb7080c3c39d",
+      "failureInfo": {
+        "type": "USER_BUILD_STEP",
+        "detail": "Build step failure: build step 0 \"gcr.io/cloud-builders/docker\" failed: step exited with non-zero status: 1"
+      }
+    },
+    {
+      "id": "65e7cdc1-9d90-4ae5-aa25-429a7235da77",
+      "status": "FAILURE",
+      "source": {
+        "gitSource": {
+          "url": "https://github.com/healicco-prog/mededuai-ver-1.git",
+          "revision": "df46b82fd3dfb59e48f4d2a8fbd7cbf73724f329"
+        }
+      },
+      "createTime": "2026-04-06T07:18:12.349251Z",
+      "startTime": "2026-04-06T07:18:13.418119347Z",
+      "finishTime": "2026-04-06T07:21:15.490024Z",
+      "results": {
+        "buildStepImages": [
+          "sha256:9257b79f81760968aada8000fbb57cafff50966a76d2e9b4749b303444db6a33",
+          "",
+          ""
+        ],
+        "buildStepOutputs": [
+          "",
+          "",
+          ""
+        ]
+      },
+      "steps": [
+        {
+          "name": "gcr.io/cloud-builders/docker",
+          "args": [
+            "build",
+            "--no-cache",
+            "-t",
+            "us-central1-docker.pkg.dev/mededuai-prod/cloud-run-source-deploy/mededuai-ver-1/mededuai-backend:df46b82fd3dfb59e48f4d2a8fbd7cbf73724f329",
+            ".",
+            "-f",
+            "Dockerfile"
+          ],
+          "id": "Build",
+          "timing": {
+            "startTime": "2026-04-06T07:18:17.677192640Z",
+            "endTime": "2026-04-06T07:21:03.903607301Z"
+          },
+          "status": "FAILURE",
+          "pullTiming": {
+            "startTime": "2026-04-06T07:18:17.677192640Z",
+            "endTime": "2026-04-06T07:18:17.685858145Z"
+          },
+          "exitCode": 1
+        },
+        {
+          "name": "gcr.io/cloud-builders/docker",
+          "args": [
+            "push",
+            "us-central1-docker.pkg.dev/mededuai-prod/cloud-run-source-deploy/mededuai-ver-1/mededuai-backend:df46b82fd3dfb59e48f4d2a8fbd7cbf73724f329"
+          ],
+          "id": "Push",
+          "status": "QUEUED"
+        },
+        {
+          "name": "gcr.io/google.com/cloudsdktool/cloud-sdk:slim",
+          "args": [
+            "run",
+            "services",
+            "update",
+            "mededuai-backend",
+            "--platform=managed",
+            "--image=us-central1-docker.pkg.dev/mededuai-prod/cloud-run-source-deploy/mededuai-ver-1/mededuai-backend:df46b82fd3dfb59e48f4d2a8fbd7cbf73724f329",
+            "--labels=managed-by=gcp-cloud-build-deploy-cloud-run,commit-sha=df46b82fd3dfb59e48f4d2a8fbd7cbf73724f329,gcb-build-id=65e7cdc1-9d90-4ae5-aa25-429a7235da77,gcb-trigger-id=40be8273-759e-4851-8106-d6ba0ec11ee0",
+            "--region=us-central1",
+            "--quiet"
+          ],
+          "id": "Deploy",
+          "entrypoint": "gcloud",
+          "status": "QUEUED"
+        }
+      ],
+      "timeout": "3600s",
+      "images": [
+        "us-central1-docker.pkg.dev/mededuai-prod/cloud-run-source-deploy/mededuai-ver-1/mededuai-backend:df46b82fd3dfb59e48f4d2a8fbd7cbf73724f329"
+      ],
+      "projectId": "mededuai-prod",
+      "sourceProvenance": {
+        "resolvedGitSource": {
+          "url": "https://github.com/healicco-prog/mededuai-ver-1.git",
+          "revision": "df46b82fd3dfb59e48f4d2a8fbd7cbf73724f329"
+        }
+      },
+      "buildTriggerId": "40be8273-759e-4851-8106-d6ba0ec11ee0",
+      "options": {
+        "substitutionOption": "ALLOW_LOOSE",
+        "logging": "CLOUD_LOGGING_ONLY",
+        "dynamicSubstitutions": true,
+        "pool": {}
+      },
+      "logUrl": "https://console.cloud.google.com/cloud-build/builds/65e7cdc1-9d90-4ae5-aa25-429a7235da77?project=945029424967",
+      "substitutions": {
+        "REPO_FULL_NAME": "healicco-prog/mededuai-ver-1",
+        "_AR_PROJECT_ID": "mededuai-prod",
+        "SHORT_SHA": "df46b82",
+        "_AR_HOSTNAME": "us-central1-docker.pkg.dev",
+        "_PLATFORM": "managed",
+        "_SERVICE_NAME": "mededuai-backend",
+        "_AR_REPOSITORY": "cloud-run-source-deploy",
+        "COMMIT_SHA": "df46b82fd3dfb59e48f4d2a8fbd7cbf73724f329",
+        "_DEPLOY_REGION": "us-central1",
+        "REF_NAME": "main",
+        "REVISION_ID": "df46b82fd3dfb59e48f4d2a8fbd7cbf73724f329",
+        "TRIGGER_BUILD_CONFIG_PATH": "",
+        "_TRIGGER_ID": "40be8273-759e-4851-8106-d6ba0ec11ee0",
+        "TRIGGER_NAME": "rmgpgab-mededuai-backend-us-central1-healicco-prog-mededuai-efb",
+        "BRANCH_NAME": "main",
+        "REPO_NAME": "mededuai-ver-1"
+      },
+      "tags": [
+        "gcp-cloud-build-deploy-cloud-run",
+        "gcp-cloud-build-deploy-cloud-run-managed",
+        "mededuai-backend",
+        "trigger-40be8273-759e-4851-8106-d6ba0ec11ee0"
+      ],
+      "timing": {
+        "FETCHSOURCE": {
+          "startTime": "2026-04-06T07:18:15.424869802Z",
+          "endTime": "2026-04-06T07:18:17.066735446Z"
+        },
+        "BUILD": {
+          "startTime": "2026-04-06T07:18:17.067746432Z",
+          "endTime": "2026-04-06T07:21:03.903663650Z"
+        },
+        "GIT_SOURCE": {
+          "startTime": "2026-04-06T07:18:15.424869802Z",
+          "endTime": "2026-04-06T07:18:17.066735446Z"
+        }
+      },
+      "artifacts": {
+        "images": [
+          "us-central1-docker.pkg.dev/mededuai-prod/cloud-run-source-deploy/mededuai-ver-1/mededuai-backend:df46b82fd3dfb59e48f4d2a8fbd7cbf73724f329"
+        ]
+      },
+      "queueTtl": "3600s",
+      "serviceAccount": "projects/mededuai-prod/serviceAccounts/945029424967-compute@developer.gserviceaccount.com",
+      "name": "projects/945029424967/locations/global/builds/65e7cdc1-9d90-4ae5-aa25-429a7235da77",
+      "failureInfo": {
+        "type": "USER_BUILD_STEP",
+        "detail": "Build step failure: build step 0 \"gcr.io/cloud-builders/docker\" failed: step exited with non-zero status: 1"
+      }
+    },
+    {
+      "id": "5ea8255e-2b59-4098-b8df-f58296787ed7",
+      "status": "FAILURE",
+      "source": {
+        "gitSource": {
+          "url": "https://github.com/healicco-prog/mededuai-ver-1.git",
+          "revision": "3108f181cd26d345095d802af3e95b91a0234d57"
+        }
+      },
+      "createTime": "2026-04-06T07:06:24.078745Z",
+      "startTime": "2026-04-06T07:06:25.185892144Z",
+      "finishTime": "2026-04-06T07:08:49.339232Z",
+      "results": {
+        "buildStepImages": [
+          "sha256:9257b79f81760968aada8000fbb57cafff50966a76d2e9b4749b303444db6a33",
+          "",
+          ""
+        ],
+        "buildStepOutputs": [
+          "",
+          "",
+          ""
+        ]
+      },
+      "steps": [
+        {
+          "name": "gcr.io/cloud-builders/docker",
+          "args": [
+            "build",
+            "--no-cache",
+            "-t",
+            "us-central1-docker.pkg.dev/mededuai-prod/cloud-run-source-deploy/mededuai-ver-1/mededuai-backend:3108f181cd26d345095d802af3e95b91a0234d57",
+            ".",
+            "-f",
+            "Dockerfile"
+          ],
+          "id": "Build",
+          "timing": {
+            "startTime": "2026-04-06T07:06:30.827760936Z",
+            "endTime": "2026-04-06T07:08:38.489556080Z"
+          },
+          "status": "FAILURE",
+          "pullTiming": {
+            "startTime": "2026-04-06T07:06:30.827760936Z",
+            "endTime": "2026-04-06T07:06:30.832231233Z"
+          },
+          "exitCode": 1
+        },
+        {
+          "name": "gcr.io/cloud-builders/docker",
+          "args": [
+            "push",
+            "us-central1-docker.pkg.dev/mededuai-prod/cloud-run-source-deploy/mededuai-ver-1/mededuai-backend:3108f181cd26d345095d802af3e95b91a0234d57"
+          ],
+          "id": "Push",
+          "status": "QUEUED"
+        },
+        {
+          "name": "gcr.io/google.com/cloudsdktool/cloud-sdk:slim",
+          "args": [
+            "run",
+            "services",
+            "update",
+            "mededuai-backend",
+            "--platform=managed",
+            "--image=us-central1-docker.pkg.dev/mededuai-prod/cloud-run-source-deploy/mededuai-ver-1/mededuai-backend:3108f181cd26d345095d802af3e95b91a0234d57",
+            "--labels=managed-by=gcp-cloud-build-deploy-cloud-run,commit-sha=3108f181cd26d345095d802af3e95b91a0234d57,gcb-build-id=5ea8255e-2b59-4098-b8df-f58296787ed7,gcb-trigger-id=40be8273-759e-4851-8106-d6ba0ec11ee0",
+            "--region=us-central1",
+            "--quiet"
+          ],
+          "id": "Deploy",
+          "entrypoint": "gcloud",
+          "status": "QUEUED"
+        }
+      ],
+      "timeout": "3600s",
+      "images": [
+        "us-central1-docker.pkg.dev/mededuai-prod/cloud-run-source-deploy/mededuai-ver-1/mededuai-backend:3108f181cd26d345095d802af3e95b91a0234d57"
+      ],
+      "projectId": "mededuai-prod",
+      "sourceProvenance": {
+        "resolvedGitSource": {
+          "url": "https://github.com/healicco-prog/mededuai-ver-1.git",
+          "revision": "3108f181cd26d345095d802af3e95b91a0234d57"
+        }
+      },
+      "buildTriggerId": "40be8273-759e-4851-8106-d6ba0ec11ee0",
+      "options": {
+        "substitutionOption": "ALLOW_LOOSE",
+        "logging": "CLOUD_LOGGING_ONLY",
+        "dynamicSubstitutions": true,
+        "pool": {}
+      },
+      "logUrl": "https://console.cloud.google.com/cloud-build/builds/5ea8255e-2b59-4098-b8df-f58296787ed7?project=945029424967",
+      "substitutions": {
+        "COMMIT_SHA": "3108f181cd26d345095d802af3e95b91a0234d57",
+        "_DEPLOY_REGION": "us-central1",
+        "_TRIGGER_ID": "40be8273-759e-4851-8106-d6ba0ec11ee0",
+        "_AR_HOSTNAME": "us-central1-docker.pkg.dev",
+        "BRANCH_NAME": "main",
+        "REPO_NAME": "mededuai-ver-1",
+        "_AR_REPOSITORY": "cloud-run-source-deploy",
+        "TRIGGER_BUILD_CONFIG_PATH": "",
+        "_AR_PROJECT_ID": "mededuai-prod",
+        "REF_NAME": "main",
+        "_PLATFORM": "managed",
+        "TRIGGER_NAME": "rmgpgab-mededuai-backend-us-central1-healicco-prog-mededuai-efb",
+        "_SERVICE_NAME": "mededuai-backend",
+        "REPO_FULL_NAME": "healicco-prog/mededuai-ver-1",
+        "REVISION_ID": "3108f181cd26d345095d802af3e95b91a0234d57",
+        "SHORT_SHA": "3108f18"
+      },
+      "tags": [
+        "gcp-cloud-build-deploy-cloud-run",
+        "gcp-cloud-build-deploy-cloud-run-managed",
+        "mededuai-backend",
+        "trigger-40be8273-759e-4851-8106-d6ba0ec11ee0"
+      ],
+      "timing": {
+        "FETCHSOURCE": {
+          "startTime": "2026-04-06T07:06:28.579207179Z",
+          "endTime": "2026-04-06T07:06:30.241335474Z"
+        },
+        "BUILD": {
+          "startTime": "2026-04-06T07:06:30.242286714Z",
+          "endTime": "2026-04-06T07:08:38.489618890Z"
+        },
+        "GIT_SOURCE": {
+          "startTime": "2026-04-06T07:06:28.579207179Z",
+          "endTime": "2026-04-06T07:06:30.241335474Z"
+        }
+      },
+      "artifacts": {
+        "images": [
+          "us-central1-docker.pkg.dev/mededuai-prod/cloud-run-source-deploy/mededuai-ver-1/mededuai-backend:3108f181cd26d345095d802af3e95b91a0234d57"
+        ]
+      },
+      "queueTtl": "3600s",
+      "serviceAccount": "projects/mededuai-prod/serviceAccounts/945029424967-compute@developer.gserviceaccount.com",
+      "name": "projects/945029424967/locations/global/builds/5ea8255e-2b59-4098-b8df-f58296787ed7",
+      "failureInfo": {
+        "type": "USER_BUILD_STEP",
+        "detail": "Build step failure: build step 0 \"gcr.io/cloud-builders/docker\" failed: step exited with non-zero status: 1"
+      }
+    }
+  ],
+  "nextPageToken": "MjAyNi0wNC0wNlQwNzowNjoyNC4wNzg3NDRa"
+}
+

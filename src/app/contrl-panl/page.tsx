@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { setControlPanelRole, clearControlPanelRole } from "./actions";
+// Removed Server Actions import to prevent Next.js cache 404s
 import {
     BrainCircuit, LayoutDashboard, BookOpen, MessageSquare, Mic,
     Settings, Users, FileText, GraduationCap, ClipboardCheck,
@@ -198,7 +198,11 @@ export default function ControlPanelPage() {
                 setAuthRole(role);
                 setAuthLabel(label);
                 // Re-sync role cookie silently — errors are non-blocking
-                setControlPanelRole(role === 'admin' ? 'superadmin' : role).catch(() => {});
+                fetch('/api/auth/set-role', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role: role === 'admin' ? 'superadmin' : role })
+                }).catch(() => {});
             } catch { /* ignore */ }
         }
     }, []);
@@ -214,12 +218,16 @@ export default function ControlPanelPage() {
             );
 
             if (match) {
-                // Race the server action against a 8-second timeout to prevent infinite spinner
+                // Race the API call against a 8-second timeout to prevent infinite spinner
                 const timeout = new Promise<never>((_, reject) =>
                     setTimeout(() => reject(new Error("Request timed out. Please try again.")), 8000)
                 );
                 await Promise.race([
-                    setControlPanelRole(match.role === 'admin' ? 'superadmin' : match.role),
+                    fetch('/api/auth/set-role', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ role: match.role === 'admin' ? 'superadmin' : match.role })
+                    }),
                     timeout,
                 ]);
 
@@ -238,7 +246,7 @@ export default function ControlPanelPage() {
     };
 
     const handleLogout = async () => {
-        await clearControlPanelRole();
+        document.cookie = "role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
         setAuthRole(null);
         setAuthLabel("");
         setEmail("");

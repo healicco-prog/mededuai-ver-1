@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { BlogPost, useBlogStore } from '../../../store/blogStore';
 import { blogService } from '../../../lib/blogService';
 import Link from 'next/link';
-import { Calendar, Clock, Share2, Twitter, Linkedin, ChevronLeft, Eye, BookmarkPlus, ArrowRight, BookOpen, GraduationCap, Sparkles } from 'lucide-react';
+import { Calendar, Clock, Share2, MessageCircle, Globe, ChevronLeft, Eye, BookmarkPlus, ArrowRight, BookOpen, GraduationCap, Sparkles } from 'lucide-react';
 import Head from 'next/head';
 
 export default function BlogDetailClient({ initialBlog, slug, related }: { initialBlog: BlogPost | null, slug: string, related: BlogPost[] }) {
@@ -216,8 +216,8 @@ export default function BlogDetailClient({ initialBlog, slug, related }: { initi
                             <button onClick={() => setIsBookmarked(!isBookmarked)} className={`p-2.5 rounded-xl border transition-all ${isBookmarked ? 'bg-emerald-50 border-emerald-500 text-emerald-600 shadow-sm' : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-600'}`}>
                                 <BookmarkPlus className="w-5 h-5" />
                             </button>
-                            <button onClick={() => handleShare('twitter')} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:bg-[#1DA1F2]/10 hover:text-[#1DA1F2] transition-all text-slate-600"><Twitter className="w-5 h-5" /></button>
-                            <button onClick={() => handleShare('linkedin')} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:bg-[#0A66C2]/10 hover:text-[#0A66C2] transition-all text-slate-600"><Linkedin className="w-5 h-5" /></button>
+                            <button onClick={() => handleShare('twitter')} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:bg-[#1DA1F2]/10 hover:text-[#1DA1F2] transition-all text-slate-600"><MessageCircle className="w-5 h-5" /></button>
+                            <button onClick={() => handleShare('linkedin')} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:bg-[#0A66C2]/10 hover:text-[#0A66C2] transition-all text-slate-600"><Globe className="w-5 h-5" /></button>
                             <button onClick={() => handleShare('native')} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:bg-emerald-50 hover:text-emerald-500 transition-all text-slate-600 md:hidden"><Share2 className="w-5 h-5" /></button>
                         </div>
                     </div>
@@ -286,8 +286,8 @@ export default function BlogDetailClient({ initialBlog, slug, related }: { initi
                         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-center">
                             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Share this post</p>
                             <div className="flex justify-center gap-3">
-                                <button onClick={() => handleShare('twitter')} className="p-3 rounded-full bg-slate-50 border border-slate-200 hover:bg-[#1DA1F2]/10 hover:text-[#1DA1F2] transition-colors text-slate-600"><Twitter className="w-4 h-4" /></button>
-                                <button onClick={() => handleShare('linkedin')} className="p-3 rounded-full bg-slate-50 border border-slate-200 hover:bg-[#0A66C2]/10 hover:text-[#0A66C2] transition-colors text-slate-600"><Linkedin className="w-4 h-4" /></button>
+                                <button onClick={() => handleShare('twitter')} className="p-3 rounded-full bg-slate-50 border border-slate-200 hover:bg-[#1DA1F2]/10 hover:text-[#1DA1F2] transition-colors text-slate-600"><MessageCircle className="w-4 h-4" /></button>
+                                <button onClick={() => handleShare('linkedin')} className="p-3 rounded-full bg-slate-50 border border-slate-200 hover:bg-[#0A66C2]/10 hover:text-[#0A66C2] transition-colors text-slate-600"><Globe className="w-4 h-4" /></button>
                             </div>
                         </div>
                     </div>

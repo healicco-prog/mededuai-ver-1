@@ -1,0 +1,24 @@
+Step #0: [0m  Creating an optimized production build ...
+Step #0: ??? Compiled successfully in 52s
+Step #0:   Running TypeScript ...
+Step #0:   Collecting page data using 1 worker ...
+Step #0: [91mError: supabaseKey is required.
+Step #0:     at module evaluation (.next/server/chunks/[root-of-the-server]__bf960311._.js:1:1297)
+Step #0:     at instantiateModule (.next/server/chunks/[turbopack]_runtime.js:740:9)
+Step #0:     at instantiateRuntimeModule (.next/server/chunks/[turbopack]_runtime.js:768:12)
+Step #0:     at getOrInstantiateRuntimeModule (.next/server/chunks/[turbopack]_runtime.js:781:12)
+Step #0:     at Object.m (.next/server/chunks/[turbopack]_runtime.js:790:18)
+Step #0:     at Object.<anonymous> (.next/server/app/api/admin/token-users/route.js:6:3)
+Step #0: [0m[91m
+Step #0: [0m[91m> Build error occurred
+Step #0: [0m[91mError: Failed to collect page data for /api/admin/token-users
+Step #0:     at ignore-listed frames {
+Step #0:   type: 'Error'
+Step #0: }
+Step #0: [0m[91mnpm notice
+Step #0: npm notice New major version of npm available! 10.8.2 -> 11.12.1
+Step #0: npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.12.1
+Step #0: npm notice To update run: npm install -g npm@11.12.1
+Step #0: npm notice
+Step #0: The command '/bin/sh -c npm run build' returned a non-zero code: 1
+Finished Step #0

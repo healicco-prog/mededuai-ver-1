@@ -1,0 +1,431 @@
+starting build "7000cb40-58aa-4768-8d78-e22ce1f19dd7"
+
+FETCHSOURCE
+Fetching storage object: gs://mededuai-prod_cloudbuild/source/1775527564.399599-b46dc30d1c4b49d189e4e04f97114b3d.tgz#1775527570693392
+Copying gs://mededuai-prod_cloudbuild/source/1775527564.399599-b46dc30d1c4b49d189e4e04f97114b3d.tgz#1775527570693392...
+/ [0 files][    0.0 B/  2.5 MiB]                                                
+/ [1 files][  2.5 MiB/  2.5 MiB]                                                
+Operation completed over 1 objects/2.5 MiB.                                      
+BUILD
+Starting Step #0
+Step #0: Already have image (with digest): gcr.io/cloud-builders/docker
+Step #0: Sending build context to Docker daemon  5.446MB
+
+Step #0: Step 1/38 : FROM node:20-alpine AS base
+Step #0: 20-alpine: Pulling from library/node
+Step #0: 589002ba0eae: Already exists
+Step #0: d7f6aca05b78: Pulling fs layer
+Step #0: 62e0e1181d88: Pulling fs layer
+Step #0: c7734204880f: Pulling fs layer
+Step #0: c7734204880f: Verifying Checksum
+Step #0: c7734204880f: Download complete
+Step #0: 62e0e1181d88: Download complete
+Step #0: d7f6aca05b78: Verifying Checksum
+Step #0: d7f6aca05b78: Download complete
+Step #0: d7f6aca05b78: Pull complete
+Step #0: 62e0e1181d88: Pull complete
+Step #0: c7734204880f: Pull complete
+Step #0: Digest: sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153113bb8f333c
+Step #0: Status: Downloaded newer image for node:20-alpine
+Step #0:  ---> ccfb9f0dc7ac
+Step #0: Step 2/38 : FROM base AS deps
+Step #0:  ---> ccfb9f0dc7ac
+Step #0: Step 3/38 : RUN apk add --no-cache libc6-compat
+Step #0:  ---> Running in 7ffae25f0556
+Step #0: (1/3) Installing musl-obstack (1.2.3-r2)
+Step #0: (2/3) Installing libucontext (1.3.3-r0)
+Step #0: (3/3) Installing gcompat (1.1.0-r4)
+Step #0: OK: 11.0 MiB in 21 packages
+Step #0: Removing intermediate container 7ffae25f0556
+Step #0:  ---> ec669e510c23
+Step #0: Step 4/38 : WORKDIR /app
+Step #0:  ---> Running in 4138bc1a3446
+Step #0: Removing intermediate container 4138bc1a3446
+Step #0:  ---> 34621e50fae2
+Step #0: Step 5/38 : COPY package.json package-lock.json* ./
+Step #0:  ---> 978c8c3c35ad
+Step #0: Step 6/38 : RUN npm ci
+Step #0:  ---> Running in 42f396b2de82
+Step #0: [91mnpm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+Step #0: [0m[91mnpm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+Step #0: [0m
+Step #0: added 609 packages, and audited 610 packages in 28s
+Step #0: 
+Step #0: 252 packages are looking for funding
+Step #0:   run `npm fund` for details
+Step #0: 
+Step #0: 6 vulnerabilities (2 moderate, 3 high, 1 critical)
+Step #0: 
+Step #0: To address issues that do not require attention, run:
+Step #0:   npm audit fix
+Step #0: 
+Step #0: To address all issues possible, run:
+Step #0:   npm audit fix --force
+Step #0: 
+Step #0: Some issues need review, and may require choosing
+Step #0: a different dependency.
+Step #0: 
+Step #0: Run `npm audit` for details.
+Step #0: [91mnpm notice
+Step #0: npm notice New major version of npm available! 10.8.2 -> 11.12.1
+Step #0: npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.12.1
+Step #0: npm notice To update run: npm install -g npm@11.12.1
+Step #0: npm notice
+Step #0: [0mRemoving intermediate container 42f396b2de82
+Step #0:  ---> 305e277e7325
+Step #0: Step 7/38 : FROM base AS builder
+Step #0:  ---> ccfb9f0dc7ac
+Step #0: Step 8/38 : WORKDIR /app
+Step #0:  ---> Running in cbbd0f76160a
+Step #0: Removing intermediate container cbbd0f76160a
+Step #0:  ---> 504c3c42733e
+Step #0: Step 9/38 : COPY --from=deps /app/node_modules ./node_modules
+Step #0:  ---> 93b67f99301c
+Step #0: Step 10/38 : COPY . .
+Step #0:  ---> 5fcbb3c7a1f3
+Step #0: Step 11/38 : ENV NEXT_TELEMETRY_DISABLED=1
+Step #0:  ---> Running in 5e60b9d7dabf
+Step #0: Removing intermediate container 5e60b9d7dabf
+Step #0:  ---> 49a1797e6a59
+Step #0: Step 12/38 : ENV STANDALONE_BUILD=1
+Step #0:  ---> Running in de393f6f33ca
+Step #0: Removing intermediate container de393f6f33ca
+Step #0:  ---> 60ede4dcfb6d
+Step #0: Step 13/38 : ARG NEXT_PUBLIC_SUPABASE_URL
+Step #0:  ---> Running in b0ae0f783aec
+Step #0: Removing intermediate container b0ae0f783aec
+Step #0:  ---> bd8e3f95c936
+Step #0: Step 14/38 : ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+Step #0:  ---> Running in b7035c06337d
+Step #0: Removing intermediate container b7035c06337d
+Step #0:  ---> e35182e074b8
+Step #0: Step 15/38 : ARG NEXT_PUBLIC_SITE_URL
+Step #0:  ---> Running in ef15cf2452e7
+Step #0: Removing intermediate container ef15cf2452e7
+Step #0:  ---> 19e82efddb17
+Step #0: Step 16/38 : ARG GOOGLE_CLOUD_PROJECT=mededuai-prod
+Step #0:  ---> Running in 124393ac1bf7
+Step #0: Removing intermediate container 124393ac1bf7
+Step #0:  ---> 13831331f84e
+Step #0: Step 17/38 : ARG GOOGLE_CLOUD_LOCATION=us-central1
+Step #0:  ---> Running in c1f4d63a58c2
+Step #0: Removing intermediate container c1f4d63a58c2
+Step #0:  ---> bff8fdf24197
+Step #0: Step 18/38 : ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+Step #0:  ---> Running in b28358236edb
+Step #0: Removing intermediate container b28358236edb
+Step #0:  ---> 27569bb09d8e
+Step #0: Step 19/38 : ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+Step #0:  ---> Running in 5fc57155598d
+Step #0: Removing intermediate container 5fc57155598d
+Step #0:  ---> 7ada51153f43
+Step #0: Step 20/38 : ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+Step #0:  ---> Running in 7babe4dbdd68
+Step #0: Removing intermediate container 7babe4dbdd68
+Step #0:  ---> 4b49e108af32
+Step #0: Step 21/38 : ENV GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT
+Step #0:  ---> Running in 0216952872a8
+Step #0: Removing intermediate container 0216952872a8
+Step #0:  ---> eca4a044db48
+Step #0: Step 22/38 : ENV GOOGLE_CLOUD_LOCATION=$GOOGLE_CLOUD_LOCATION
+Step #0:  ---> Running in c2576fd9e7dc
+Step #0: Removing intermediate container c2576fd9e7dc
+Step #0:  ---> 7d34c5a162b3
+Step #0: Step 23/38 : RUN npm run build
+Step #0:  ---> Running in 5894a215f90c
+Step #0: 
+Step #0: > temp_mededuai@0.1.0 build
+Step #0: > next build
+Step #0: 
+Step #0: ??? Next.js 16.1.6 (Turbopack)
+Step #0: 
+Step #0: [91m??? The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+Step #0: [0m  Creating an optimized production build ...
+Step #0: ??? Compiled successfully in 44s
+Step #0:   Running TypeScript ...
+Step #0:   Collecting page data using 1 worker ...
+Step #0:   Generating static pages using 1 worker (0/102) ...
+Step #0:   Generating static pages using 1 worker (25/102) 
+Step #0: [91m??? metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+Step #0: [0m  Generating static pages using 1 worker (50/102) 
+Step #0:   Generating static pages using 1 worker (76/102) 
+Step #0: ??? Generating static pages using 1 worker (102/102) in 2.9s
+Step #0:   Finalizing page optimization ...
+Step #0: 
+Step #0: Route (app)
+Step #0: ??? ??? /
+Step #0: ??? ??? /_not-found
+Step #0: ??? ?? /api/admin/token-users
+Step #0: ??? ?? /api/admin/users
+Step #0: ??? ?? /api/answer-structurer
+Step #0: ??? ?? /api/blog-generator
+Step #0: ??? ?? /api/bulk-blog-generator
+Step #0: ??? ?? /api/case-trainer
+Step #0: ??? ?? /api/contact
+Step #0: ??? ?? /api/creator
+Step #0: ??? ?? /api/creator/q-paper
+Step #0: ??? ?? /api/creator/topics
+Step #0: ??? ?? /api/cron/daily-checks
+Step #0: ??? ?? /api/dig-eval-assist/evaluate-script
+Step #0: ??? ?? /api/dig-eval-assist/generate-rubrics
+Step #0: ??? ?? /api/elective-sync
+Step #0: ??? ?? /api/essay-answer
+Step #0: ??? ?? /api/essay-generator
+Step #0: ??? ?? /api/essay-questions
+Step #0: ??? ?? /api/essays
+Step #0: ??? ?? /api/imp-questions
+Step #0: ??? ?? /api/lesson-plan
+Step #0: ??? ?? /api/mcq-generator
+Step #0: ??? ?? /api/mcqs
+Step #0: ??? ?? /api/mentor
+Step #0: ??? ?? /api/notes-creator
+Step #0: ??? ?? /api/razorpay
+Step #0: ??? ?? /api/referral/stats
+Step #0: ??? ?? /api/reflection-generator
+Step #0: ??? ?? /api/rubrics-generator
+Step #0: ??? ?? /api/self-eval
+Step #0: ??? ?? /api/self-eval-system/evaluate-answer
+Step #0: ??? ?? /api/self-eval-system/generate-rubrics
+Step #0: ??? ?? /api/subscription
+Step #0: ??? ?? /api/viva
+Step #0: ??? ?? /api/vocab
+Step #0: ??? ??? /auth/callback
+Step #0: ??? ??? /auth/forgot-password
+Step #0: ??? ??? /auth/reset-password
+Step #0: ??? ??? /blog
+Step #0: ??? ?? /blog/[slug]
+Step #0: ??? ??? /contrl-panl
+Step #0: ??? ??? /controlpanel
+Step #0: ??? ?? /dashboard/admin
+Step #0: ??? ?? /dashboard/admin/attendance
+Step #0: ??? ?? /dashboard/admin/blog
+Step #0: ??? ?? /dashboard/admin/classroom-generator
+Step #0: ??? ?? /dashboard/admin/creator
+Step #0: ??? ?? /dashboard/admin/dept-elective
+Step #0: ??? ?? /dashboard/admin/elective
+Step #0: ??? ?? /dashboard/admin/emr-mcq
+Step #0: ??? ?? /dashboard/admin/ems
+Step #0: ??? ?? /dashboard/admin/essay-answer
+Step #0: ??? ?? /dashboard/admin/lesson-plan
+Step #0: ??? ?? /dashboard/admin/lms-db
+Step #0: ??? ?? /dashboard/admin/logbook
+Step #0: ??? ?? /dashboard/admin/mentoring
+Step #0: ??? ?? /dashboard/admin/mentorship
+Step #0: ??? ?? /dashboard/admin/notes
+Step #0: ??? ?? /dashboard/admin/notes-creator
+Step #0: ??? ?? /dashboard/admin/q-paper
+Step #0: ??? ?? /dashboard/admin/rubrics-generator
+Step #0: ??? ?? /dashboard/admin/timetable
+Step #0: ??? ?? /dashboard/admin/tokens
+Step #0: ??? ?? /dashboard/admin/users
+Step #0: ??? ?? /dashboard/deptadmin
+Step #0: ??? ?? /dashboard/deptadmin/mentoring
+Step #0: ??? ?? /dashboard/instadmin
+Step #0: ??? ?? /dashboard/masteradmin
+Step #0: ??? ?? /dashboard/student
+Step #0: ??? ?? /dashboard/student/case
+Step #0: ??? ?? /dashboard/student/elective
+Step #0: ??? ?? /dashboard/student/essay-answer
+Step #0: ??? ?? /dashboard/student/essays
+Step #0: ??? ?? /dashboard/student/eval
+Step #0: ??? ?? /dashboard/student/imp-questions
+Step #0: ??? ?? /dashboard/student/mcqs
+Step #0: ??? ?? /dashboard/student/mentor
+Step #0: ??? ?? /dashboard/student/mentorship
+Step #0: ??? ?? /dashboard/student/notes
+Step #0: ??? ?? /dashboard/student/notes-creator
+Step #0: ??? ?? /dashboard/student/reflection
+Step #0: ??? ?? /dashboard/student/self-eval-system
+Step #0: ??? ?? /dashboard/student/structurer
+Step #0: ??? ?? /dashboard/student/upgrade
+Step #0: ??? ?? /dashboard/student/viva
+Step #0: ??? ?? /dashboard/student/vocab
+Step #0: ??? ?? /dashboard/superadmin
+Step #0: ??? ?? /dashboard/teacher
+Step #0: ??? ?? /dashboard/teacher/dig-eval-assist
+Step #0: ??? ?? /dashboard/teacher/elective
+Step #0: ??? ?? /dashboard/teacher/essay-answer
+Step #0: ??? ?? /dashboard/teacher/essays
+Step #0: ??? ?? /dashboard/teacher/lesson-plan
+Step #0: ??? ?? /dashboard/teacher/mcqs
+Step #0: ??? ?? /dashboard/teacher/mentorship
+Step #0: ??? ?? /dashboard/teacher/notes
+Step #0: ??? ?? /dashboard/teacher/notes-creator
+Step #0: ??? ?? /dashboard/teacher/rubrics-generator
+Step #0: ??? ??? /icon.png
+Step #0: ??? ??? /login
+Step #0: ??? ??? /signup
+Step #0: 
+Step #0: 
+Step #0: ?? Proxy (Middleware)
+Step #0: 
+Step #0: ???  (Static)   prerendered as static content
+Step #0: ??  (Dynamic)  server-rendered on demand
+Step #0: 
+Step #0: [91mnpm notice
+Step #0: npm notice New major version of npm available! 10.8.2 -> 11.12.1
+Step #0: npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.12.1
+Step #0: npm notice To update run: npm install -g npm@11.12.1
+Step #0: npm notice
+Step #0: [0mRemoving intermediate container 5894a215f90c
+Step #0:  ---> e5f81ab4e2c1
+Step #0: Step 24/38 : FROM base AS runner
+Step #0:  ---> ccfb9f0dc7ac
+Step #0: Step 25/38 : WORKDIR /app
+Step #0:  ---> Using cache
+Step #0:  ---> 504c3c42733e
+Step #0: Step 26/38 : ENV NODE_ENV=production
+Step #0:  ---> Running in 79c097501abe
+Step #0: Removing intermediate container 79c097501abe
+Step #0:  ---> dcaf377906e1
+Step #0: Step 27/38 : ENV NEXT_TELEMETRY_DISABLED=1
+Step #0:  ---> Running in 21ebcb244c34
+Step #0: Removing intermediate container 21ebcb244c34
+Step #0:  ---> 4ddc1fa5bd9b
+Step #0: Step 28/38 : ENV PORT=3000
+Step #0:  ---> Running in 42d110ee5d1b
+Step #0: Removing intermediate container 42d110ee5d1b
+Step #0:  ---> f7aa6112c731
+Step #0: Step 29/38 : ENV HOSTNAME="0.0.0.0"
+Step #0:  ---> Running in e277460eec26
+Step #0: Removing intermediate container e277460eec26
+Step #0:  ---> 93ced0edcdc6
+Step #0: Step 30/38 : RUN addgroup --system --gid 1001 nodejs
+Step #0:  ---> Running in 6e922544fa86
+Step #0: Removing intermediate container 6e922544fa86
+Step #0:  ---> fd65d76e907c
+Step #0: Step 31/38 : RUN adduser --system --uid 1001 nextjs
+Step #0:  ---> Running in 53549740d1f4
+Step #0: Removing intermediate container 53549740d1f4
+Step #0:  ---> ba3905c609c9
+Step #0: Step 32/38 : RUN mkdir .next && chown nextjs:nodejs .next
+Step #0:  ---> Running in 4fe766ff8c83
+Step #0: Removing intermediate container 4fe766ff8c83
+Step #0:  ---> bbb50f9f1062
+Step #0: Step 33/38 : COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+Step #0:  ---> e74eeee77a56
+Step #0: Step 34/38 : COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+Step #0:  ---> 272baad0ff27
+Step #0: Step 35/38 : COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+Step #0:  ---> e2398f08f25a
+Step #0: Step 36/38 : USER nextjs
+Step #0:  ---> Running in 76277d601d8d
+Step #0: Removing intermediate container 76277d601d8d
+Step #0:  ---> d0fc3bee8dbb
+Step #0: Step 37/38 : EXPOSE 3000
+Step #0:  ---> Running in 9406b34e656e
+Step #0: Removing intermediate container 9406b34e656e
+Step #0:  ---> f15a009573ab
+Step #0: Step 38/38 : CMD ["node", "server.js"]
+Step #0:  ---> Running in c06779137ed3
+Step #0: Removing intermediate container c06779137ed3
+Step #0:  ---> bc8f6c087003
+Step #0: Successfully built bc8f6c087003
+Step #0: Successfully tagged us-central1-docker.pkg.dev/mededuai-prod/cloud-run-source-deploy/mededuai-backend:latest
+Finished Step #0
+Starting Step #1
+Step #1: Already have image (with digest): gcr.io/cloud-builders/docker
+Step #1: Using default tag: latest
+Step #1: The push refers to repository [us-central1-docker.pkg.dev/mededuai-prod/cloud-run-source-deploy/mededuai-backend]
+Step #1: 8098bfdfccda: Preparing
+Step #1: 57a96029174b: Preparing
+Step #1: 49318c64c743: Preparing
+Step #1: bee75ad8e0bf: Preparing
+Step #1: dbca0c40caf8: Preparing
+Step #1: 8bc5ddd55d36: Preparing
+Step #1: 7b351af04691: Preparing
+Step #1: 52caa5bd1d9d: Preparing
+Step #1: 5906df279b58: Preparing
+Step #1: 466f2827c5d1: Preparing
+Step #1: 989e799e6349: Preparing
+Step #1: 989e799e6349: Waiting
+Step #1: 52caa5bd1d9d: Layer already exists
+Step #1: 466f2827c5d1: Layer already exists
+Step #1: 5906df279b58: Layer already exists
+Step #1: 989e799e6349: Layer already exists
+Step #1: 7b351af04691: Pushed
+Step #1: dbca0c40caf8: Pushed
+Step #1: bee75ad8e0bf: Pushed
+Step #1: 8bc5ddd55d36: Pushed
+Step #1: 8098bfdfccda: Pushed
+Step #1: 57a96029174b: Pushed
+Step #1: 49318c64c743: Pushed
+Step #1: latest: digest: sha256:97eb1a65a4ee0802401d667df8656acdb6604aaf99a5e8718e42f5ccd0b30f95 size: 2622
+Finished Step #1
+Starting Step #2
+Step #2: Pulling image: gcr.io/google.com/cloudsdktool/cloud-sdk
+Step #2: Using default tag: latest
+Step #2: latest: Pulling from google.com/cloudsdktool/cloud-sdk
+Step #2: 9d2f29087bcd: Already exists
+Step #2: 9a3989f83f88: Pulling fs layer
+Step #2: 47ab90fb6a4f: Pulling fs layer
+Step #2: c78ce0e22741: Pulling fs layer
+Step #2: 5159cc35852f: Pulling fs layer
+Step #2: 1cdcfd381ab3: Pulling fs layer
+Step #2: 9a3989f83f88: Verifying Checksum
+Step #2: 9a3989f83f88: Download complete
+Step #2: 5159cc35852f: Verifying Checksum
+Step #2: 5159cc35852f: Download complete
+Step #2: 1cdcfd381ab3: Verifying Checksum
+Step #2: 1cdcfd381ab3: Download complete
+Step #2: 9a3989f83f88: Pull complete
+Step #2: c78ce0e22741: Verifying Checksum
+Step #2: c78ce0e22741: Download complete
+Step #2: 47ab90fb6a4f: Verifying Checksum
+Step #2: 47ab90fb6a4f: Download complete
+Step #2: 47ab90fb6a4f: Pull complete
+Step #2: c78ce0e22741: Pull complete
+Step #2: 5159cc35852f: Pull complete
+Step #2: 1cdcfd381ab3: Pull complete
+Step #2: Digest: sha256:9b1a91ff271280e9f3499e5fc6ca0888f07b0399728efb915059e9fb4030a26c
+Step #2: Status: Downloaded newer image for gcr.io/google.com/cloudsdktool/cloud-sdk:latest
+Step #2: gcr.io/google.com/cloudsdktool/cloud-sdk:latest
+Step #2: ERROR: (gcloud.run.deploy) argument --set-env-vars: At most one of --clear-env-vars | --env-vars-file | --set-env-vars | --remove-env-vars --update-env-vars can be specified.
+Step #2: Usage: gcloud run deploy [[SERVICE] --namespace=NAMESPACE] [optional flags]
+Step #2:   optional flags may be  --add-cloudsql-instances | --add-custom-audiences |
+Step #2:                          --add-volume | --add-volume-mount |
+Step #2:                          --allow-unauthenticated | --args | --async |
+Step #2:                          --automatic-updates | --base-image |
+Step #2:                          --binary-authorization | --breakglass |
+Step #2:                          --build-env-vars-file | --build-service-account |
+Step #2:                          --build-worker-pool | --clear-base-image |
+Step #2:                          --clear-binary-authorization | --clear-build-env-vars |
+Step #2:                          --clear-build-service-account |
+Step #2:                          --clear-build-worker-pool |
+Step #2:                          --clear-cloudsql-instances | --clear-custom-audiences |
+Step #2:                          --clear-encryption-key-shutdown-hours |
+Step #2:                          --clear-env-vars | --clear-key | --clear-labels |
+Step #2:                          --clear-network | --clear-network-tags |
+Step #2:                          --clear-post-key-revocation-action-type |
+Step #2:                          --clear-secrets | --clear-volume-mounts |
+Step #2:                          --clear-volumes | --clear-vpc-connector | --command |
+Step #2:                          --concurrency | --container | --cpu | --cpu-boost |
+Step #2:                          --cpu-throttling | --default-url | --depends-on |
+Step #2:                          --deploy-health-check | --description |
+Step #2:                          --encryption-key-shutdown-hours | --env-vars-file |
+Step #2:                          --execution-environment | --function | --gpu |
+Step #2:                          --gpu-type | --gpu-zonal-redundancy | --help | --iap |
+Step #2:                          --image | --ingress | --invoker-iam-check | --key |
+Step #2:                          --labels | --liveness-probe | --max | --max-instances |
+Step #2:                          --memory | --min | --min-instances | --namespace |
+Step #2:                          --network | --network-tags | --port |
+Step #2:                          --post-key-revocation-action-type | --region |
+Step #2:                          --regions | --remove-build-env-vars |
+Step #2:                          --remove-cloudsql-instances | --remove-containers |
+Step #2:                          --remove-custom-audiences | --remove-env-vars |
+Step #2:                          --remove-labels | --remove-secrets | --remove-volume |
+Step #2:                          --remove-volume-mount | --revision-suffix | --scaling |
+Step #2:                          --service-account | --session-affinity |
+Step #2:                          --set-build-env-vars | --set-cloudsql-instances |
+Step #2:                          --set-custom-audiences | --set-env-vars |
+Step #2:                          --set-secrets | --source | --startup-probe | --subnet |
+Step #2:                          --tag | --timeout | --no-traffic |
+Step #2:                          --update-build-env-vars | --update-env-vars |
+Step #2:                          --update-labels | --update-secrets | --use-http2 |
+Step #2:                          --vpc-connector | --vpc-egress
+Step #2: 
+Step #2: For detailed information on this command and its flags, run:
+Step #2:   gcloud run deploy --help
+Finished Step #2
+ERROR
+ERROR: build step 2 "gcr.io/google.com/cloudsdktool/cloud-sdk" failed: step exited with non-zero status: 2

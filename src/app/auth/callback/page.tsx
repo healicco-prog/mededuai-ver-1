@@ -3,49 +3,65 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
-import { setRoleCookieAndGetRedirectUrl } from '@/app/login/actions';
 
 export default function AuthCallback() {
     const router = useRouter();
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        // Supabase Auth sends the token in the URL fragment (e.g. #access_token=...) 
-        // We need to let the Supabase client parse it and establish the session.
+        // Handle Supabase magic link / OAuth callbacks.
+        // The token arrives in the URL fragment: #access_token=...&refresh_token=...
+        // We parse it manually and exchange it via our server-side API to avoid
+        // ISP-blocked client Supabase calls.
         const handleSession = async () => {
             try {
-                // Get the session that Supabase automatically parsed from the URL
-                const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-                
-                if (sessionError || !session) {
-                    throw new Error(sessionError?.message || 'Failed to establish session or link expired.');
+                // Parse the URL fragment for tokens
+                const hash = window.location.hash.substring(1);
+                const params = new URLSearchParams(hash);
+                const access_token = params.get('access_token');
+                const refresh_token = params.get('refresh_token');
+
+                if (!access_token || !refresh_token) {
+                    // No fragment tokens — possibly an email OTP callback handled by Supabase.
+                    // In this case, redirect to login and let the user log in manually.
+                    throw new Error('No session token found in callback URL. Please log in manually.');
                 }
 
-                // Get the user's role from the profiles table
-                const { data: profileData, error: profileError } = await supabase
-                    .from('profiles')
-                    .select('role')
-                    .eq('id', session.user.id)
-                    .single();
+                // Exchange the tokens via our server-side API (bypasses ISP blocks)
+                const res = await fetch('/api/auth/callback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ access_token, refresh_token }),
+                });
 
-                let role = 'student'; // Default role
-                if (session.user.user_metadata?.role) {
-                    role = session.user.user_metadata.role;
-                } else if (profileData && profileData.role) {
-                    role = profileData.role;
+                const data = await res.json();
+
+                if (!res.ok || !data.success) {
+                    throw new Error(data.error || 'Authentication failed.');
                 }
 
-                // Use our server action to set the cookie and get redirect URL
-                const redirectUrl = await setRoleCookieAndGetRedirectUrl(role);
-                router.push(redirectUrl);
-                
+                // Store session tokens in localStorage (same pattern as login page)
+                const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+                const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] ?? '';
+                const storageKey = `sb-${projectRef}-auth-token`;
+                try {
+                    localStorage.setItem(storageKey, JSON.stringify({
+                        access_token: data.session.access_token,
+                        refresh_token: data.session.refresh_token,
+                        token_type: 'bearer',
+                        expires_at: data.session.expires_at,
+                        expires_in: data.session.expires_in,
+                        user: data.session.user,
+                    }));
+                } catch (_) { /* localStorage unavailable */ }
+
+                router.push(data.redirectUrl || '/dashboard/student');
+
             } catch (err: any) {
-                console.error("Auth callback error:", err);
+                console.error('Auth callback error:', err);
                 setError(err.message);
-                // Redirect to login page with error after 3 seconds
                 setTimeout(() => {
-                    router.push(`/login?error=${encodeURIComponent(err.message)}`);
+                    router.push(`/login`);
                 }, 3000);
             }
         };

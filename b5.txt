@@ -1,0 +1,169 @@
+starting build "6398e278-30a5-4327-8e38-184c40f6b896"
+
+FETCHSOURCE
+Fetching storage object: gs://mededuai-prod_cloudbuild/source/1775532830.160445-dec7e7f60e244742a183d9e8f0c6fa6b.tgz#1775532836343676
+Copying gs://mededuai-prod_cloudbuild/source/1775532830.160445-dec7e7f60e244742a183d9e8f0c6fa6b.tgz#1775532836343676...
+/ [0 files][    0.0 B/  2.5 MiB]                                                
+/ [1 files][  2.5 MiB/  2.5 MiB]                                                
+Operation completed over 1 objects/2.5 MiB.                                      
+BUILD
+Starting Step #0
+Step #0: Already have image (with digest): gcr.io/cloud-builders/docker
+Step #0: Sending build context to Docker daemon  5.445MB
+
+Step #0: Step 1/38 : FROM node:20-alpine AS base
+Step #0: 20-alpine: Pulling from library/node
+Step #0: 589002ba0eae: Already exists
+Step #0: d7f6aca05b78: Pulling fs layer
+Step #0: 62e0e1181d88: Pulling fs layer
+Step #0: c7734204880f: Pulling fs layer
+Step #0: c7734204880f: Verifying Checksum
+Step #0: c7734204880f: Download complete
+Step #0: 62e0e1181d88: Verifying Checksum
+Step #0: 62e0e1181d88: Download complete
+Step #0: d7f6aca05b78: Verifying Checksum
+Step #0: d7f6aca05b78: Download complete
+Step #0: d7f6aca05b78: Pull complete
+Step #0: 62e0e1181d88: Pull complete
+Step #0: c7734204880f: Pull complete
+Step #0: Digest: sha256:f598378b5240225e6beab68fa9f356db1fb8efe55173e6d4d8153113bb8f333c
+Step #0: Status: Downloaded newer image for node:20-alpine
+Step #0:  ---> ccfb9f0dc7ac
+Step #0: Step 2/38 : FROM base AS deps
+Step #0:  ---> ccfb9f0dc7ac
+Step #0: Step 3/38 : RUN apk add --no-cache libc6-compat
+Step #0:  ---> Running in ed681559f46a
+Step #0: (1/3) Installing musl-obstack (1.2.3-r2)
+Step #0: (2/3) Installing libucontext (1.3.3-r0)
+Step #0: (3/3) Installing gcompat (1.1.0-r4)
+Step #0: OK: 11.0 MiB in 21 packages
+Step #0: Removing intermediate container ed681559f46a
+Step #0:  ---> d25e87981804
+Step #0: Step 4/38 : WORKDIR /app
+Step #0:  ---> Running in 7909d8cb41fa
+Step #0: Removing intermediate container 7909d8cb41fa
+Step #0:  ---> 14f8e32a9ccf
+Step #0: Step 5/38 : COPY package.json package-lock.json* ./
+Step #0:  ---> dc69ef8f14b3
+Step #0: Step 6/38 : RUN npm ci
+Step #0:  ---> Running in 86f22b503763
+Step #0: [91mnpm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+Step #0: [0m[91mnpm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+Step #0: [0m
+Step #0: added 609 packages, and audited 610 packages in 18s
+Step #0: 
+Step #0: 252 packages are looking for funding
+Step #0:   run `npm fund` for details
+Step #0: 
+Step #0: 6 vulnerabilities (2 moderate, 3 high, 1 critical)
+Step #0: 
+Step #0: To address issues that do not require attention, run:
+Step #0:   npm audit fix
+Step #0: 
+Step #0: To address all issues possible, run:
+Step #0:   npm audit fix --force
+Step #0: 
+Step #0: Some issues need review, and may require choosing
+Step #0: a different dependency.
+Step #0: 
+Step #0: Run `npm audit` for details.
+Step #0: [91mnpm notice
+Step #0: npm notice New major version of npm available! 10.8.2 -> 11.12.1
+Step #0: npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.12.1
+Step #0: npm notice To update run: npm install -g npm@11.12.1
+Step #0: npm notice
+Step #0: [0mRemoving intermediate container 86f22b503763
+Step #0:  ---> e6aa45e738b0
+Step #0: Step 7/38 : FROM base AS builder
+Step #0:  ---> ccfb9f0dc7ac
+Step #0: Step 8/38 : WORKDIR /app
+Step #0:  ---> Running in 6956e3f1227d
+Step #0: Removing intermediate container 6956e3f1227d
+Step #0:  ---> bd53bddde94f
+Step #0: Step 9/38 : COPY --from=deps /app/node_modules ./node_modules
+Step #0:  ---> 376942b1b5a7
+Step #0: Step 10/38 : COPY . .
+Step #0:  ---> d7b3a2fd95ba
+Step #0: Step 11/38 : ENV NEXT_TELEMETRY_DISABLED=1
+Step #0:  ---> Running in 97fde80d13b6
+Step #0: Removing intermediate container 97fde80d13b6
+Step #0:  ---> 344d0b4d8392
+Step #0: Step 12/38 : ENV STANDALONE_BUILD=1
+Step #0:  ---> Running in 7b0f20dab6f3
+Step #0: Removing intermediate container 7b0f20dab6f3
+Step #0:  ---> 5706f430bc6a
+Step #0: Step 13/38 : ARG NEXT_PUBLIC_SUPABASE_URL
+Step #0:  ---> Running in 393d7bbbcd73
+Step #0: Removing intermediate container 393d7bbbcd73
+Step #0:  ---> 5c0feee3d174
+Step #0: Step 14/38 : ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+Step #0:  ---> Running in eb7bc9331054
+Step #0: Removing intermediate container eb7bc9331054
+Step #0:  ---> 6427ae941f61
+Step #0: Step 15/38 : ARG NEXT_PUBLIC_SITE_URL
+Step #0:  ---> Running in 43f9d9b34925
+Step #0: Removing intermediate container 43f9d9b34925
+Step #0:  ---> de9b925b751d
+Step #0: Step 16/38 : ARG GOOGLE_CLOUD_PROJECT=mededuai-prod
+Step #0:  ---> Running in 99b00993f536
+Step #0: Removing intermediate container 99b00993f536
+Step #0:  ---> 726715597a35
+Step #0: Step 17/38 : ARG GOOGLE_CLOUD_LOCATION=us-central1
+Step #0:  ---> Running in badb7cbddd3e
+Step #0: Removing intermediate container badb7cbddd3e
+Step #0:  ---> 117f6ebb1da4
+Step #0: Step 18/38 : ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+Step #0:  ---> Running in 77495288ad5a
+Step #0: Removing intermediate container 77495288ad5a
+Step #0:  ---> 9d698bb07402
+Step #0: Step 19/38 : ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+Step #0:  ---> Running in 87a97def91dc
+Step #0: Removing intermediate container 87a97def91dc
+Step #0:  ---> 0979134395fe
+Step #0: Step 20/38 : ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+Step #0:  ---> Running in 63edb3eb1761
+Step #0: Removing intermediate container 63edb3eb1761
+Step #0:  ---> 6edaf91347ad
+Step #0: Step 21/38 : ENV GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT
+Step #0:  ---> Running in 9c5844618535
+Step #0: Removing intermediate container 9c5844618535
+Step #0:  ---> b6031c2777b6
+Step #0: Step 22/38 : ENV GOOGLE_CLOUD_LOCATION=$GOOGLE_CLOUD_LOCATION
+Step #0:  ---> Running in 4a9ce3d6baaa
+Step #0: Removing intermediate container 4a9ce3d6baaa
+Step #0:  ---> 77cd314bda18
+Step #0: Step 23/38 : RUN npm run build
+Step #0:  ---> Running in 4c9c7ec8e7f3
+Step #0: 
+Step #0: > temp_mededuai@0.1.0 build
+Step #0: > next build
+Step #0: 
+Step #0: ??? Next.js 16.1.6 (Turbopack)
+Step #0: 
+Step #0: [91m??? The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+Step #0: [0m  Creating an optimized production build ...
+Step #0: ??? Compiled successfully in 32.6s
+Step #0:   Running TypeScript ...
+Step #0: [91mFailed to compile.
+Step #0: 
+Step #0: [0m[91m./next.config.ts:8:9
+Step #0: Type error: Object literal may only specify known properties, and 'appIsrStatus' does not exist in type '{ position?: "top-left" | "top-right" | "bottom-left" | "bottom-right" | undefined; }'.
+Step #0: 
+Step #0: [0m [90m  6 |[39m
+Step #0:  [90m  7 |[39m     devIndicators[33m:[39m {
+Step #0: [31m[1m>[22m[39m[90m  8 |[39m         appIsrStatus[33m:[39m [36mfalse[39m[33m,[39m
+Step #0:  [90m    |[39m         [31m[1m^[22m[39m
+Step #0:  [90m  9 |[39m         buildActivity[33m:[39m [36mfalse[39m[33m,[39m
+Step #0:  [90m 10 |[39m     }[33m,[39m
+Step #0:  [90m 11 |[39m[0m
+Step #0: [0m[91mNext.js build worker exited with code: 1 and signal: null
+Step #0: [0m[91mnpm notice
+Step #0: npm notice New major version of npm available! 10.8.2 -> 11.12.1
+Step #0: npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.12.1
+Step #0: npm notice To update run: npm install -g npm@11.12.1
+Step #0: npm notice
+Step #0: The command '/bin/sh -c npm run build' returned a non-zero code: 1
+Finished Step #0
+ERROR
+ERROR: build step 0 "gcr.io/cloud-builders/docker" failed: step exited with non-zero status: 1
+Step #0: [0m
