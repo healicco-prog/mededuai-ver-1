@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { generateJSON } from '@/lib/gemini';
+import { generateText } from '@/lib/gemini';
 import { verifyAuthAndRole } from '@/lib/authMiddleware';
 
 export async function POST(req: Request) {
@@ -58,18 +58,27 @@ You are generating notes for BSc Nursing students. Your content must be:
 `;
         }
 
-        let schemaObject: Record<string, any> = {};
+        // ── Build prompt using DELIMITERS instead of JSON ──
+        // This approach avoids JSON parsing entirely, eliminating "bad escaped character" errors.
+        const DELIM_START = '===SECTION_START:';
+        const DELIM_END = '===SECTION_END===';
+
         let promptInstructions = `You are an expert academic content creation engine designed to produce world-class, accurate, and structured LMS Notes.\n\n`;
         promptInstructions += courseDirective;
         promptInstructions += `\nContext:\n- Course: ${courseName}\n- Subject: ${subjectName}\n- Section: ${sectionName}\n- Target Topic for these notes: ${topicName}\n\n`;
-        promptInstructions += `You strictly must follow the requested JSON format below. Each key corresponds to a section of the LMS Notes Structure. For each key, generate content exactly fulfilling the description requested:\n\n`;
+        promptInstructions += `CRITICAL OUTPUT FORMAT INSTRUCTIONS:\n`;
+        promptInstructions += `You MUST output your response using the following delimited format. For EACH section listed below, output the content wrapped between the exact delimiters shown.\n`;
+        promptInstructions += `DO NOT use JSON. DO NOT wrap in code blocks. Use ONLY the delimiter format.\n\n`;
+        promptInstructions += `Example format:\n`;
+        promptInstructions += `${DELIM_START} example_key ===\nYour generated content for this section goes here...\n${DELIM_END}\n\n`;
+        promptInstructions += `Now generate the following sections:\n\n`;
 
         for (const item of lmsStructure) {
-            schemaObject[item.id] = `(string) Generated content for ${item.title}`;
             const count = parseInt(item.value, 10) || 0;
             const titleLower = item.title.toLowerCase();
 
-            promptInstructions += `- Key "${item.id}" (${item.title}): ${item.description} - Requested count/format: ${item.value}\n`;
+            promptInstructions += `--- Section Key: "${item.id}" (${item.title}) ---\n`;
+            promptInstructions += `Description: ${item.description} - Requested count/format: ${item.value}\n`;
 
             if (titleLower.includes('10 mark')) {
                 if (count === 0) {
@@ -123,12 +132,53 @@ You are generating notes for BSc Nursing students. Your content must be:
                 const wordNote = item.wordCount ? ` Aim for approximately ${item.wordCount} words in total.` : '';
                 promptInstructions += `  NOTE: Provide well formatted markdown (using **bold**, bullet points, etc. as appropriate).${wordNote}\n`;
             }
+
+            promptInstructions += `Output for this section between: ${DELIM_START} ${item.id} === and ${DELIM_END}\n\n`;
         }
 
-        promptInstructions += `\nReturn ONLY a robust, accurate valid JSON object containing exactly the keys defined above and with the values as strings.`;
+        promptInstructions += `\nREMEMBER: Use the EXACT delimiter format. Each section MUST start with "${DELIM_START} <key> ===" and end with "${DELIM_END}".`;
 
-        const parsed = await generateJSON(promptInstructions);
-        return NextResponse.json({ success: true, generatedNotes: parsed });
+        // ── Generate as PLAIN TEXT (no JSON mode) ──
+        console.log(`[Creator API] Generating notes for "${topicName}" using delimiter-based text mode…`);
+        const rawText = await generateText(promptInstructions);
+
+        // ── Parse delimited sections into a key-value object ──
+        const generatedNotes: Record<string, string> = {};
+        
+        for (const item of lmsStructure) {
+            const startMarker = `${DELIM_START} ${item.id} ===`;
+            const startIdx = rawText.indexOf(startMarker);
+            
+            if (startIdx !== -1) {
+                const contentStart = startIdx + startMarker.length;
+                const endIdx = rawText.indexOf(DELIM_END, contentStart);
+                
+                if (endIdx !== -1) {
+                    generatedNotes[item.id] = rawText.substring(contentStart, endIdx).trim();
+                } else {
+                    // No end delimiter — take content until next start delimiter or end of text
+                    const nextStart = rawText.indexOf(DELIM_START, contentStart);
+                    generatedNotes[item.id] = rawText.substring(contentStart, nextStart !== -1 ? nextStart : undefined).trim();
+                }
+            } else {
+                // Section not found — set empty
+                console.warn(`[Creator API] Section "${item.id}" not found in AI output for "${topicName}"`);
+                generatedNotes[item.id] = '';
+            }
+        }
+
+        // Verify we got content for at least one section
+        const hasContent = Object.values(generatedNotes).some(v => v.length > 10);
+        if (!hasContent) {
+            console.error('[Creator API] No content extracted. Raw text length:', rawText.length, 'First 500 chars:', rawText.substring(0, 500));
+            return NextResponse.json({ 
+                success: false, 
+                error: 'AI generated content but it could not be parsed into sections. Please try again.' 
+            });
+        }
+
+        console.log(`[Creator API] ✅ Successfully generated ${Object.keys(generatedNotes).length} sections for "${topicName}"`);
+        return NextResponse.json({ success: true, generatedNotes });
 
     } catch (error: any) {
         // Always log the real error so it appears in Cloud Run logs

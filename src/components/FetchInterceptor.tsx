@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 export default function FetchInterceptor() {
   useEffect(() => {
     const originalFetch = window.fetch;
-    const CLOUD_RUN_URL = 'https://mededuai-3js7mh5u5a-uc.a.run.app';
+    const CLOUD_RUN_URL = 'https://mededuai-prod-3js7mh5u5a-uc.a.run.app';
 
     window.fetch = async (...args) => {
       let [resource, config] = args;
