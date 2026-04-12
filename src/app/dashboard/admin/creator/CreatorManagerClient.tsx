@@ -435,13 +435,13 @@ export default function LMSCreatorAdmin() {
                     const errorMsg = typeof data.error === 'string' ? data.error : JSON.stringify(data.error);
                     // Fallback to error message
                     engineCourse.lmsNotesStructure.forEach(item => {
-                        fetchedNotes[item.id] = `API Error: ${errorMsg}\n\nPlease check your API Key and Plan quotas.`;
+                        fetchedNotes[item.id] = `Generation Error: ${errorMsg}\n\nNote: If this was a massive generation, it may have timed out or exceeded the token limit. Try generating fewer sections at once or checking the backend logs.`;
                     });
                 }
             } catch (err: any) {
                 console.error("Generation API network error:", err);
                 engineCourse.lmsNotesStructure.forEach(item => {
-                    fetchedNotes[item.id] = `Error: Network failed to reach AI server. ${err.message || ''}`;
+                    fetchedNotes[item.id] = `Error: Network failed to reach AI server. This could be a timeout because the generation was too large. ${err.message || ''}`;
                 });
             }
 
