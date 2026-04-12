@@ -59,8 +59,8 @@ function getAI(): GoogleGenAI {
 const MODELS = {
     primary:   'gemini-2.5-flash',          // Latest Flash — fastest, most available
     secondary: 'gemini-2.0-flash',          // Stable Flash — good fallback
-    tertiary:  'gemini-1.5-flash',          // Proven workhorse — wide availability
-    quaternary: 'gemini-1.5-flash-8b',      // Smallest / lightest — last resort
+    tertiary:  'gemini-2.5-pro',            // High intelligence — strong fallback
+    quaternary: 'gemini-2.0-flash-lite',    // Lightweight — reliable last resort
 } as const;
 
 // Errors that warrant retrying the SAME model (transient)
