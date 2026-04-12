@@ -1,5 +1,4 @@
 import { GoogleGenAI } from '@google/genai';
-import { jsonrepair } from 'jsonrepair';
 
 // ─────────────────────────────────────────────────────────────
 // MedEduAI – Centralized Gemini AI Configuration
@@ -92,7 +91,9 @@ export async function generateWithFallback(
         MODELS.tertiary,
         MODELS.quaternary,
     ];
-    const config = options?.jsonMode ? { responseMimeType: 'application/json' as const } : undefined;
+    const config = options?.jsonMode
+        ? { responseMimeType: 'application/json' as const, maxOutputTokens: 65536 }
+        : { maxOutputTokens: 65536 };
     const maxRetries = options?.maxRetries ?? 3;
 
     let lastError: Error | null = null;
@@ -130,10 +131,11 @@ export async function generateWithFallback(
                     break;
                 }
 
-                // Exponential backoff with jitter: 2s, 4s, 8s…
-                // For 503 (overload) use longer delays to let the model recover
-                const baseDelay = isRetryable && (httpCode === 503 || httpCode === 429) ? 3000 : 1000;
-                const backoffMs = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000;
+                // Exponential backoff with jitter
+                // For 429 (rate limit) use much longer delays to avoid back-to-back throttling
+                // For 503 (overload) use moderate delays to let the model recover
+                const baseDelay = httpCode === 429 ? 8000 : (httpCode === 503 ? 4000 : 1500);
+                const backoffMs = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 2000;
                 console.log(`[MedEduAI AI] Retrying model=${model} in ${Math.round(backoffMs)}ms…`);
                 await sleep(backoffMs);
             }
@@ -165,12 +167,9 @@ export async function generateJSON<T = any>(
     }
     
     try {
-        // Automatically repair malformed or truncated JSON
-        const repaired = jsonrepair(cleanText);
-        return JSON.parse(repaired);
+        return JSON.parse(cleanText);
     } catch (e) {
-        console.warn("[MedEduAI AI] Failed to parse JSON even after repair. Raw text length:", text.length);
-        console.warn("[MedEduAI AI] Snippet of failed text:", text.substring(0, 200), "...", text.slice(-200));
+        console.warn("[MedEduAI AI] Failed to parse JSON. Raw text:", text);
         throw e;
     }
 }

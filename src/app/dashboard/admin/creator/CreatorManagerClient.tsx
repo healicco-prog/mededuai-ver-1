@@ -377,6 +377,9 @@ export default function LMSCreatorAdmin() {
 
         const totalTopics = engineSelectedTopics.length;
 
+        // Helper to pause between sequential API calls to avoid 429 rate-limiting
+        const cooldown = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
         for (let i = 0; i < totalTopics; i++) {
             const topicId = engineSelectedTopics[i];
 
@@ -385,64 +388,95 @@ export default function LMSCreatorAdmin() {
             engineSection.topics.forEach(t => { if (t.id === topicId) pName = t.name; });
             setCurrentTopicName(pName);
 
-            // Call Gemini AI generation engine
+            // Call Gemini AI generation engine — with retry logic
             let fetchedNotes: Record<string, string> = {};
-            try {
-                const response = await fetch('/api/creator', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        courseName: engineCourse.name,
-                        subjectName: engineSubject.name,
-                        sectionName: engineSection.name,
-                        topicName: pName,
-                        lmsStructure: engineCourse.lmsNotesStructure
-                    })
-                });
+            let success = false;
+            const maxTopicRetries = 3;
 
-                const data = await response.json();
+            for (let attempt = 1; attempt <= maxTopicRetries; attempt++) {
+                try {
+                    console.log(`[Generation Engine] Topic "${pName}" — attempt ${attempt}/${maxTopicRetries}`);
 
-                if (data.success && data.generatedNotes) {
-                    fetchedNotes = data.generatedNotes;
+                    const controller = new AbortController();
+                    // 10-minute timeout per topic (enough for the largest generations)
+                    const timeoutId = setTimeout(() => controller.abort(), 600000);
 
-                    // ── Auto-Save to Supabase ──
-                    // Fire-and-forget: persist generated notes to the database.
-                    // We don't await this so it doesn't block the UI loop.
-                    fetch('/api/creator/save', {
+                    const response = await fetch('/api/creator', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
+                        signal: controller.signal,
                         body: JSON.stringify({
                             courseName: engineCourse.name,
                             subjectName: engineSubject.name,
                             sectionName: engineSection.name,
                             topicName: pName,
-                            generatedNotes: fetchedNotes,
-                        }),
-                    })
-                    .then(r => r.json())
-                    .then(saveResult => {
-                        if (saveResult.success) {
-                            console.log(`[Auto-Save] ✅ "${pName}" saved to DB (topic: ${saveResult.topicId})`);
+                            lmsStructure: engineCourse.lmsNotesStructure
+                        })
+                    });
+
+                    clearTimeout(timeoutId);
+
+                    const data = await response.json();
+
+                    if (data.success && data.generatedNotes) {
+                        fetchedNotes = data.generatedNotes;
+                        success = true;
+
+                        // ── Auto-Save to Supabase ──
+                        // Fire-and-forget: persist generated notes to the database.
+                        fetch('/api/creator/save', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                courseName: engineCourse.name,
+                                subjectName: engineSubject.name,
+                                sectionName: engineSection.name,
+                                topicName: pName,
+                                generatedNotes: fetchedNotes,
+                            }),
+                        })
+                        .then(r => r.json())
+                        .then(saveResult => {
+                            if (saveResult.success) {
+                                console.log(`[Auto-Save] ✅ "${pName}" saved to DB (topic: ${saveResult.topicId})`);
+                            } else {
+                                console.warn(`[Auto-Save] ⚠️ "${pName}" save failed:`, saveResult.error);
+                            }
+                        })
+                        .catch(saveErr => {
+                            console.warn(`[Auto-Save] ⚠️ Network error saving "${pName}":`, saveErr);
+                        });
+
+                        break; // Success — exit retry loop
+                    } else {
+                        const errorMsg = typeof data.error === 'string' ? data.error : JSON.stringify(data.error);
+                        console.warn(`[Generation Engine] Topic "${pName}" attempt ${attempt} failed: ${errorMsg}`);
+
+                        if (attempt < maxTopicRetries) {
+                            // Wait longer before retrying (5s, 10s, 20s…)
+                            const retryDelay = 5000 * Math.pow(2, attempt - 1);
+                            console.log(`[Generation Engine] Retrying "${pName}" in ${retryDelay / 1000}s…`);
+                            await cooldown(retryDelay);
                         } else {
-                            console.warn(`[Auto-Save] ⚠️ "${pName}" save failed:`, saveResult.error);
+                            // All retries exhausted
+                            engineCourse.lmsNotesStructure.forEach(item => {
+                                fetchedNotes[item.id] = `Generation failed after ${maxTopicRetries} attempts: ${errorMsg}`;
+                            });
                         }
-                    })
-                    .catch(saveErr => {
-                        console.warn(`[Auto-Save] ⚠️ Network error saving "${pName}":`, saveErr);
-                    });
-                } else {
-                    console.error("Gemini generation failed, using fallback:", data.error);
-                    const errorMsg = typeof data.error === 'string' ? data.error : JSON.stringify(data.error);
-                    // Fallback to error message
-                    engineCourse.lmsNotesStructure.forEach(item => {
-                        fetchedNotes[item.id] = `Generation Error: ${errorMsg}\n\nNote: If this was a massive generation, it may have timed out or exceeded the token limit. Try generating fewer sections at once or checking the backend logs.`;
-                    });
+                    }
+                } catch (err: any) {
+                    console.error(`[Generation Engine] Topic "${pName}" attempt ${attempt} network error:`, err.message);
+
+                    if (attempt < maxTopicRetries) {
+                        const retryDelay = 5000 * Math.pow(2, attempt - 1);
+                        console.log(`[Generation Engine] Retrying "${pName}" in ${retryDelay / 1000}s…`);
+                        await cooldown(retryDelay);
+                    } else {
+                        engineCourse.lmsNotesStructure.forEach(item => {
+                            fetchedNotes[item.id] = `Network error after ${maxTopicRetries} attempts: ${err.message || 'Unknown error'}`;
+                        });
+                    }
                 }
-            } catch (err: any) {
-                console.error("Generation API network error:", err);
-                engineCourse.lmsNotesStructure.forEach(item => {
-                    fetchedNotes[item.id] = `Error: Network failed to reach AI server. This could be a timeout because the generation was too large. ${err.message || ''}`;
-                });
             }
 
             setProgress(Math.round(((i + 1) / totalTopics) * 100));
@@ -473,6 +507,15 @@ export default function LMSCreatorAdmin() {
                 }
                 return c;
             }));
+
+            // ── CRITICAL: Cooldown between topics ──
+            // Without this, rapid sequential calls to Gemini trigger 429 rate-limiting
+            // and all topics after the first one fail. 3 seconds is enough for the
+            // rate-limit counter to reset between calls.
+            if (i < totalTopics - 1) {
+                console.log(`[Generation Engine] Cooling down 3s before next topic…`);
+                await cooldown(3000);
+            }
         }
 
         setTimeout(() => {
