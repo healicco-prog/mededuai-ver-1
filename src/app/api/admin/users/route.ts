@@ -1,3 +1,4 @@
+import { checkSecurity, validateInput } from '@/lib/apiSecurity';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '../../../../lib/supabaseAdmin';
 
@@ -102,6 +103,9 @@ export async function PUT(req: NextRequest) {
 
 // POST — Send password reset email to a user
 export async function POST(req: NextRequest) {
+    const sec = await checkSecurity(req);
+    if (!sec.authorized) return sec.response;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const { email } = await req.json();

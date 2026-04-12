@@ -1,3 +1,4 @@
+import { checkSecurity, validateInput } from '@/lib/apiSecurity';
 import { NextResponse } from 'next/server';
 import { getAI } from '@/lib/gemini';
 import { createClient } from '@supabase/supabase-js';
@@ -10,6 +11,9 @@ function getSupabase() {
 }
 
 export async function POST(req: Request) {
+    const sec = await checkSecurity(req);
+    if (!sec.authorized) return sec.response;
+
     try {
         const body = await req.json();
         const {

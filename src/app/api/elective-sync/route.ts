@@ -1,3 +1,4 @@
+import { checkSecurity, validateInput } from '@/lib/apiSecurity';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
@@ -39,6 +40,9 @@ export async function GET() {
 
 // POST: Sync elective data (called by admin OR student after submitting preferences)
 export async function POST(req: NextRequest) {
+    const sec = await checkSecurity(req);
+    if (!sec.authorized) return sec.response;
+
   try {
     const body = await req.json();
     const { codes, students, electives, allotments, sessions, allotmentMethod, preferences, dates, institutions, logbookApprovals } = body;

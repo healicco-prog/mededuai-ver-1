@@ -1,8 +1,12 @@
+import { checkSecurity, validateInput } from '@/lib/apiSecurity';
 import { NextResponse } from 'next/server';
 import { generateText } from '@/lib/gemini';
 import { verifyAuth } from '@/lib/authMiddleware';
 
 export async function POST(req: Request) {
+    const sec = await checkSecurity(req);
+    if (!sec.authorized) return sec.response;
+
     const user = await verifyAuth(req);
     if (!user) {
         return NextResponse.json({ success: false, error: 'Unauthorized.' }, { status: 401 });

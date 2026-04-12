@@ -1,7 +1,11 @@
+import { checkSecurity, validateInput } from '@/lib/apiSecurity';
 import { NextResponse } from 'next/server';
 import { generateJSON } from '@/lib/gemini';
 
 export async function POST(req: Request) {
+    const sec = await checkSecurity(req);
+    if (!sec.authorized) return sec.response;
+
     let body: any = {};
     try {
         body = await req.json();

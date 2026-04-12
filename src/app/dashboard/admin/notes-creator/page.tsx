@@ -5,6 +5,9 @@ import { FileEdit, Loader2, Sparkles, RefreshCcw, Download, Copy, CheckCircle, B
 import { useUserStore } from '@/store/userStore';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import SavedNotesModal from '@/components/SavedNotesModal';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -412,7 +415,7 @@ th,td{border:1px solid #ccc;padding:6pt 8pt;}th{background:#ecfdf5;}</style></he
 
                             {/* Notes Content */}
                             <div className="p-6 prose prose-slate max-w-none prose-sm">
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayResult}</ReactMarkdown>
+                                <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{displayResult}</ReactMarkdown>
                             </div>
                         </div>
                     </div>

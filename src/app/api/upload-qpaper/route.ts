@@ -1,3 +1,4 @@
+import { checkSecurity, validateInput } from '@/lib/apiSecurity';
 import { NextRequest, NextResponse } from 'next/server';
 import mammoth from 'mammoth';
 import { generateJSON } from '@/lib/gemini';
@@ -5,6 +6,9 @@ import { generateJSON } from '@/lib/gemini';
 export const maxDuration = 60; // allow up to 60s for AI parsing
 
 export async function POST(req: NextRequest) {
+    const sec = await checkSecurity(req);
+    if (!sec.authorized) return sec.response;
+
     try {
         const formData = await req.formData();
         const file = formData.get('file') as File | null;

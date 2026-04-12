@@ -10,6 +10,9 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 
 // Helper to normalise raw content from DB (might be JSONB array, JSON string array, or plain string)
 const normaliseContent = (raw: any): string => {
@@ -298,7 +301,7 @@ const PPTSlideViewer = ({ rawText }: { rawText: any }) => {
                     {slide.body ? (
                         <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
                             <div className="prose prose-invert prose-lg max-w-none text-white/90 leading-relaxed font-medium [&_strong]:text-white [&_li]:marker:text-white/60">
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{slide.body}</ReactMarkdown>
+                                <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{slide.body}</ReactMarkdown>
                             </div>
                         </div>
                     ) : (
@@ -356,7 +359,7 @@ const MCQViewer = ({ rawText, colorClass = "indigo", marks = 1, currentTopic, cu
         const text = normaliseContent(rawText);
         return (
             <div className="prose max-w-none text-slate-700 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm leading-relaxed">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{text || ''}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{text || ''}</ReactMarkdown>
             </div>
         );
     }
@@ -365,7 +368,7 @@ const MCQViewer = ({ rawText, colorClass = "indigo", marks = 1, currentTopic, cu
         const text = normaliseContent(rawText);
         return (
             <div className="prose max-w-none text-slate-700 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm leading-relaxed">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{text || ''}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{text || ''}</ReactMarkdown>
             </div>
         );
     }
@@ -472,7 +475,7 @@ const MCQViewer = ({ rawText, colorClass = "indigo", marks = 1, currentTopic, cu
                         <h4 className={`font-bold text-lg ${c.text} mb-4 flex items-start gap-3`}>
                             <span className="shrink-0 w-8 h-8 rounded-full bg-white/60 flex items-center justify-center text-sm font-black">{i + 1}</span>
                             <div className="prose prose-sm max-w-none flex-1">
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{q.question || ''}</ReactMarkdown>
+                                <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{q.question || ''}</ReactMarkdown>
                             </div>
                         </h4>
 
@@ -497,7 +500,7 @@ const MCQViewer = ({ rawText, colorClass = "indigo", marks = 1, currentTopic, cu
                                             <h5 className={`font-bold text-md ${c.text} mb-3 flex items-start gap-2`}>
                                                 <span className="w-6 h-6 rounded-full bg-white/60 flex items-center justify-center text-xs font-black">Q{subIdx + 1}</span>
                                                 <div className="prose prose-sm max-w-none flex-1">
-                                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{subQ.question || ''}</ReactMarkdown>
+                                                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{subQ.question || ''}</ReactMarkdown>
                                                 </div>
                                             </h5>
                                         )}
@@ -595,7 +598,7 @@ const MCQViewer = ({ rawText, colorClass = "indigo", marks = 1, currentTopic, cu
                                                 <div className="mt-4 bg-white rounded-xl p-5 border border-slate-200">
                                                     <p className="font-bold text-slate-800 mb-4">Generated Model Answer:</p>
                                                     <div className="prose prose-sm max-w-none text-slate-700 font-medium leading-relaxed">
-                                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{generatedAns}</ReactMarkdown>
+                                                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{generatedAns}</ReactMarkdown>
                                                     </div>
                                                 </div>
                                             )}
@@ -1025,7 +1028,7 @@ export default function TeacherLMSNotes() {
                                                     <h3 className="text-xl font-bold text-blue-900">Introduction</h3>
                                                 </div>
                                                 <div className="prose prose-blue prose-lg max-w-none text-slate-700 leading-relaxed font-medium">
-                                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{contentMap.introduction}</ReactMarkdown>
+                                                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{contentMap.introduction}</ReactMarkdown>
                                                 </div>
 
                                                 
@@ -1047,7 +1050,7 @@ export default function TeacherLMSNotes() {
                                                     </div>
 
                                                     <div className="prose prose-purple prose-lg max-w-none text-slate-700 leading-relaxed relative z-10">
-                                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{contentMap.detailed}</ReactMarkdown>
+                                                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{contentMap.detailed}</ReactMarkdown>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1252,7 +1255,7 @@ export default function TeacherLMSNotes() {
                                                 <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                                     <div className={`p-3 rounded-2xl max-w-[85%] text-sm ${msg.role === 'user' ? 'bg-purple-600 text-white rounded-br-sm' : 'bg-slate-100 text-slate-800 rounded-bl-sm prose prose-sm'}`}>
                                                         {msg.role === 'ai' ? (
-                                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                                                            <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{msg.content}</ReactMarkdown>
                                                         ) : (
                                                             msg.content
                                                         )}

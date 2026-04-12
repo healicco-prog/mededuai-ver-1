@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { X, Search, FileText, Trash2, Clock, CheckCircle, Copy, Download, Share2, FileDown, Eye } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 
 interface SavedNote {
     id: number;
@@ -230,7 +233,7 @@ export default function SavedNotesModal({ isOpen, onClose }: SavedNotesModalProp
                                 {/* Content Body */}
                                 <div className="flex-1 overflow-y-auto p-6 lg:p-10">
                                     <div className="bg-white rounded-2xl p-6 lg:p-10 shadow-sm border border-slate-200 prose prose-slate max-w-none prose-sm lg:prose-base">
-                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{viewNote.content}</ReactMarkdown>
+                                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{viewNote.content}</ReactMarkdown>
                                     </div>
                                 </div>
                             </div>
