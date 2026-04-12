@@ -139,9 +139,14 @@ You are generating notes for BSc Nursing students. Your content must be:
             stack: error?.stack?.split('\n').slice(0, 5).join(' | '),
         });
 
+        const message = error?.message || '';
+        const isOverload = message.includes('503') || message.includes('UNAVAILABLE') || message.includes('overloaded') || message.includes('high demand') || message.includes('exhausted');
+
         return NextResponse.json({ 
             success: false, 
-            error: error?.message || 'Live Gemini generation failed. Please check your API Quota or API Key.', 
+            error: isOverload
+                ? 'The AI service is temporarily overloaded. All fallback models were tried. Please retry in a minute.'
+                : (message || 'AI generation failed. Please check your API Key and quota.'),
             isMock: false 
         });
     }

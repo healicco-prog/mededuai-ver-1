@@ -54,16 +54,26 @@ function getAI(): GoogleGenAI {
     return _ai;
 }
 
-// Model hierarchy – compatible with both Vertex AI and AI Studio
+// Model fallback chain — each must be a genuinely different model so that
+// when one is overloaded (503) the next one can succeed.
 const MODELS = {
-    primary: 'gemini-2.5-flash',       // Primary: fast, stable, widely available
-    secondary: 'gemini-2.5-flash',     // Fallback 1: proven stable
-    tertiary: 'gemini-2.5-flash',        // Fallback 2: highest quality
+    primary:   'gemini-2.5-flash',          // Latest Flash — fastest, most available
+    secondary: 'gemini-2.0-flash',          // Stable Flash — good fallback
+    tertiary:  'gemini-1.5-flash',          // Proven workhorse — wide availability
+    quaternary: 'gemini-1.5-flash-8b',      // Smallest / lightest — last resort
 } as const;
+
+// Errors that warrant retrying the SAME model (transient)
+const RETRYABLE_CODES = new Set([429, 503, 502, 504, 500]);
+
+/** Sleep helper */
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
  * Smart Gemini content generation with automatic model fallback.
- * Tries models in order until one succeeds.
+ * - Retries transient errors (429, 503, 502, 504) with exponential backoff
+ * - Falls back to the next model after exhausting retries
+ * - Skips to the next model immediately on permanent errors (400, 401, 403)
  * ⚠️  MUST only be called from Next.js API routes (server-side).
  *     Never import or call from client components.
  */
@@ -75,7 +85,12 @@ export async function generateWithFallback(
         maxRetries?: number;
     }
 ): Promise<string> {
-    const models = options?.preferredModels || [MODELS.primary, MODELS.secondary, MODELS.tertiary];
+    const models = options?.preferredModels || [
+        MODELS.primary,
+        MODELS.secondary,
+        MODELS.tertiary,
+        MODELS.quaternary,
+    ];
     const config = options?.jsonMode ? { responseMimeType: 'application/json' as const } : undefined;
     const maxRetries = options?.maxRetries ?? 3;
 
@@ -84,30 +99,47 @@ export async function generateWithFallback(
     for (const model of models) {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
+                console.log(`[MedEduAI AI] Trying model=${model} attempt=${attempt}/${maxRetries}`);
                 const response = await getAI().models.generateContent({
                     model,
                     contents: prompt,
                     ...(config ? { config } : {}),
                 });
-                return response.text || (options?.jsonMode ? '{}' : '');
+                const text = response.text || (options?.jsonMode ? '{}' : '');
+                console.log(`[MedEduAI AI] ✅ model=${model} succeeded (attempt ${attempt})`);
+                return text;
             } catch (e: any) {
-                console.error(`[MedEduAI AI] Model ${model} failed (attempt ${attempt}/${maxRetries}): ${e.message}`, { status: e.status, code: e.code });
                 lastError = e;
-                
-                // If it's the last attempt for this model, break and try the next model
-                if (attempt === maxRetries) {
+                const httpCode: number = e?.status ?? e?.code ?? 0;
+                const isRetryable = RETRYABLE_CODES.has(httpCode) || e?.message?.includes('503') || e?.message?.includes('UNAVAILABLE') || e?.message?.includes('overloaded') || e?.message?.includes('high demand');
+
+                console.warn(
+                    `[MedEduAI AI] model=${model} attempt=${attempt} failed — httpCode=${httpCode} retryable=${isRetryable} — ${e.message}`
+                );
+
+                if (!isRetryable) {
+                    // Permanent error (e.g. bad request, auth failure) — skip this model entirely
+                    console.error(`[MedEduAI AI] Permanent error on model=${model}, skipping to next model.`);
                     break;
                 }
-                
-                // Exponential backoff: 1s, 2s, 4s...
-                const backoffMs = Math.pow(2, attempt - 1) * 1000 + (Math.random() * 500); 
-                console.log(`[MedEduAI AI] Retrying in ${Math.round(backoffMs)}ms...`);
-                await new Promise(resolve => setTimeout(resolve, backoffMs));
+
+                if (attempt === maxRetries) {
+                    // Exhausted retries for this model — move to next
+                    console.warn(`[MedEduAI AI] model=${model} exhausted all retries, trying next model.`);
+                    break;
+                }
+
+                // Exponential backoff with jitter: 2s, 4s, 8s…
+                // For 503 (overload) use longer delays to let the model recover
+                const baseDelay = isRetryable && (httpCode === 503 || httpCode === 429) ? 3000 : 1000;
+                const backoffMs = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000;
+                console.log(`[MedEduAI AI] Retrying model=${model} in ${Math.round(backoffMs)}ms…`);
+                await sleep(backoffMs);
             }
         }
     }
 
-    throw lastError || new Error('All AI models failed');
+    throw lastError || new Error('All AI models exhausted');
 }
 
 /**
