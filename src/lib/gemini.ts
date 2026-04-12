@@ -146,7 +146,75 @@ export async function generateWithFallback(
 }
 
 /**
- * Generate structured JSON content with automatic parsing.
+ * Attempt to repair common JSON issues produced by LLMs.
+ * Handles: bad escape sequences, unescaped newlines/tabs inside strings,
+ * trailing commas, and unescaped control characters.
+ */
+function repairJSON(raw: string): string {
+    // 1. Fix invalid escape sequences inside JSON string values.
+    //    Valid JSON escapes are: \" \\ \/ \b \f \n \r \t \uXXXX
+    //    Gemini sometimes produces \_ \' \. \( \) \# \- \+ \* \& \> \< etc.
+    //    Strategy: walk through the string and fix backslash sequences that aren't valid.
+    let result = '';
+    let inString = false;
+    let i = 0;
+    while (i < raw.length) {
+        const ch = raw[i];
+
+        if (ch === '"' && (i === 0 || raw[i - 1] !== '\\')) {
+            inString = !inString;
+            result += ch;
+            i++;
+            continue;
+        }
+
+        if (inString && ch === '\\') {
+            const next = raw[i + 1];
+            if (next === undefined) {
+                // Trailing backslash — remove it
+                i++;
+                continue;
+            }
+            // Valid JSON escapes
+            if ('"\\\/bfnrt'.includes(next)) {
+                result += ch + next;
+                i += 2;
+                continue;
+            }
+            // Unicode escape \uXXXX
+            if (next === 'u' && /^[0-9a-fA-F]{4}$/.test(raw.substring(i + 2, i + 6))) {
+                result += raw.substring(i, i + 6);
+                i += 6;
+                continue;
+            }
+            // Invalid escape — remove the backslash, keep the character
+            result += next;
+            i += 2;
+            continue;
+        }
+
+        // Fix unescaped control characters inside strings (literal newlines, tabs)
+        if (inString && (ch === '\n' || ch === '\r' || ch === '\t')) {
+            if (ch === '\n') result += '\\n';
+            else if (ch === '\r') result += '\\r';
+            else if (ch === '\t') result += '\\t';
+            i++;
+            continue;
+        }
+
+        result += ch;
+        i++;
+    }
+
+    // 2. Remove trailing commas before } or ]
+    result = result.replace(/,\s*([\]}])/g, '$1');
+
+    return result;
+}
+
+/**
+ * Generate structured JSON content with automatic parsing
+ * and robust multi-layer error recovery.
  */
 export async function generateJSON<T = any>(
     prompt: string,
@@ -166,11 +234,56 @@ export async function generateJSON<T = any>(
         cleanText = lines.join('\n').trim();
     }
     
+    // Layer 1: Direct parse (works most of the time)
     try {
         return JSON.parse(cleanText);
-    } catch (e) {
-        console.warn("[MedEduAI AI] Failed to parse JSON. Raw text:", text);
-        throw e;
+    } catch (e1) {
+        console.warn(`[MedEduAI AI] Layer 1 JSON.parse failed: ${(e1 as Error).message}. Attempting repair…`);
+    }
+
+    // Layer 2: Repair bad escape sequences and retry
+    try {
+        const repaired = repairJSON(cleanText);
+        return JSON.parse(repaired);
+    } catch (e2) {
+        console.warn(`[MedEduAI AI] Layer 2 repaired JSON.parse failed: ${(e2 as Error).message}. Trying text-mode fallback…`);
+    }
+
+    // Layer 3: Re-generate in non-JSON mode and extract the JSON object manually
+    // This is a last resort — Gemini sometimes produces cleaner JSON when not
+    // forced into responseMimeType=json mode.
+    try {
+        console.log('[MedEduAI AI] Layer 3: Re-generating without JSON mode…');
+        const textFallback = await generateWithFallback(
+            prompt + '\n\nIMPORTANT: Return ONLY a valid JSON object. No markdown, no backticks, no explanations. Every string value must have properly escaped special characters.',
+            { jsonMode: false, preferredModels }
+        );
+
+        // Try to extract JSON from the text
+        let jsonStr = textFallback.trim();
+        // Strip ```json blocks
+        if (jsonStr.startsWith('```')) {
+            const lines = jsonStr.split('\n');
+            if (lines[0].startsWith('```')) lines.shift();
+            if (lines[lines.length - 1].startsWith('```')) lines.pop();
+            jsonStr = lines.join('\n').trim();
+        }
+        // Find the outermost JSON object
+        const firstBrace = jsonStr.indexOf('{');
+        const lastBrace = jsonStr.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+            jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
+        }
+
+        // Try direct parse first, then repaired parse
+        try {
+            return JSON.parse(jsonStr);
+        } catch {
+            return JSON.parse(repairJSON(jsonStr));
+        }
+    } catch (e3) {
+        console.error('[MedEduAI AI] All 3 layers of JSON parsing failed. Raw text snippet:', text.substring(0, 500));
+        throw new Error(`JSON parsing failed after all recovery attempts: ${(e3 as Error).message}`);
     }
 }
 
