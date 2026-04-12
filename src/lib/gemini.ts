@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
+import { jsonrepair } from 'jsonrepair';
 
 // ─────────────────────────────────────────────────────────────
 // MedEduAI – Centralized Gemini AI Configuration
@@ -164,9 +165,12 @@ export async function generateJSON<T = any>(
     }
     
     try {
-        return JSON.parse(cleanText);
+        // Automatically repair malformed or truncated JSON
+        const repaired = jsonrepair(cleanText);
+        return JSON.parse(repaired);
     } catch (e) {
-        console.warn("[MedEduAI AI] Failed to parse JSON. Raw text:", text);
+        console.warn("[MedEduAI AI] Failed to parse JSON even after repair. Raw text length:", text.length);
+        console.warn("[MedEduAI AI] Snippet of failed text:", text.substring(0, 200), "...", text.slice(-200));
         throw e;
     }
 }
