@@ -2,10 +2,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useCurriculumStore } from '../../../../store/curriculumStore';
-"use client";
-
-import React, { useState, useRef, useEffect } from 'react';
-import { useCurriculumStore } from '../../../../store/curriculumStore';
 import {
     BrainCircuit, BookOpen, Search, Bell, Download, ChevronRight, ChevronLeft, ChevronDown, CheckCircle2,
     Sparkles, ArrowLeft, Layers, MessageSquare, Plus, AlignLeft, CheckSquare, Presentation,
