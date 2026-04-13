@@ -20,29 +20,30 @@ export default function FetchInterceptor() {
         const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] ?? '';
         const storageKey = `sb-${projectRef}-auth-token`;
         
-        let hasToken = false;
         try {
             const tokenData = localStorage.getItem(storageKey);
             if (tokenData) {
                 const parsed = JSON.parse(tokenData);
                 if (parsed?.access_token) {
                     headers.set('Authorization', `Bearer ${parsed.access_token}`);
-                    hasToken = true;
                 }
             }
         } catch (e) {
             console.error('FetchInterceptor: Error getting auth token', e);
         }
 
-        // Bypassing Netlify proxy: 
+        // Bypass Netlify proxy for AI-heavy routes only.
         // Netlify has a strict 10s Serverless Function timeout which kills long-running
-        // Gemini AI requests. By changing the URL to directly point to Cloud Run,
-        // the browser connects to Cloud Run directly (which has a 300s timeout).
-        // Skip for auth routes if they need same-origin, but Cloud Run has our allowed-origins set.
+        // Gemini AI requests. By rewriting the URL to directly target Cloud Run,
+        // the browser gets a 300s timeout instead.
+        //
+        // Auth routes MUST stay same-origin (via Netlify proxy) to avoid CORS errors.
+        // Cloud Run's ALLOWED_ORIGINS is restricted to mededuai.com only.
         const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const isAuthRoute = resource.startsWith('/api/auth/');
         
-        // In production, rewrite all API requests to directly hit Cloud Run
-        if (!isLocalHost) {
+        // In production, rewrite non-auth API requests to directly hit Cloud Run
+        if (!isLocalHost && !isAuthRoute) {
             resource = `${CLOUD_RUN_URL}${resource}`;
         }
         
