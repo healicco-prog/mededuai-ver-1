@@ -208,15 +208,15 @@ export default function ControlPanelPage() {
                 setError(data.error || 'Login failed. Please check your credentials.');
                 return;
             }
-            const roleMatch = document.cookie.match(/(^| )role=([^;]+)/);
-            const cookieRole = roleMatch?.[2] ?? '';
-            if (!ADMIN_ROLES.includes(cookieRole)) {
+            // Use the role returned by the API — cookie may not be readable yet
+            const grantedRole: string = data.role ?? '';
+            if (!ADMIN_ROLES.includes(grantedRole)) {
                 setError('Access denied. This panel requires administrator privileges.');
                 document.cookie = 'role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
                 return;
             }
-            setAuthRole(cookieRole);
-            setAuthLabel(getLabel(cookieRole));
+            setAuthRole(grantedRole);
+            setAuthLabel(getLabel(grantedRole));
         } catch {
             setError('Network error. Please try again.');
         } finally {
@@ -248,7 +248,7 @@ export default function ControlPanelPage() {
                         <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Control Panel</h1>
                         <p className="text-slate-500 mt-2 text-sm">MedEduAI · Restricted Access</p>
                     </div>
-                    <form onSubmit={handleLogin} className="bg-white border border-slate-200 rounded-3xl p-8 shadow-xl shadow-slate-200/50">
+                    <form onSubmit={handleLogin} autoComplete="off" className="bg-white border border-slate-200 rounded-3xl p-8 shadow-xl shadow-slate-200/50">
                         <div className="flex items-center gap-3 mb-8">
                             <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center border border-emerald-100">
                                 <Lock className="w-5 h-5 text-emerald-600" />
@@ -270,7 +270,7 @@ export default function ControlPanelPage() {
                                 <input
                                     id="cp-email"
                                     type="email"
-                                    autoComplete="email"
+                                    autoComplete="off"
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
@@ -284,7 +284,7 @@ export default function ControlPanelPage() {
                                     <input
                                         id="cp-password"
                                         type={showPw ? 'text' : 'password'}
-                                        autoComplete="current-password"
+                                        autoComplete="new-password"
                                         required
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}

@@ -11,6 +11,8 @@ const roleMapping: Record<string, string> = {
     'deptadmin': 'deptadmin',
     'superadmin': 'superadmin',
     'masteradmin': 'masteradmin',
+    'admin': 'superadmin',          // 'admin' role → full superadmin access
+    'administrator': 'superadmin',   // 'administrator' role → full superadmin access
     'teacher': 'teacher',
     'student': 'student'
 };
@@ -45,19 +47,31 @@ export async function POST(req: Request) {
         }
 
         let role = 'student';
-        if (authData.user.user_metadata?.role) {
-            role = authData.user.user_metadata.role;
+        const rawMetaRole = authData.user.user_metadata?.role;
+        const rawAppRole = (authData.user.app_metadata as any)?.role;
+
+        if (rawMetaRole) {
+            role = rawMetaRole;
+            console.log(`[login] role from user_metadata: ${role}`);
+        } else if (rawAppRole) {
+            role = rawAppRole;
+            console.log(`[login] role from app_metadata: ${role}`);
         } else {
             // Fetch from profiles
             try {
-                const { data: profile } = await supabase
+                const { data: profile, error: profileErr } = await supabase
                     .from('profiles')
                     .select('role')
                     .eq('id', authData.user.id)
                     .single();
-                if (profile?.role) role = profile.role;
+                if (profile?.role) {
+                    role = profile.role;
+                    console.log(`[login] role from profiles table: ${role}`);
+                } else {
+                    console.warn(`[login] No role found for user ${authData.user.email}. profileErr:`, profileErr?.message);
+                }
             } catch (err) {
-                console.warn('Could not fetch role from profiles:', err);
+                console.warn('[login] Could not fetch role from profiles:', err);
             }
         }
 
@@ -75,6 +89,7 @@ export async function POST(req: Request) {
 
         return NextResponse.json({ 
             success: true, 
+            role: frontendRole,
             session: authData.session, 
             redirectUrl 
         });
