@@ -367,7 +367,15 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                 </nav>
 
                 <div className="p-4 border-t border-slate-100 flex-shrink-0">
-                    <form action={handleLogout}>
+                    <form action={handleLogout} onSubmit={() => {
+                        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+                        const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] ?? '';
+                        const storageKey = `sb-${projectRef}-auth-token`;
+                        try { 
+                            localStorage.removeItem(storageKey); 
+                            sessionStorage.removeItem('cp_auth'); 
+                        } catch(_) {}
+                    }}>
                         <button
                             type="submit"
                             suppressHydrationWarning
