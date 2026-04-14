@@ -3,8 +3,11 @@ import { notFound } from 'next/navigation';
 import { blogService } from '../../../lib/blogService';
 import BlogDetailClient from './BlogDetailClient';
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-    const blog = await blogService.getBlogBySlug(params.slug);
+export async function generateMetadata(
+    { params }: { params: Promise<{ slug: string }> }
+): Promise<Metadata> {
+    const { slug } = await params;
+    const blog = await blogService.getBlogBySlug(slug);
     if (!blog) return { title: 'Post Not Found' };
 
     return {
@@ -15,7 +18,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
         openGraph: {
             title: blog?.meta_title || blog?.title || 'MedEduAI Blog Article',
             description: blog?.excerpt || 'A MedEduAI Blog Post',
-            url: `https://mededuai.com/blog/${params.slug}`,
+            url: `https://mededuai.com/blog/${slug}`,
             siteName: 'MedEduAI',
             images: blog?.featured_image ? [{ url: blog.featured_image, width: 1200, height: 630 }] : undefined,
             type: 'article',
@@ -32,8 +35,11 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     };
 }
 
-export default async function BlogDetailPage({ params }: { params: { slug: string } }) {
-    const serverBlog = await blogService.getBlogBySlug(params.slug);
+export default async function BlogDetailPage(
+    { params }: { params: Promise<{ slug: string }> }
+) {
+    const { slug } = await params;
+    const serverBlog = await blogService.getBlogBySlug(slug);
 
     const allBlogs = await blogService.getAllBlogs();
     const relatedBlogs = allBlogs
@@ -42,6 +48,6 @@ export default async function BlogDetailPage({ params }: { params: { slug: strin
 
     // Pass the potentially null blog directly, BlogDetailClient will attempt hydration lookup
     return (
-        <BlogDetailClient initialBlog={serverBlog} slug={params.slug} related={relatedBlogs} />
+        <BlogDetailClient initialBlog={serverBlog} slug={slug} related={relatedBlogs} />
     );
 }
