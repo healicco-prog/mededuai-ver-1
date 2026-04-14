@@ -84,43 +84,58 @@ You are generating notes for BSc Nursing students. Your content must be:
                 if (count === 0) {
                     promptInstructions += `  Return exactly: 'None requested.'\n`;
                 } else {
-                    promptInstructions += `  CRITICAL INSTRUCTION: Generate EXACTLY ${count} long-essay (10 marks) questions on "${topicName}".\n  FORMAT STRICTLY AS:\n  1. [Full question text suitable for a 10-mark university exam answer]\n  2. ...\n  Each question should require a comprehensive answer covering all major aspects of the topic.\n`;
+                    promptInstructions += `  CRITICAL INSTRUCTION: Generate EXACTLY ${count} long-essay (10 marks) questions on "${topicName}". YOU MUST NOT STOP UNTIL YOU REACH EXACTLY ${count} QUESTIONS.\n  FORMAT STRICTLY AS:\n`;
+                    for(let i=1; i<=count; i++) promptInstructions += `  ${i}. [Full question text suitable for a 10-mark university exam answer]\n`;
+                    promptInstructions += `  Each question should require a comprehensive answer covering all major aspects of the topic.\n`;
                 }
             } else if (titleLower.includes('5 mark')) {
                 if (count === 0) {
                     promptInstructions += `  Return exactly: 'None requested.'\n`;
                 } else {
-                    promptInstructions += `  CRITICAL INSTRUCTION: Generate EXACTLY ${count} short-essay (5 marks) questions on "${topicName}".\n  FORMAT STRICTLY AS:\n  1. [Full question text suitable for a 5-mark university exam answer]\n  2. ...\n  Each question should be answerable in 5-6 points or a focused paragraph.\n`;
+                    promptInstructions += `  CRITICAL INSTRUCTION: Generate EXACTLY ${count} short-essay (5 marks) questions on "${topicName}". YOU MUST NOT STOP UNTIL YOU REACH EXACTLY ${count} QUESTIONS.\n  FORMAT STRICTLY AS:\n`;
+                    for(let i=1; i<=count; i++) promptInstructions += `  ${i}. [Full question text suitable for a 5-mark university exam answer]\n`;
+                    promptInstructions += `  Each question should be answerable in 5-6 points or a focused paragraph.\n`;
                 }
             } else if (titleLower.includes('3 mark') || titleLower.includes('reasoning')) {
                 if (count === 0) {
                     promptInstructions += `  Return exactly: 'None requested.'\n`;
                 } else {
-                    promptInstructions += `  CRITICAL INSTRUCTION: Generate EXACTLY ${count} reasoning/short-answer (3 marks) questions on "${topicName}".\n  FORMAT STRICTLY AS:\n  1. [Reasoning question requiring 2-3 sentence justification]\n  2. ...\n  Questions must test applied understanding (e.g. "Why...", "Explain the mechanism of...", "Justify...").\n`;
+                    promptInstructions += `  CRITICAL INSTRUCTION: Generate EXACTLY ${count} reasoning/short-answer (3 marks) questions on "${topicName}". YOU MUST NOT STOP UNTIL YOU REACH EXACTLY ${count} QUESTIONS.\n  FORMAT STRICTLY AS:\n`;
+                    for(let i=1; i<=count; i++) promptInstructions += `  ${i}. [Reasoning question requiring 2-3 sentence justification]\n`;
+                    promptInstructions += `  Questions must test applied understanding (e.g. "Why...", "Explain the mechanism of...", "Justify...").\n`;
                 }
             } else if (titleLower.includes('2 mark') || titleLower.includes('case')) {
                 if (count === 0) {
                     promptInstructions += `  Return exactly: 'None requested.'\n`;
                 } else {
-                    promptInstructions += `  CRITICAL INSTRUCTION: Generate EXACTLY ${count} case-based MCQ sets (2 marks each) on "${topicName}".\n  FORMAT STRICTLY AS:\n  1. Case: [2-3 sentence clinical scenario related to ${topicName}]\n     Q1: [First Sub-question based on case]\n     a) Option A  b) Option B  c) Option C  d) Option D\n     Answer: a) Option A. Reason: [Brief explanation]\n     Q2: [Second Sub-question based on case]\n     a) Option A  b) Option B  c) Option C  d) Option D\n     Answer: b) Option B. Reason: [Brief explanation]\n  2. ...\n`;
+                    promptInstructions += `  CRITICAL INSTRUCTION: Generate EXACTLY ${count} case-based MCQ sets (2 marks each) on "${topicName}". YOU MUST NOT STOP UNTIL YOU REACH EXACTLY ${count} SETS.\n  FORMAT STRICTLY AS:\n`;
+                    for(let i=1; i<=count; i++) {
+                        promptInstructions += `  ${i}. Case: [2-3 sentence clinical scenario]\n     Q1: [First Sub-question based on case]\n     a) Option A  b) Option B  c) Option C  d) Option D\n     Answer: a) Option A. Reason: [Brief explanation]\n     Q2: [Second Sub-question based on case]\n     a) Option A  b) Option B  c) Option C  d) Option D\n     Answer: b) Option B. Reason: [Brief explanation]\n`;
+                    }
                 }
             } else if (titleLower.includes('1 mark') || titleLower.includes('mcq')) {
                 if (count === 0) {
                     promptInstructions += `  Return exactly: 'None requested.'\n`;
                 } else {
-                    promptInstructions += `  CRITICAL INSTRUCTION: Generate EXACTLY ${count} single-best-answer MCQs (1 mark each) on "${topicName}".\n  FORMAT STRICTLY AS:\n  1. Question Text\n  a) Choice A  b) Choice B  c) Choice C  d) Choice D\n  Answer: a) Choice A. Reason: [Brief explanation]\n  2. ...\n  Questions should be direct fact-recall or single-concept application.\n`;
+                    promptInstructions += `  CRITICAL INSTRUCTION: Generate EXACTLY ${count} single-best-answer MCQs (1 mark each) on "${topicName}". IT IS IMPERATIVE THAT YOU GENERATE ALL ${count} MCQS. DO NOT STOP AT 5 OR 10.\n  FORMAT STRICTLY AS:\n`;
+                    for(let i=1; i<=count; i++) {
+                        promptInstructions += `  ${i}. [Question Text]\n  a) Choice A  b) Choice B  c) Choice C  d) Choice D\n  Answer: a) Choice A. Reason: [Brief explanation]\n`;
+                    }
+                    promptInstructions += `  Questions should be direct fact-recall or single-concept application.\n`;
                 }
             } else if (titleLower.includes('flashcard')) {
                 if (count === 0) {
                     promptInstructions += `  Return exactly: 'None requested.'\n`;
                 } else {
-                    promptInstructions += `  CRITICAL INSTRUCTION: You MUST generate EXACTLY ${count} Flashcards.\n  FORMAT STRICTLY AS:\n  Front: [Concept Name]\n  Back: [Detailed Definition / Key Points]\n\n`;
+                    promptInstructions += `  CRITICAL INSTRUCTION: You MUST generate EXACTLY ${count} Flashcards. IT IS IMPERATIVE THAT YOU GENERATE ALL ${count} FLASHCARDS.\n  FORMAT STRICTLY AS:\n`;
+                    for(let i=1; i<=count; i++) promptInstructions += `  ${i}. Front: [Concept Name]\n     Back: [Detailed Definition / Key Points]\n`;
+                    promptInstructions += `\n`;
                 }
             } else if (titleLower.includes('ppt') || titleLower.includes('slide') || titleLower.includes('presentation')) {
                 if (count === 0) {
                     promptInstructions += `  Return exactly: 'None requested.'\n`;
                 } else {
-                    promptInstructions += `  CRITICAL INSTRUCTION: Generate EXACTLY ${count} detailed presentation slides for "${topicName}".\n  FORMAT STRICTLY AS (each slide separated by the exact delimiter "---SLIDE---"):\n  ## Slide Title Here\n  - [Bullet point 1 stretching across detailed explanation...]\n  - [Bullet point 2 with deep clinical insights...]\n  - [Bullet point 3 explaining mechanisms...]\n  - [Bullet point 4...]\n  - [Bullet point 5...]\n  - [Bullet point 6...]\n  - [Bullet point 7...]\n  - [Bullet point 8...]\n\n  ---SLIDE---\n  ## Next Slide Title\n  - [8 to 10 bullet points minimum per slide...]\n\n  IMPORTANT RULES FOR PPT:\n  1. DO NOT just repeat the topic name. You MUST EXPAND on the topic using deep medical/academic knowledge.\n  2. EVERY slide (except Title slide) MUST have 8 to 10 lines of detailed bullet points.\n  3. First slide is a Title Slide (3-4 lines overview).\n  4. Last slide is Summary/Key Takeaways.\n  5. Do NOT number the slides. Just use ## for the heading.\n`;
+                    promptInstructions += `  CRITICAL INSTRUCTION: Generate EXACTLY ${count} detailed presentation slides for "${topicName}". YOU MUST GENERATE ALL ${count} SLIDES.\n  FORMAT STRICTLY AS (each slide separated by the exact delimiter "---SLIDE---"):\n  ## Slide Title Here\n  - [Bullet point 1 stretching across detailed explanation...]\n  - [Bullet point 2 with deep clinical insights...]\n  - [Bullet point 3 explaining mechanisms...]\n  - [Bullet point 4...]\n  - [Bullet point 5...]\n  - [Bullet point 6...]\n  - [Bullet point 7...]\n  - [Bullet point 8...]\n\n  ---SLIDE---\n  ## Next Slide Title\n  - [8 to 10 bullet points minimum per slide...]\n\n  IMPORTANT RULES FOR PPT:\n  1. DO NOT just repeat the topic name. You MUST EXPAND on the topic using deep medical/academic knowledge.\n  2. EVERY slide (except Title slide) MUST have 8 to 10 lines of detailed bullet points.\n  3. First slide is a Title Slide (3-4 lines overview).\n  4. Last slide is Summary/Key Takeaways.\n  5. Do NOT number the slides. Just use ## for the heading.\n`;
                 }
             } else if (item.type === 'number') {
                 if (count === 0) {
