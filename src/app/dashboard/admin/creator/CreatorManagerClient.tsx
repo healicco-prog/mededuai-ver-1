@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { BrainCircuit, Play, CheckCircle2, RotateCcw, AlertTriangle, Plus, Sparkles, BookOpen, Layers, Trash2, Edit2, Upload, X, Check, GripVertical } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 import { useCurriculumStore, type Course, type Subject, type Section, type Topic, type LMSNotesStructureItem, defaultLMSStructure } from '../../../../store/curriculumStore';
 
@@ -372,6 +373,21 @@ export default function LMSCreatorAdmin() {
 
     const handleStartGeneration = async () => {
         if (!engineCourse || !engineSubject || !engineSection || engineSelectedTopics.length === 0) return;
+
+        // ── Check if any selected topics are already generated ──
+        const alreadyGenerated = engineSection.topics.filter(t => 
+            engineSelectedTopics.includes(t.id) && 
+            t.generatedNotes && Object.keys(t.generatedNotes).length > 0
+        );
+
+        if (alreadyGenerated.length > 0) {
+            const topicNames = alreadyGenerated.map(t => t.name).join(', ');
+            const confirmRewrite = window.confirm(
+                `WARNING: The following topics already have saved notes in the database: \n\n${topicNames.length > 200 ? topicNames.substring(0, 200) + '...' : topicNames}\n\nOverwriting will permanently replace existing content with new AI-generated notes. Do you want to proceed?`
+            );
+            if (!confirmRewrite) return;
+        }
+
         setIsGenerating(true);
         setProgress(0);
 
@@ -379,6 +395,33 @@ export default function LMSCreatorAdmin() {
 
         // Helper to pause between sequential API calls to avoid 429 rate-limiting
         const cooldown = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+        // ── Auth header helper — always fetches a fresh/auto-refreshed session token ──
+        const fetchAuthHeaders = async (): Promise<Record<string, string>> => {
+            const h: Record<string, string> = { 'Content-Type': 'application/json' };
+            try {
+                // Admin secret bypass (for superadmin bulk operations)
+                const adminSecret = sessionStorage.getItem('admin_secret');
+                if (adminSecret) h['x-admin-secret'] = adminSecret;
+
+                // Use Supabase client — auto-refreshes expired JWTs transparently
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.access_token) {
+                    h['Authorization'] = `Bearer ${session.access_token}`;
+                } else {
+                    // Fallback: read directly from localStorage (no refresh, may be stale)
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key?.startsWith('sb-') && key?.endsWith('-auth-token')) {
+                            const parsed = JSON.parse(localStorage.getItem(key) || '{}');
+                            if (parsed.access_token) h['Authorization'] = `Bearer ${parsed.access_token}`;
+                            break;
+                        }
+                    }
+                }
+            } catch(e) { console.warn('[fetchAuthHeaders] Failed to build auth headers:', e); }
+            return h;
+        };
 
         for (let i = 0; i < totalTopics; i++) {
             const topicId = engineSelectedTopics[i];
@@ -396,6 +439,7 @@ export default function LMSCreatorAdmin() {
             for (let attempt = 1; attempt <= maxTopicRetries; attempt++) {
                 try {
                     console.log(`[Generation Engine] Topic "${pName}" — attempt ${attempt}/${maxTopicRetries}`);
+                    setCurrentTopicName(`${pName} (Attempt ${attempt}/${maxTopicRetries}${attempt > 1 ? ' — Retrying...' : ''})`);
 
                     const controller = new AbortController();
                     // 10-minute timeout per topic (enough for the largest generations)
@@ -403,7 +447,7 @@ export default function LMSCreatorAdmin() {
 
                     const response = await fetch('/api/creator', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: await fetchAuthHeaders(),
                         signal: controller.signal,
                         body: JSON.stringify({
                             courseName: engineCourse.name,
@@ -424,9 +468,9 @@ export default function LMSCreatorAdmin() {
 
                         // ── Auto-Save to Supabase ──
                         // Fire-and-forget: persist generated notes to the database.
-                        fetch('/api/creator/save', {
+                        fetchAuthHeaders().then(authH => fetch('/api/creator/save', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: authH,
                             body: JSON.stringify({
                                 courseName: engineCourse.name,
                                 subjectName: engineSubject.name,
@@ -509,12 +553,11 @@ export default function LMSCreatorAdmin() {
             }));
 
             // ── CRITICAL: Cooldown between topics ──
-            // Without this, rapid sequential calls to Gemini trigger 429 rate-limiting
-            // and all topics after the first one fail. 3 seconds is enough for the
-            // rate-limit counter to reset between calls.
+            // Increased to 5s for bulk generation to ensure rate-limit window resets.
             if (i < totalTopics - 1) {
-                console.log(`[Generation Engine] Cooling down 3s before next topic…`);
-                await cooldown(3000);
+                const waitTime = totalTopics > 5 ? 5000 : 3000;
+                console.log(`[Generation Engine] Cooling down ${waitTime/1000}s before next topic…`);
+                await cooldown(waitTime);
             }
         }
 
@@ -983,13 +1026,6 @@ export default function LMSCreatorAdmin() {
                             <h3 className="text-xl font-bold text-slate-900">LMS Notes Structure</h3>
                             <p className="text-sm text-slate-500">Configure the output generation template for {currentCourse.name}</p>
                         </div>
-                        <button onClick={() => {
-                            const newId = Date.now().toString();
-                            const updatedCourses = coursesList.map(c => c.id === currentCourse.id ? { ...c, lmsNotesStructure: [...c.lmsNotesStructure, { id: newId, title: 'New Area', description: '', value: '', type: 'text' as 'text' | 'number' }] } : c);
-                            setCoursesList(updatedCourses);
-                        }} className="px-5 py-2.5 bg-slate-900 text-white font-bold rounded-xl text-sm flex items-center gap-2 hover:bg-slate-800 transition">
-                            <Plus className="w-4 h-4" /> Add Section
-                        </button>
                     </div>
 
                     <div className="space-y-3 max-w-4xl">
@@ -1092,6 +1128,16 @@ export default function LMSCreatorAdmin() {
                                 </div>
                             </div>
                         ))}
+                    </div>
+
+                    {/* CONFIRM STRUCTURE BUTTON (Added per task) */}
+                    <div className="mt-8 flex justify-end max-w-4xl">
+                        <button 
+                            onClick={() => setActiveTab('generation')}
+                            className="px-8 py-4 bg-emerald-600 text-white font-bold rounded-xl shadow-lg hover:bg-emerald-700 transition-all flex items-center gap-3 hover:-translate-y-1"
+                        >
+                            Confirm Structure <CheckCircle2 className="w-5 h-5" />
+                        </button>
                     </div>
                 </div>
             )}
