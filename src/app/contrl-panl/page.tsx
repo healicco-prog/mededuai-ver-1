@@ -183,14 +183,15 @@ export default function ControlPanelPage() {
         deptadmin: 'Department Admin',
     } as Record<string,string>)[role] ?? role;
 
-    /* On mount: if valid admin cookie already exists, skip login form */
+    /* On mount: if valid admin cookie AND cp_auth session exist, skip login form */
     useEffect(() => {
         const match = document.cookie.match(/(^| )role=([^;]+)/);
-        if (match && match[2] && ADMIN_ROLES.includes(match[2])) {
+        const hasCpAuth = sessionStorage.getItem('cp_auth') === 'true';
+        if (hasCpAuth && match && match[2] && ADMIN_ROLES.includes(match[2])) {
             setAuthRole(match[2]);
             setAuthLabel(getLabel(match[2]));
         }
-        // No cookie → stay on login form; do NOT redirect to /login
+        // No cookie + cp_auth → stay on login form; do NOT redirect to /login
     }, []);
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -230,6 +231,9 @@ export default function ControlPanelPage() {
                         user: data.session.user,
                     }));
                     sessionStorage.setItem('cp_auth', 'true');
+                    if (data.adminSecret) {
+                        sessionStorage.setItem('admin_secret', data.adminSecret);
+                    }
                 } catch (_) { }
             }
 
@@ -293,9 +297,9 @@ export default function ControlPanelPage() {
                             <div>
                                 <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 block">Email</label>
                                 <input
-                                    id="cp-email"
+                                    id="cp-email-field"
                                     type="email"
-                                    autoComplete="off"
+                                    autoComplete="one-time-code"
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
@@ -307,9 +311,9 @@ export default function ControlPanelPage() {
                                 <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 block">Password</label>
                                 <div className="relative">
                                     <input
-                                        id="cp-password"
+                                        id="cp-password-field"
                                         type={showPw ? 'text' : 'password'}
-                                        autoComplete="new-password"
+                                        autoComplete="one-time-code"
                                         required
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}

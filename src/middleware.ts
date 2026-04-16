@@ -6,6 +6,8 @@ const ALLOWED_ORIGINS = [
   'https://www.mededuai.com',
   'https://mededuai.com',
   'https://mededuai.netlify.app',
+  'https://www.pgmentor.in',
+  'https://pgmentor.in',
 ];
 
 function isOriginAllowed(origin: string | null | undefined): boolean {
@@ -104,16 +106,24 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Allow access to control panel routes so the built-in login form can be seen
-  // (The component itself handles authentication state hiding the dashboard)
-  // if (pathname.startsWith('/contrl-panl')) { ... }
+  // ── Explicitly allow Control Panel (login handled client-side within the page) ──
+  if (pathname === '/contrl-panl' || pathname.startsWith('/contrl-panl/')) {
+    return NextResponse.next();
+  }
 
-  // Let authenticated users still access login/signup pages
-  // (e.g. to switch accounts or view the public login form)
-
+  // Let all other authenticated users access pages not explicitly matched above
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/', '/api/:path*', '/dashboard/:path*', '/contrl-panl/:path*', '/login', '/signup', '/controlpanel'],
+  matcher: [
+    '/',
+    '/api/:path*',
+    '/dashboard/:path*',
+    '/contrl-panl',
+    '/contrl-panl/:path*',
+    '/login',
+    '/signup',
+    '/controlpanel',
+  ],
 };
