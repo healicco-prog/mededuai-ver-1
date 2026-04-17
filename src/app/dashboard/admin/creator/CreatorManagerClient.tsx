@@ -39,6 +39,11 @@ export default function LMSCreatorAdmin() {
     const [showBulkTopic, setShowBulkTopic] = useState(false);
     const [bulkTopicText, setBulkTopicText] = useState('');
 
+    // DB connectivity status
+    const [dbStatus, setDbStatus] = useState<'unknown' | 'ok' | 'error' | 'checking'>('unknown');
+    const [dbStatusMsg, setDbStatusMsg] = useState<string>('');
+    const [dbMigrationSql, setDbMigrationSql] = useState<string | null>(null);
+
     // Generation Engine State
     const [isGenerating, setIsGenerating] = useState(false);
     const [progress, setProgress] = useState(0);
@@ -666,6 +671,40 @@ export default function LMSCreatorAdmin() {
     useEffect(() => {
         loadExistingNotes();
     }, [loadExistingNotes]);
+
+    // ── DB Health Check on mount ─────────────────────────────────────────
+    useEffect(() => {
+        setDbStatus('checking');
+        fetch('/api/creator/db-test')
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'ALL_OK') {
+                    setDbStatus('ok');
+                    setDbStatusMsg(`✅ DB connected: ${data.supabaseUrl?.replace('https://', '').replace('.supabase.co', '')} | lms_content rows: ${data.lmsContentRowCount}`);
+                } else if (data.errors?.length > 0) {
+                    setDbStatus('error');
+                    const errSummary = data.errors.join('; ');
+                    setDbStatusMsg(`❌ DB issue: ${errSummary}`);
+                    // Fetch migration SQL if columns are missing
+                    fetch('/api/creator/db-migrate', { method: 'POST' })
+                        .then(r => r.json())
+                        .then(m => {
+                            if (m.status === 'MIGRATION_REQUIRED') {
+                                setDbMigrationSql(m.sqlToRun);
+                                setDbStatusMsg(`❌ Missing DB columns: ${m.missingColumns?.join(', ')}. Run the SQL below in Supabase SQL Editor.`);
+                            }
+                        })
+                        .catch(() => {});
+                } else {
+                    setDbStatus('ok');
+                    setDbStatusMsg(`✅ DB OK | URL: ${data.supabaseUrl}`);
+                }
+            })
+            .catch(err => {
+                setDbStatus('error');
+                setDbStatusMsg(`❌ Cannot reach DB: ${err.message}`);
+            });
+    }, []);
 
     // ── Force Save Generated Content to Supabase ────────────────────────
     // Saves all topics that have generatedNotes in Zustand but may not be in DB
@@ -1376,8 +1415,33 @@ export default function LMSCreatorAdmin() {
 
                 return (
                 <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden flex flex-col md:flex-row gap-6 h-[800px]">
+                    {/* ── DB Status Banner ── */}
+                    {dbStatus !== 'ok' && (
+                        <div className={`absolute top-0 left-0 right-0 z-20 px-4 py-2 text-xs font-semibold flex items-start gap-2 ${
+                            dbStatus === 'checking' ? 'bg-blue-50 text-blue-700 border-b border-blue-200' :
+                            dbStatus === 'error' ? 'bg-red-50 text-red-700 border-b border-red-200' :
+                            'bg-slate-50 text-slate-500 border-b border-slate-200'
+                        }`}>
+                            <span className="shrink-0">{dbStatus === 'checking' ? '⏳' : '❌'}</span>
+                            <div className="flex-1">
+                                <span>{dbStatusMsg || (dbStatus === 'checking' ? 'Checking database connection...' : '')}</span>
+                                {dbMigrationSql && (
+                                    <div className="mt-2">
+                                        <p className="font-bold mb-1">Run this SQL in your <a href={`https://supabase.com/dashboard/project/${(process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace('https://','').replace('.supabase.co','')}/sql`} target="_blank" rel="noreferrer" className="underline">Supabase SQL Editor</a>, then restart the dev server:</p>
+                                        <pre className="bg-red-900 text-red-100 rounded p-2 text-xs overflow-x-auto whitespace-pre-wrap">{dbMigrationSql}</pre>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                    {dbStatus === 'ok' && (
+                        <div className="absolute top-0 left-0 right-0 z-20 px-4 py-1.5 text-xs font-medium bg-emerald-50 text-emerald-700 border-b border-emerald-100 flex items-center gap-2">
+                            <span>✅</span><span>{dbStatusMsg}</span>
+                        </div>
+                    )}
+
                     {/* Setup / Options Side */}
-                    <div className="w-full md:w-[400px] flex-shrink-0 flex flex-col border border-slate-100 rounded-2xl bg-slate-50 overflow-hidden shadow-inner">
+                    <div className="w-full md:w-[400px] flex-shrink-0 flex flex-col border border-slate-100 rounded-2xl bg-slate-50 overflow-hidden shadow-inner" style={{ marginTop: dbStatus !== 'unknown' ? '36px' : '0' }}>
                         <div className="p-5 border-b border-slate-200 bg-white">
                             <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
                                 <Sparkles className="w-5 h-5 text-indigo-500" /> Generation Queue

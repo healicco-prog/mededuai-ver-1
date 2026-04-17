@@ -61,11 +61,23 @@ export async function GET(req: Request) {
 
         const topicIds = topics.map(t => t.id);
 
-        // Fetch all lms_content for these topics
-        const { data: lmsContents } = await supabase
+        // Fetch all lms_content for these topics (try full columns, fall back to core for old schema)
+        let lmsContents: any[] | null = null;
+        const { data: lmsFull, error: lmsFullErr } = await supabase
             .from('lms_content')
             .select('topic_id, introduction, detailed_notes, summary, marks_10_questions, marks_5_questions, marks_3_reasoning, marks_2_case_mcqs, marks_1_mcqs, flashcards, ppt_content')
             .in('topic_id', topicIds);
+
+        if (lmsFullErr && (lmsFullErr.message?.includes('column') || lmsFullErr.message?.includes('does not exist'))) {
+            console.warn('[Creator Load] marks_* columns missing, fetching core columns only');
+            const { data: lmsCore } = await supabase
+                .from('lms_content')
+                .select('topic_id, introduction, detailed_notes, summary, flashcards, ppt_content')
+                .in('topic_id', topicIds);
+            lmsContents = lmsCore;
+        } else {
+            lmsContents = lmsFull;
+        }
 
         // Build a map: topicName → generatedNotes (l1…l10 keys)
         const lmsMap: Record<string, Record<string, string>> = {};

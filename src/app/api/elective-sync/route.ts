@@ -12,7 +12,9 @@ function getSupabase() {
 }
 
 // GET: Fetch shared elective data (used by student/teacher/admin pages)
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const sec = await checkSecurity(req);
+  if (!sec.authorized) return sec.response;
   try {
     const supabase = getSupabase();
     const { data, error } = await supabase

@@ -16,13 +16,29 @@ export async function GET(req: Request) {
 
         const supabase = getSupabaseAdmin();
 
-        const { data: content, error } = await supabase
+        // Try full column set first; fall back to core columns if marks_* don't exist (old schema)
+        let content: any = null;
+        const { data: fullContent, error: fullErr } = await supabase
             .from('lms_content')
             .select('introduction, detailed_notes, summary, marks_10_questions, marks_5_questions, marks_3_reasoning, marks_2_case_mcqs, marks_1_mcqs, flashcards, ppt_content, last_generated_at')
             .eq('topic_id', topicId)
             .maybeSingle();
 
-        if (error) throw error;
+        if (fullErr && (fullErr.message?.includes('column') || fullErr.message?.includes('does not exist'))) {
+            // Old schema — fetch only core columns
+            console.warn('[Topic Notes API] marks_* columns missing, fetching core columns only');
+            const { data: coreContent, error: coreErr } = await supabase
+                .from('lms_content')
+                .select('introduction, detailed_notes, summary, flashcards, ppt_content, last_generated_at')
+                .eq('topic_id', topicId)
+                .maybeSingle();
+            if (coreErr) throw coreErr;
+            content = coreContent;
+        } else if (fullErr) {
+            throw fullErr;
+        } else {
+            content = fullContent;
+        }
 
         if (!content) {
             return NextResponse.json({ success: true, notes: null });

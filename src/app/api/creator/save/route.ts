@@ -149,10 +149,35 @@ export async function POST(req: Request) {
             .eq('topic_id', topicId)
             .maybeSingle();
 
-        if (existingLms?.id) {
-            await supabase.from('lms_content').update(lmsPayload).eq('id', existingLms.id);
-        } else {
-            await supabase.from('lms_content').insert(lmsPayload);
+        // Try full upsert first; fall back to core columns if marks_* columns don't exist yet
+        const trySave = async (payload: Record<string, any>) => {
+            if (existingLms?.id) {
+                return supabase.from('lms_content').update(payload).eq('id', existingLms.id);
+            } else {
+                return supabase.from('lms_content').insert(payload);
+            }
+        };
+
+        let { error: saveErr } = await trySave(lmsPayload);
+
+        // If the error is about missing columns (old schema), retry with only core columns
+        if (saveErr && (saveErr.message?.includes('column') || saveErr.message?.includes('does not exist'))) {
+            console.warn('[Creator Save] marks_* columns missing — falling back to core columns only:', saveErr.message);
+            const corePayload: Record<string, any> = {
+                topic_id: topicId,
+                last_generated_at: lmsPayload['last_generated_at'],
+            };
+            if (lmsPayload['introduction']) corePayload['introduction'] = lmsPayload['introduction'];
+            if (lmsPayload['detailed_notes']) corePayload['detailed_notes'] = lmsPayload['detailed_notes'];
+            if (lmsPayload['summary']) corePayload['summary'] = lmsPayload['summary'];
+            if (lmsPayload['flashcards']) corePayload['flashcards'] = lmsPayload['flashcards'];
+            if (lmsPayload['ppt_content']) corePayload['ppt_content'] = lmsPayload['ppt_content'];
+            const { error: coreErr } = await trySave(corePayload);
+            if (coreErr) throw new Error(`lms_content save failed: ${coreErr.message}`);
+            saveErr = null; // Core save succeeded
+            console.log('[Creator Save] Core columns saved successfully (marks_* skipped)');
+        } else if (saveErr) {
+            throw new Error(`lms_content save failed: ${saveErr.message}`);
         }
 
         // ── Step 5: Insert Assessment Questions ──
