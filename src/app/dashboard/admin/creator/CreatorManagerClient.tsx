@@ -777,6 +777,26 @@ export default function LMSCreatorAdmin() {
     const [forceSaveProgress, setForceSaveProgress] = useState(0);
     const [forceSaveMessage, setForceSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+    // ── Direct Supabase save (bypasses Cloud Run entirely) ─────────────────
+    // resolveOrCreate: look up a row by matchFields, create it if missing
+    const resolveOrCreate = async (
+        table: string,
+        matchFields: Record<string, string>,
+        insertFields: Record<string, string>
+    ): Promise<string | null> => {
+        let query = (supabase.from(table) as any).select('id').limit(1);
+        for (const [k, v] of Object.entries(matchFields)) query = query.eq(k, v);
+        const { data: existing } = await query.maybeSingle();
+        if (existing?.id) return existing.id;
+        const { data: created, error } = await (supabase.from(table) as any)
+            .insert(insertFields).select('id').single();
+        if (error || !created?.id) {
+            console.error(`[DirectSave] insert into ${table} failed:`, error?.message);
+            return null;
+        }
+        return created.id;
+    };
+
     const handleForceSaveToDb = async () => {
         if (!engineCourse || !engineSubject || !engineSection) return;
 
@@ -798,95 +818,116 @@ export default function LMSCreatorAdmin() {
         let failedCount = 0;
         let lastError = '';
 
-        // Get a token once upfront (with refresh), then reuse for all saves in this batch.
-        // getAccessToken() uses a multi-layer fallback including direct localStorage reads,
-        // so it finds the MedEduAI-1 token even if the supabase client points to a stale project.
-        // NOTE: We deliberately do NOT send x-admin-secret here — that custom header triggers
-        // a CORS preflight and the current Cloud Run deployment doesn't allow it yet.
-        // JWT Bearer token is sufficient once Cloud Run's SUPABASE_SERVICE_ROLE_KEY is correct.
-        let batchToken = await getAccessToken(true);
+        // ── Resolve course/subject/section IDs once (shared across all topic saves) ──
+        // We write DIRECTLY to Supabase from the browser — bypasses Cloud Run auth entirely.
+        // The user's active JWT (they're logged in as superadmin) is sent automatically
+        // by the supabase client. This works regardless of Cloud Run env var misconfigs.
+        let courseId: string | null = null;
+        let subjectId: string | null = null;
+        let sectionId: string | null = null;
+        try {
+            courseId = await resolveOrCreate(
+                'courses', { name: engineCourse.name }, { name: engineCourse.name }
+            );
+            if (courseId) subjectId = await resolveOrCreate(
+                'subjects',
+                { name: engineSubject.name, course_id: courseId },
+                { name: engineSubject.name, course_id: courseId }
+            );
+            if (subjectId) sectionId = await resolveOrCreate(
+                'sections',
+                { name: engineSection.name, subject_id: subjectId },
+                { name: engineSection.name, subject_id: subjectId }
+            );
+        } catch (e: any) {
+            console.warn('[DirectSave] Could not resolve course/subject/section:', e.message);
+        }
 
         for (let i = 0; i < topicsToSave.length; i++) {
             const t = topicsToSave[i];
             setForceSaveProgress(Math.round(((i) / topicsToSave.length) * 100));
             try {
-                // Re-fetch token every 5 topics to handle long batches
-                if (i > 0 && i % 5 === 0) batchToken = await getAccessToken(true);
-                const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-                if (batchToken) headers['Authorization'] = `Bearer ${batchToken}`;
+                if (!sectionId) throw new Error('Could not resolve section in DB');
 
-                const res = await fetch('/api/creator/save', {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify({
-                        courseName: engineCourse.name,
-                        subjectName: engineSubject.name,
-                        sectionName: engineSection.name,
-                        topicName: t.name,
-                        generatedNotes: t.generatedNotes,
-                    }),
-                });
-                let result: any = {};
-                try {
-                    result = await res.json();
-                } catch (_) {
-                    result = { success: false, error: `HTTP ${res.status}` };
-                }
-                if (result.success) {
-                    savedCount++;
-                    console.log(`[ForceSave] ✅ Saved "${t.name}" (topicId: ${result.topicId})`);
+                // Resolve/create topic
+                const topicId = await resolveOrCreate(
+                    'topics',
+                    { name: t.name, section_id: sectionId },
+                    { name: t.name, section_id: sectionId }
+                );
+                if (!topicId) throw new Error('Could not resolve topic in DB');
+
+                // Build lms_content payload
+                const notes = t.generatedNotes!;
+                let pptContent = null;
+                try { pptContent = notes.l10 ? JSON.parse(notes.l10) : null; } catch { pptContent = null; }
+
+                const lmsPayload: Record<string, any> = {
+                    topic_id: topicId,
+                    last_generated_at: new Date().toISOString(),
+                    introduction: notes.l1 || null,
+                    detailed_notes: notes.l2 || null,
+                    summary: notes.l3 || null,
+                    flashcards: notes.l9 || null,
+                    ppt_content: pptContent,
+                };
+                // Add marks columns if they're available (safe to omit if schema is old)
+                if (notes.l4) lmsPayload['marks_10_questions'] = notes.l4;
+                if (notes.l5) lmsPayload['marks_5_questions'] = notes.l5;
+                if (notes.l6) lmsPayload['marks_3_reasoning'] = notes.l6;
+                if (notes.l7) lmsPayload['marks_2_case_mcqs'] = notes.l7;
+                if (notes.l8) lmsPayload['marks_1_mcqs'] = notes.l8;
+
+                // Check if existing row exists
+                const { data: existingLms } = await supabase
+                    .from('lms_content').select('id').eq('topic_id', topicId).maybeSingle();
+
+                let saveError: any = null;
+                if (existingLms?.id) {
+                    const { error } = await supabase.from('lms_content').update(lmsPayload).eq('id', existingLms.id);
+                    saveError = error;
                 } else {
-                    failedCount++;
-                    lastError = `HTTP ${res.status}: ${result.error || 'unknown'}`;
-                    console.warn(`[ForceSave] ⚠️ Failed to save "${t.name}" (HTTP ${res.status}):`, result.error);
-                    // If we get a 401, try once more with a forced token refresh
-                    if (res.status === 401) {
-                        console.warn('[ForceSave] Got 401 — forcing token refresh and retrying…');
-                        batchToken = await getAccessToken(true);
-                        if (batchToken) {
-                            const retryHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${batchToken}` };
-                            try {
-                                const retryRes = await fetch('/api/creator/save', {
-                                    method: 'POST',
-                                    headers: retryHeaders,
-                                    body: JSON.stringify({
-                                        courseName: engineCourse.name,
-                                        subjectName: engineSubject.name,
-                                        sectionName: engineSection.name,
-                                        topicName: t.name,
-                                        generatedNotes: t.generatedNotes,
-                                    }),
-                                });
-                                const retryResult = await retryRes.json().catch(() => ({ success: false }));
-                                if (retryResult.success) {
-                                    savedCount++;
-                                    failedCount--;
-                                    console.log(`[ForceSave] ✅ Retry succeeded for "${t.name}"`);
-                                }
-                            } catch (_) { /* retry also failed */ }
-                        }
+                    const { error } = await supabase.from('lms_content').insert(lmsPayload);
+                    // If marks columns missing, retry with core columns only
+                    if (error?.message?.includes('column') || error?.message?.includes('does not exist')) {
+                        const corePayload = {
+                            topic_id: topicId,
+                            last_generated_at: lmsPayload.last_generated_at,
+                            introduction: lmsPayload.introduction,
+                            detailed_notes: lmsPayload.detailed_notes,
+                            summary: lmsPayload.summary,
+                            flashcards: lmsPayload.flashcards,
+                            ppt_content: lmsPayload.ppt_content,
+                        };
+                        const { error: coreErr } = await supabase.from('lms_content').insert(corePayload);
+                        saveError = coreErr;
+                    } else {
+                        saveError = error;
                     }
                 }
+
+                if (saveError) throw new Error(saveError.message);
+
+                savedCount++;
+                console.log(`[DirectSave] ✅ Saved "${t.name}" (topicId: ${topicId})`);
+
             } catch (err: any) {
                 failedCount++;
-                lastError = `Network: ${err.message}`;
-                console.warn(`[ForceSave] ⚠️ Network error saving "${t.name}":`, err.message);
+                lastError = err.message;
+                console.warn(`[DirectSave] ⚠️ Failed "${t.name}":`, err.message);
             }
-            // Small delay between saves to avoid overwhelming the DB
-            if (i < topicsToSave.length - 1) await new Promise(r => setTimeout(r, 300));
+            if (i < topicsToSave.length - 1) await new Promise(r => setTimeout(r, 200));
         }
-
         setForceSaveProgress(100);
         setIsForceSaving(false);
 
         if (failedCount === 0) {
             setForceSaveMessage({ type: 'success', text: `✅ Saved ${savedCount} topic(s) to database. Content is now visible to all users!` });
         } else {
-            const noToken = !batchToken;
             setForceSaveMessage({
                 type: savedCount > 0 ? 'success' : 'error',
-                text: noToken
-                    ? `Save failed — not logged in. Please log out and log back in, then retry.`
+                text: savedCount > 0
+                    ? `Saved ${savedCount} topic(s). ${failedCount} failed — ${lastError || 'please retry.'}`
                     : `Saved ${savedCount} topic(s). ${failedCount} failed — ${lastError || 'please retry.'}`
             });
         }
