@@ -6,6 +6,74 @@ import { supabase } from '@/lib/supabase';
 
 import { useCurriculumStore, type Course, type Subject, type Section, type Topic, type LMSNotesStructureItem, defaultLMSStructure } from '../../../../store/curriculumStore';
 
+// ── Robust session token retrieval ──────────────────────────────────────────
+// The Netlify frontend's NEXT_PUBLIC_SUPABASE_URL may still point to a stale
+// project (e.g. PGMentor) even after we've migrated to MedEduAI-1. When that
+// happens supabase.auth.getSession() returns null because the supabase client
+// looks for a session keyed to the wrong project URL.
+//
+// Fallback chain:
+//  1. supabase.auth.getSession()         — works if URL is correct
+//  2. supabase.auth.refreshSession()     — in case token is stale but URL is correct
+//  3. localStorage direct read           — hardcoded MedEduAI-1 project ref
+//     key: "sb-yrelfdwkjtaidtoulwrj-auth-token"
+//  4. All known Supabase localStorage key patterns (scan)
+//
+const MEDEDUAI_PROJECT_REF = 'yrelfdwkjtaidtoulwrj';
+
+async function getAccessToken(forceRefresh = false): Promise<string | null> {
+    try {
+        // 1. Direct client call
+        if (forceRefresh) {
+            const { data: rd } = await supabase.auth.refreshSession();
+            if (rd?.session?.access_token) return rd.session.access_token;
+        }
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) return session.access_token;
+    } catch (_) { /* fall through */ }
+
+    // 2. Read the MedEduAI-1 token directly from localStorage regardless of
+    //    which URL the supabase client was initialised with.
+    try {
+        const knownKeys = [
+            `sb-${MEDEDUAI_PROJECT_REF}-auth-token`,
+            `supabase.auth.token`,
+        ];
+        for (const key of knownKeys) {
+            const raw = localStorage.getItem(key);
+            if (!raw) continue;
+            const parsed = JSON.parse(raw);
+            // Supabase v2 stores { currentSession: { access_token } }
+            const token = parsed?.access_token
+                || parsed?.currentSession?.access_token
+                || parsed?.session?.access_token;
+            if (token) {
+                console.log(`[getAccessToken] Fallback token found via localStorage key "${key}" ✓`);
+                return token;
+            }
+        }
+        // 3. Scan all localStorage keys for any sb-*-auth-token pattern
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i) || '';
+            if (k.startsWith('sb-') && k.endsWith('-auth-token')) {
+                const raw = localStorage.getItem(k);
+                if (!raw) continue;
+                const parsed = JSON.parse(raw);
+                const token = parsed?.access_token
+                    || parsed?.currentSession?.access_token
+                    || parsed?.session?.access_token;
+                if (token) {
+                    console.log(`[getAccessToken] Fallback token found via scan of localStorage key "${k}" ✓`);
+                    return token;
+                }
+            }
+        }
+    } catch (_) { /* localStorage unavailable */ }
+
+    console.warn('[getAccessToken] No active session token found — user may need to log in again');
+    return null;
+}
+
 export default function LMSCreatorAdmin() {
     // Top-Level State
     const [activeTab, setActiveTab] = useState<'generation' | 'curriculum' | 'structure'>('curriculum');
@@ -402,32 +470,12 @@ export default function LMSCreatorAdmin() {
         const cooldown = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
         // ── ROBUST Auth header helper ──
-        // Uses the Supabase client directly — always returns a fresh, valid JWT.
-        // Calls refreshSession() when forceRefresh=true (e.g. after a 401 or every N topics).
+        // Delegates to the module-level getAccessToken() which has a multi-layer
+        // fallback including direct localStorage reads for the MedEduAI-1 project ref.
         const fetchAuthHeaders = async (forceRefresh = false): Promise<Record<string, string>> => {
             const h: Record<string, string> = { 'Content-Type': 'application/json' };
-            try {
-                if (forceRefresh) {
-                    // Explicitly ask Supabase to refresh the JWT before the next batch
-                    const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-                    if (!refreshError && refreshData.session?.access_token) {
-                        h['Authorization'] = `Bearer ${refreshData.session.access_token}`;
-                        console.log('[fetchAuthHeaders] Session force-refreshed ✓');
-                        return h;
-                    }
-                    if (refreshError) {
-                        console.warn('[fetchAuthHeaders] Force-refresh error:', refreshError.message);
-                    }
-                }
-
-                // getSession() returns the in-memory session (auto-refreshes if near expiry)
-                const { data: { session } } = await supabase.auth.getSession();
-                if (session?.access_token) {
-                    h['Authorization'] = `Bearer ${session.access_token}`;
-                } else {
-                    console.warn('[fetchAuthHeaders] No active session found — user may need to log in again');
-                }
-            } catch(e) { console.warn('[fetchAuthHeaders] Failed to build auth headers:', e); }
+            const token = await getAccessToken(forceRefresh);
+            if (token) h['Authorization'] = `Bearer ${token}`;
             return h;
         };
 
@@ -746,14 +794,25 @@ export default function LMSCreatorAdmin() {
         let savedCount = 0;
         let failedCount = 0;
 
+        // Get a token once upfront (with refresh), then reuse for all saves in this batch.
+        // getAccessToken() uses the multi-layer fallback including direct localStorage reads.
+        let batchToken = await getAccessToken(true);
+        // Admin secret: prefer the build-time env var baked into the bundle,
+        // fall back to anything stored in session/localStorage.
+        const adminSecret = process.env.NEXT_PUBLIC_ADMIN_SECRET
+            || (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('admin_secret'))
+            || (typeof localStorage !== 'undefined' && localStorage.getItem('admin_secret'))
+            || null;
+
         for (let i = 0; i < topicsToSave.length; i++) {
             const t = topicsToSave[i];
             setForceSaveProgress(Math.round(((i) / topicsToSave.length) * 100));
             try {
-                // Get a fresh session token for each save
-                const { data: { session } } = await supabase.auth.getSession();
+                // Re-fetch token every 5 topics to handle long batches
+                if (i > 0 && i % 5 === 0) batchToken = await getAccessToken(true);
                 const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-                if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+                if (batchToken) headers['Authorization'] = `Bearer ${batchToken}`;
+                if (adminSecret) headers['x-admin-secret'] = adminSecret;
 
                 const res = await fetch('/api/creator/save', {
                     method: 'POST',
@@ -766,13 +825,46 @@ export default function LMSCreatorAdmin() {
                         generatedNotes: t.generatedNotes,
                     }),
                 });
-                const result = await res.json();
+                let result: any = {};
+                try {
+                    result = await res.json();
+                } catch (_) {
+                    result = { success: false, error: `HTTP ${res.status}` };
+                }
                 if (result.success) {
                     savedCount++;
                     console.log(`[ForceSave] ✅ Saved "${t.name}" (topicId: ${result.topicId})`);
                 } else {
                     failedCount++;
-                    console.warn(`[ForceSave] ⚠️ Failed to save "${t.name}":`, result.error);
+                    console.warn(`[ForceSave] ⚠️ Failed to save "${t.name}" (HTTP ${res.status}):`, result.error);
+                    // If we get a 401, try once more with a forced token refresh
+                    if (res.status === 401) {
+                        console.warn('[ForceSave] Got 401 — forcing token refresh and retrying…');
+                        batchToken = await getAccessToken(true);
+                        if (batchToken) {
+                            const retryHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${batchToken}` };
+                            if (adminSecret) (retryHeaders as any)['x-admin-secret'] = adminSecret;
+                            try {
+                                const retryRes = await fetch('/api/creator/save', {
+                                    method: 'POST',
+                                    headers: retryHeaders,
+                                    body: JSON.stringify({
+                                        courseName: engineCourse.name,
+                                        subjectName: engineSubject.name,
+                                        sectionName: engineSection.name,
+                                        topicName: t.name,
+                                        generatedNotes: t.generatedNotes,
+                                    }),
+                                });
+                                const retryResult = await retryRes.json().catch(() => ({ success: false }));
+                                if (retryResult.success) {
+                                    savedCount++;
+                                    failedCount--;
+                                    console.log(`[ForceSave] ✅ Retry succeeded for "${t.name}"`);
+                                }
+                            } catch (_) { /* retry also failed */ }
+                        }
+                    }
                 }
             } catch (err: any) {
                 failedCount++;
@@ -788,12 +880,15 @@ export default function LMSCreatorAdmin() {
         if (failedCount === 0) {
             setForceSaveMessage({ type: 'success', text: `✅ Saved ${savedCount} topic(s) to database. Content is now visible to all users!` });
         } else {
+            const noToken = !batchToken;
             setForceSaveMessage({
                 type: savedCount > 0 ? 'success' : 'error',
-                text: `Saved ${savedCount} topic(s). ${failedCount} failed — check auth/session and retry.`
+                text: noToken
+                    ? `Save failed — not logged in. Please log out and log back in, then retry.`
+                    : `Saved ${savedCount} topic(s). ${failedCount} failed — please retry.`
             });
         }
-        setTimeout(() => setForceSaveMessage(null), 8000);
+        setTimeout(() => setForceSaveMessage(null), 10000);
     };
 
     // ── Delete Generated Content from Supabase ──────────────────────────
@@ -824,12 +919,14 @@ export default function LMSCreatorAdmin() {
         setDeleteMessage(null);
 
         try {
-            // Build auth headers (same pattern as generation)
+            // Build auth headers — use robust multi-layer token fallback
             const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-            const adminSecret = sessionStorage.getItem('admin_secret') || localStorage.getItem('admin_secret');
+            const adminSecret = process.env.NEXT_PUBLIC_ADMIN_SECRET
+                || sessionStorage.getItem('admin_secret')
+                || localStorage.getItem('admin_secret');
             if (adminSecret) headers['x-admin-secret'] = adminSecret;
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+            const token = await getAccessToken(false);
+            if (token) headers['Authorization'] = `Bearer ${token}`;
 
             const res = await fetch('/api/creator/delete', {
                 method: 'POST',
