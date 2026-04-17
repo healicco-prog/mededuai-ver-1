@@ -36,5 +36,4 @@
   force  = true
   headers = { X-Forwarded-Host = "mededuai.netlify.app" }
 
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
+
