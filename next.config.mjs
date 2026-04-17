@@ -4,8 +4,8 @@ const CLOUD_RUN_URL = 'https://mededuai-backend-945029424967.us-central1.run.app
 
 const nextConfig = {
   // standalone output is for Cloud Run Docker (node server.js).
-  // On Netlify, the @netlify/plugin-nextjs handles the output — do NOT set standalone.
-  ...(isNetlify ? {} : { output: 'standalone' }),
+  // Explicitly trigger this ONLY when STANDALONE_BUILD=1 is set (which is true in your Dockerfile).
+  ...(process.env.STANDALONE_BUILD === '1' ? { output: 'standalone' } : {}),
 
   images: {
     remotePatterns: [
