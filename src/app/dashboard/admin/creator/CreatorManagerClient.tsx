@@ -676,8 +676,18 @@ export default function LMSCreatorAdmin() {
     useEffect(() => {
         setDbStatus('checking');
         fetch('/api/creator/db-test')
-            .then(r => r.json())
+            .then(async r => {
+                // If the server returns HTML (404/error page from Cloud Run), treat as "not deployed yet"
+                const contentType = r.headers.get('content-type') || '';
+                if (!contentType.includes('application/json') || !r.ok) {
+                    // Route not deployed yet — don't show an error, just hide the banner
+                    setDbStatus('unknown');
+                    return null;
+                }
+                return r.json();
+            })
             .then(data => {
+                if (!data) return; // Route not available yet
                 if (data.status === 'ALL_OK') {
                     setDbStatus('ok');
                     setDbStatusMsg(`✅ DB connected: ${data.supabaseUrl?.replace('https://', '').replace('.supabase.co', '')} | lms_content rows: ${data.lmsContentRowCount}`);
@@ -687,9 +697,13 @@ export default function LMSCreatorAdmin() {
                     setDbStatusMsg(`❌ DB issue: ${errSummary}`);
                     // Fetch migration SQL if columns are missing
                     fetch('/api/creator/db-migrate', { method: 'POST' })
-                        .then(r => r.json())
+                        .then(async r2 => {
+                            const ct = r2.headers.get('content-type') || '';
+                            if (!ct.includes('application/json')) return null;
+                            return r2.json();
+                        })
                         .then(m => {
-                            if (m.status === 'MIGRATION_REQUIRED') {
+                            if (m?.status === 'MIGRATION_REQUIRED') {
                                 setDbMigrationSql(m.sqlToRun);
                                 setDbStatusMsg(`❌ Missing DB columns: ${m.missingColumns?.join(', ')}. Run the SQL below in Supabase SQL Editor.`);
                             }
@@ -700,9 +714,9 @@ export default function LMSCreatorAdmin() {
                     setDbStatusMsg(`✅ DB OK | URL: ${data.supabaseUrl}`);
                 }
             })
-            .catch(err => {
-                setDbStatus('error');
-                setDbStatusMsg(`❌ Cannot reach DB: ${err.message}`);
+            .catch(() => {
+                // Network error or JSON parse failure — silently hide the banner
+                setDbStatus('unknown');
             });
     }, []);
 
