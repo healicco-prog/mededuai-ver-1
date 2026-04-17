@@ -72,8 +72,8 @@ export async function POST(req: NextRequest) {
     if (logbookApprovals !== undefined) payload.logbook_approvals = logbookApprovals;
 
     // For partial updates, we need to first fetch existing data and merge
-    if (Object.keys(payload).length < 9) {
     const supabase = getSupabase();
+    if (Object.keys(payload).length < 9) {
       const { data: existing } = await supabase
         .from('elective_shared_store')
         .select('*')

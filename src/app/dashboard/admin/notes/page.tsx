@@ -834,8 +834,8 @@ export default function TeacherLMSNotes() {
                     if (n.marks_1_mcqs)          mapped['l8'] = n.marks_1_mcqs;
                     if (n.flashcards?.raw)       mapped['l9'] = n.flashcards.raw;
                     else if (typeof n.flashcards === 'string') mapped['l9'] = n.flashcards;
-                    if (n.ppt_content?.raw)      delete n.ppt_content;
-                    else if (typeof n.ppt_content === 'string') delete n.ppt_content;
+                    if (n.ppt_content?.raw)      mapped['l10'] = n.ppt_content.raw;
+                    else if (typeof n.ppt_content === 'string') mapped['l10'] = n.ppt_content;
                     setDbNotes(mapped);
                 } else {
                     setDbNotes({});
@@ -885,6 +885,16 @@ export default function TeacherLMSNotes() {
         { id: 'flashcards', label: 'Flashcards' },
         { id: 'ppt', label: 'PPT' },
     ].filter(t => contentMap[t.id as keyof typeof contentMap]);
+
+    // Auto-correct activeTab: if current tab has no content (e.g. 'introduction' was
+    // never generated for this topic), jump to the first tab that does have content.
+    useEffect(() => {
+        if (loadingDbNotes) return;
+        const firstTab = tabsList[0];
+        if (firstTab && !tabsList.find(t => t.id === activeTab)) {
+            setActiveTab(firstTab.id);
+        }
+    }, [dbNotes, loadingDbNotes]);
 
     // Provide a full screen overlay to bypass global dashboard constraints and meet prompt criteria
     return (
