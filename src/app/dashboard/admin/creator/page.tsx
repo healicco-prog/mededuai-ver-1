@@ -11,7 +11,7 @@ export default async function AdminCreatorPage() {
     const cookieStore = await cookies();
     const role = cookieStore.get('role')?.value;
 
-    if (role !== 'superadmin') {
+    if (role !== 'superadmin' && role !== 'masteradmin') {
         return <div className="p-8 text-slate-500">Access Denied</div>;
     }
 

@@ -1,0 +1,120 @@
+import { NextResponse } from 'next/server';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { verifyAuthAndRole } from '@/lib/authMiddleware';
+
+/**
+ * POST /api/creator/delete
+ *
+ * Deletes generated LMS content and assessments from the database
+ * so that the superadmin can re-trigger content creation for failed topics.
+ *
+ * Supports three modes:
+ *   1. Delete specific topics   → body: { topicNames: [...], courseName, subjectName }
+ *   2. Delete entire section    → body: { courseName, subjectName, sectionName, deleteAll: true }
+ *   3. Delete all content for a subject → body: { courseName, subjectName, deleteAll: true }
+ */
+export async function POST(req: Request) {
+    const { user, role } = await verifyAuthAndRole(req);
+
+    if (!user) {
+        return NextResponse.json({ success: false, error: 'Unauthorized.' }, { status: 401 });
+    }
+
+    // Allow superadmin, masteradmin, and system-admin
+    // (authMiddleware now normalizes roles, so 'admin', 'super_admin' etc. all resolve to 'superadmin')
+    const isAdmin = role === 'superadmin' || role === 'masteradmin' || user.id === 'system-admin';
+    if (!isAdmin) {
+        console.warn(`[Creator Delete] Forbidden for role="${role}", user=${user.id}`);
+        return NextResponse.json({ success: false, error: 'Forbidden. Only superadmin can delete generated content.' }, { status: 403 });
+    }
+
+    try {
+        const body = await req.json();
+        const { courseName, subjectName, sectionName, topicNames, deleteAll } = body;
+
+        if (!courseName || !subjectName) {
+            return NextResponse.json({ success: false, error: 'courseName and subjectName are required.' }, { status: 400 });
+        }
+
+        const supabase = getSupabaseAdmin();
+
+        // ── Resolve Course ──
+        const { data: course } = await supabase
+            .from('courses')
+            .select('id')
+            .eq('name', courseName)
+            .maybeSingle();
+
+        if (!course?.id) {
+            return NextResponse.json({ success: false, error: `Course "${courseName}" not found.` }, { status: 404 });
+        }
+
+        // ── Resolve Subject ──
+        const { data: subject } = await supabase
+            .from('subjects')
+            .select('id')
+            .eq('name', subjectName)
+            .eq('course_id', course.id)
+            .maybeSingle();
+
+        if (!subject?.id) {
+            return NextResponse.json({ success: false, error: `Subject "${subjectName}" not found.` }, { status: 404 });
+        }
+
+        // ── Resolve Topics ──
+        let topicsQuery = supabase
+            .from('topics')
+            .select('id, name')
+            .eq('subject_id', subject.id);
+
+        if (sectionName) {
+            topicsQuery = topicsQuery.eq('section', sectionName);
+        }
+
+        if (topicNames && Array.isArray(topicNames) && topicNames.length > 0 && !deleteAll) {
+            topicsQuery = topicsQuery.in('name', topicNames);
+        }
+
+        const { data: topics } = await topicsQuery;
+
+        if (!topics || topics.length === 0) {
+            return NextResponse.json({ success: true, deletedCount: 0, message: 'No matching topics found.' });
+        }
+
+        const topicIds = topics.map(t => t.id);
+        const deletedNames = topics.map(t => t.name);
+
+        // ── Delete lms_content for these topics ──
+        const { error: lmsError, count: lmsCount } = await supabase
+            .from('lms_content')
+            .delete({ count: 'exact' })
+            .in('topic_id', topicIds);
+
+        if (lmsError) {
+            console.error('[Creator Delete] lms_content delete error:', lmsError.message);
+        }
+
+        // ── Delete assessments for these topics ──
+        const { error: assessError, count: assessCount } = await supabase
+            .from('assessments')
+            .delete({ count: 'exact' })
+            .in('topic_id', topicIds);
+
+        if (assessError) {
+            console.error('[Creator Delete] assessments delete error:', assessError.message);
+        }
+
+        console.log(`[Creator Delete] Deleted lms_content: ${lmsCount ?? 0}, assessments: ${assessCount ?? 0} for ${topicIds.length} topics`);
+
+        return NextResponse.json({
+            success: true,
+            deletedCount: topicIds.length,
+            deletedTopics: deletedNames,
+            lmsDeleted: lmsCount ?? 0,
+            assessmentsDeleted: assessCount ?? 0,
+        });
+    } catch (error: any) {
+        console.error('[Creator Delete API] Error:', error?.message);
+        return NextResponse.json({ success: false, error: error?.message || 'Unknown error' }, { status: 500 });
+    }
+}

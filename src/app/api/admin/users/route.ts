@@ -3,7 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '../../../../lib/supabaseAdmin';
 
 // GET — Fetch ALL users from Supabase Auth, merged with public.users data
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
+  const sec = await checkSecurity(req);
+  if (!sec.authorized) return sec.response;
   try {
     const supabaseAdmin = getSupabaseAdmin();
 
@@ -50,6 +52,8 @@ export async function GET(_req: NextRequest) {
 
 // PATCH — Update user role
 export async function PATCH(req: NextRequest) {
+  const sec = await checkSecurity(req);
+  if (!sec.authorized) return sec.response;
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const { userId, role } = await req.json();

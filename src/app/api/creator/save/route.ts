@@ -55,7 +55,8 @@ function parseQuestions(rawText: string): string[] {
 
 export async function POST(req: Request) {
     const { user, role } = await verifyAuthAndRole(req);
-    if (!user || user.role !== 'authenticated' || !role) {
+
+    if (!user) {
         return NextResponse.json({ success: false, error: 'Unauthorized.' }, { status: 401 });
     }
 

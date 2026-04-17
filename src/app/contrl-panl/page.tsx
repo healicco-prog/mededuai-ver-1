@@ -354,12 +354,8 @@ export default function ControlPanelPage() {
     // Flatten all modules for the sidebar
     const sidebarSections = sections;
 
-    // Mock system logs
-    const systemLogs = [
-        { icon: <Server className="w-4 h-4" />, title: "LMS Queue: Anatomy Notes (3/10)", time: "1 hour ago", color: "text-blue-600 bg-blue-50" },
-        { icon: <Activity className="w-4 h-4" />, title: "Server Backup Completed", time: "2 hours ago", color: "text-emerald-600 bg-emerald-50" },
-        { icon: <UserPlus className="w-4 h-4" />, title: "New Teacher Registered", time: "3 hours ago", color: "text-purple-600 bg-purple-50" },
-    ];
+    // System logs are loaded from the real dashboard — no mock data in production
+    const systemLogs: { icon: React.ReactNode; title: string; time: string; color: string }[] = [];
 
     return (
         <div className="h-screen bg-slate-50 flex overflow-hidden w-full">
@@ -472,8 +468,8 @@ export default function ControlPanelPage() {
                             </div>
                             <div>
                                 <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">System Health</p>
-                                <p className="text-3xl font-extrabold text-slate-900">99.9%</p>
-                                <p className="text-xs text-slate-500 mt-1">All AI nodes active</p>
+                                <p className="text-3xl font-extrabold text-slate-900">—</p>
+                                <p className="text-xs text-slate-500 mt-1">View in dashboard</p>
                             </div>
                         </div>
                         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex items-start gap-4">
@@ -482,8 +478,8 @@ export default function ControlPanelPage() {
                             </div>
                             <div>
                                 <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">AI Generation Stats</p>
-                                <p className="text-3xl font-extrabold text-slate-900">1.2k</p>
-                                <p className="text-xs text-slate-500 mt-1">+450 today</p>
+                                <p className="text-3xl font-extrabold text-slate-900">—</p>
+                                <p className="text-xs text-slate-500 mt-1">View in dashboard</p>
                             </div>
                         </div>
                         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex items-start gap-4">
@@ -492,8 +488,8 @@ export default function ControlPanelPage() {
                             </div>
                             <div>
                                 <p className="text-[10px] font-bold text-purple-600 uppercase tracking-widest mb-1">Active Users</p>
-                                <p className="text-3xl font-extrabold text-slate-900">842</p>
-                                <p className="text-xs text-slate-500 mt-1">Current session peak</p>
+                                <p className="text-3xl font-extrabold text-slate-900">—</p>
+                                <p className="text-xs text-slate-500 mt-1">View in dashboard</p>
                             </div>
                         </div>
                     </div>
@@ -507,7 +503,13 @@ export default function ControlPanelPage() {
                                 <h4 className="text-lg font-bold text-slate-900">System Logs</h4>
                             </div>
                             <div className="space-y-4">
-                                {systemLogs.map((log, idx) => (
+                                {systemLogs.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-8 text-slate-400">
+                                        <BarChart3 className="w-8 h-8 mb-2 text-slate-300" />
+                                        <p className="text-sm font-medium">Live logs available in the main dashboard</p>
+                                        <Link href={authRole === 'superadmin' ? '/dashboard/superadmin' : '/dashboard/masteradmin'} className="text-xs text-emerald-600 hover:underline mt-1">Open Dashboard &rarr;</Link>
+                                    </div>
+                                ) : systemLogs.map((log, idx) => (
                                     <div key={idx} className="flex items-center gap-4">
                                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${log.color}`}>
                                             {log.icon}

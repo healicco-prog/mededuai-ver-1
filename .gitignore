@@ -103,6 +103,10 @@ test_*.mjs
 test_*.ts
 
 fix.js
+fix2.js
+fix3.js
+fix4.js
+fix5.js
 fetch_db.mjs
 create_test_users.mjs
 setup_admins.mjs
@@ -129,6 +133,4 @@ tsc_cmd.txt
 
 ########################################
 # Claude / Antigravity local config
-########################################
-.claude
-.claude/*
+##########################

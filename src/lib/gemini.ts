@@ -56,15 +56,20 @@ function getAI(): GoogleGenAI {
 
 // Model fallback chain — each must be a genuinely different model so that
 // when one is overloaded (503) the next one can succeed.
+// IMPORTANT: Gemini 1.5 models (gemini-1.5-flash, gemini-1.5-pro) have been
+// REMOVED from the v1beta API and return 404. Only use 2.x models.
 const MODELS = {
-    primary:   'gemini-2.5-flash',          // Latest Flash — fastest, most available
-    secondary: 'gemini-2.0-flash',          // Stable Flash — good fallback
-    tertiary:  'gemini-2.5-pro',            // High intelligence — strong fallback
-    quaternary: 'gemini-2.0-flash-lite',    // Lightweight — reliable last resort
+    primary:   'gemini-2.5-flash',          // Latest: fast, 1M context, best for bulk
+    secondary: 'gemini-2.0-flash',          // Proven stable fallback
+    tertiary:  'gemini-2.0-flash-lite',     // Lighter/cheaper fallback
+    quaternary: 'gemini-2.5-pro',           // High intelligence last-resort
 } as const;
 
 // Errors that warrant retrying the SAME model (transient)
 const RETRYABLE_CODES = new Set([429, 503, 502, 504, 500]);
+
+// Errors that mean the model is GONE (deprecated/removed) — skip immediately
+const PERMANENT_SKIP_CODES = new Set([404, 400]);
 
 /** Sleep helper */
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -91,10 +96,13 @@ export async function generateWithFallback(
         MODELS.tertiary,
         MODELS.quaternary,
     ];
+    // ── Output token limits ──
+    // Gemini 2.0 Flash supports up to 8192 output tokens by default and 65536 with config.
+    // For bulk content generation (notes + questions + flashcards), we need maximum output.
     const config = options?.jsonMode
         ? { responseMimeType: 'application/json' as const, maxOutputTokens: 65536 }
         : { maxOutputTokens: 65536 };
-    const maxRetries = options?.maxRetries ?? 3;
+    const maxRetries = options?.maxRetries ?? 4; // Increased from 3 for better resilience
 
     let lastError: Error | null = null;
 
@@ -119,9 +127,10 @@ export async function generateWithFallback(
                     `[MedEduAI AI] model=${model} attempt=${attempt} failed — httpCode=${httpCode} retryable=${isRetryable} — ${e.message}`
                 );
 
-                if (!isRetryable) {
-                    // Permanent error (e.g. bad request, auth failure) — skip this model entirely
-                    console.error(`[MedEduAI AI] Permanent error on model=${model}, skipping to next model.`);
+                if (!isRetryable || PERMANENT_SKIP_CODES.has(httpCode)) {
+                    // Permanent error (e.g. 404 model removed, 400 bad request, 401/403 auth)
+                    // Skip this model entirely — no point retrying
+                    console.error(`[MedEduAI AI] Permanent error (${httpCode}) on model=${model}, skipping to next model.`);
                     break;
                 }
 
@@ -132,10 +141,10 @@ export async function generateWithFallback(
                 }
 
                 // Exponential backoff with jitter
-                // For 429 (rate limit) use much longer delays to avoid back-to-back throttling
+                // For 429 (rate limit) use longer delays but capped to prevent excessive waits
                 // For 503 (overload) use moderate delays to let the model recover
-                const baseDelay = httpCode === 429 ? 8000 : (httpCode === 503 ? 4000 : 1500);
-                const backoffMs = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 2000;
+                const baseDelay = httpCode === 429 ? 5000 : (httpCode === 503 ? 3000 : 1500);
+                const backoffMs = Math.min(baseDelay * Math.pow(1.5, attempt - 1) + Math.random() * 1500, 30000);
                 console.log(`[MedEduAI AI] Retrying model=${model} in ${Math.round(backoffMs)}ms…`);
                 await sleep(backoffMs);
             }

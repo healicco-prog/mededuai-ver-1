@@ -50,6 +50,10 @@ export default function LoginPage() {
                         expires_in: data.session.expires_in,
                         user: data.session.user,
                     }));
+                    if (data.adminSecret) {
+                        sessionStorage.setItem('admin_secret', data.adminSecret);
+                        localStorage.setItem('admin_secret', data.adminSecret);
+                    }
                 } catch (_) {
                     // localStorage may be unavailable in some environments — not critical
                 }
@@ -102,9 +106,11 @@ export default function LoginPage() {
                             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
                             <input
                                 type="email"
+                                id="login-email-field"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
+                                autoComplete="one-time-code"
                                 placeholder="name@institution.edu"
                                 className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 transition-all text-sm"
                             />
@@ -123,9 +129,11 @@ export default function LoginPage() {
                             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
                             <input
                                 type={showPassword ? "text" : "password"}
+                                id="login-password-field"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
+                                autoComplete="one-time-code"
                                 placeholder="Enter your password"
                                 className="w-full pl-11 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 transition-all text-sm"
                             />

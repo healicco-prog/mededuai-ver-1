@@ -149,6 +149,15 @@ export default function NotesCreatorPage() {
     // ── Step 3: AI regeneration (optional, on demand) ──
     const handleGenerate = async () => {
         if (!activeTopic || !activeCourse || !activeSubject) return;
+
+        // If notes already exist in DB, ask for confirmation
+        if (dbResult) {
+            const confirmOverwrite = window.confirm(
+                "Notes for this topic already exist in the database. Do you want to rewrite them with new AI-generated content?"
+            );
+            if (!confirmOverwrite) return;
+        }
+
         setGenerating(true);
         setAiResult('');
         try {

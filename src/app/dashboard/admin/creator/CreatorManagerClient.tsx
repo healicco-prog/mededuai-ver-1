@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { BrainCircuit, Play, CheckCircle2, RotateCcw, AlertTriangle, Plus, Sparkles, BookOpen, Layers, Trash2, Edit2, Upload, X, Check, GripVertical } from 'lucide-react';
+import { BrainCircuit, Play, CheckCircle2, RotateCcw, AlertTriangle, Plus, Sparkles, BookOpen, Layers, Trash2, Edit2, Upload, X, Check, GripVertical, XCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 import { useCurriculumStore, type Course, type Subject, type Section, type Topic, type LMSNotesStructureItem, defaultLMSStructure } from '../../../../store/curriculumStore';
@@ -375,8 +375,8 @@ export default function LMSCreatorAdmin() {
         if (!engineCourse || !engineSubject || !engineSection || engineSelectedTopics.length === 0) return;
 
         // ── Check if any selected topics are already generated ──
-        const alreadyGenerated = engineSection.topics.filter(t => 
-            engineSelectedTopics.includes(t.id) && 
+        const alreadyGenerated = engineSection.topics.filter(t =>
+            engineSelectedTopics.includes(t.id) &&
             t.generatedNotes && Object.keys(t.generatedNotes).length > 0
         );
 
@@ -396,20 +396,43 @@ export default function LMSCreatorAdmin() {
         // Helper to pause between sequential API calls to avoid 429 rate-limiting
         const cooldown = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-        // ── Auth header helper — always fetches a fresh/auto-refreshed session token ──
-        const fetchAuthHeaders = async (): Promise<Record<string, string>> => {
+        // ── ROBUST Auth header helper ──
+        // 1. Always includes admin_secret if available (never expires, unlike JWT)
+        // 2. Proactively refreshes the Supabase session before every call
+        // 3. Falls back to localStorage if session refresh fails
+        const fetchAuthHeaders = async (forceRefresh = false): Promise<Record<string, string>> => {
             const h: Record<string, string> = { 'Content-Type': 'application/json' };
             try {
-                // Admin secret bypass (for superadmin bulk operations)
-                const adminSecret = sessionStorage.getItem('admin_secret');
-                if (adminSecret) h['x-admin-secret'] = adminSecret;
+                // ── Admin secret bypass (primary auth for superadmin bulk operations) ──
+                // Check both sessionStorage (per-tab) and localStorage (persistent)
+                const adminSecret = sessionStorage.getItem('admin_secret') || localStorage.getItem('admin_secret');
+                if (adminSecret) {
+                    h['x-admin-secret'] = adminSecret;
+                    // Persist to both storages for resilience
+                    try { sessionStorage.setItem('admin_secret', adminSecret); } catch(_) {}
+                    try { localStorage.setItem('admin_secret', adminSecret); } catch(_) {}
+                }
 
-                // Use Supabase client — auto-refreshes expired JWTs transparently
-                const { data: { session } } = await supabase.auth.getSession();
-                if (session?.access_token) {
-                    h['Authorization'] = `Bearer ${session.access_token}`;
+                // ── JWT token (secondary auth, also sent for user identification) ──
+                if (forceRefresh) {
+                    // Force a session refresh to get a new JWT
+                    const { data: { session }, error } = await supabase.auth.refreshSession();
+                    if (session?.access_token) {
+                        h['Authorization'] = `Bearer ${session.access_token}`;
+                        console.log('[fetchAuthHeaders] Session refreshed successfully');
+                    } else {
+                        console.warn('[fetchAuthHeaders] Session refresh failed:', error?.message);
+                    }
                 } else {
-                    // Fallback: read directly from localStorage (no refresh, may be stale)
+                    // Use Supabase client — auto-refreshes expired JWTs transparently
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (session?.access_token) {
+                        h['Authorization'] = `Bearer ${session.access_token}`;
+                    }
+                }
+
+                // Final fallback: read directly from localStorage
+                if (!h['Authorization']) {
                     for (let i = 0; i < localStorage.length; i++) {
                         const key = localStorage.key(i);
                         if (key?.startsWith('sb-') && key?.endsWith('-auth-token')) {
@@ -423,23 +446,25 @@ export default function LMSCreatorAdmin() {
             return h;
         };
 
-        for (let i = 0; i < totalTopics; i++) {
-            const topicId = engineSelectedTopics[i];
+        // ── Proactively refresh session ONCE before the entire batch starts ──
+        await fetchAuthHeaders(true);
 
-            // Find topic text
+        // ── Generate a single topic with full retry + auth refresh logic ──
+        const generateSingleTopic = async (topicId: string, topicIndex: number): Promise<{ topicId: string; notes: Record<string, string>; success: boolean }> => {
             let pName = 'Topic...';
             engineSection.topics.forEach(t => { if (t.id === topicId) pName = t.name; });
-            setCurrentTopicName(pName);
 
-            // Call Gemini AI generation engine — with retry logic
             let fetchedNotes: Record<string, string> = {};
             let success = false;
-            const maxTopicRetries = 3;
+            const maxTopicRetries = 5; // Increased from 3 to 5 for resilience
 
             for (let attempt = 1; attempt <= maxTopicRetries; attempt++) {
                 try {
                     console.log(`[Generation Engine] Topic "${pName}" — attempt ${attempt}/${maxTopicRetries}`);
-                    setCurrentTopicName(`${pName} (Attempt ${attempt}/${maxTopicRetries}${attempt > 1 ? ' — Retrying...' : ''})`);
+                    setCurrentTopicName(`${pName} (${topicIndex + 1}/${totalTopics}${attempt > 1 ? ` — Retry ${attempt}` : ''})`);
+
+                    // ── Refresh session every 5 topics or on auth-retry to prevent JWT expiry ──
+                    const needsRefresh = attempt > 1 || topicIndex % 5 === 0;
 
                     const controller = new AbortController();
                     // 10-minute timeout per topic (enough for the largest generations)
@@ -447,7 +472,7 @@ export default function LMSCreatorAdmin() {
 
                     const response = await fetch('/api/creator', {
                         method: 'POST',
-                        headers: await fetchAuthHeaders(),
+                        headers: await fetchAuthHeaders(needsRefresh),
                         signal: controller.signal,
                         body: JSON.stringify({
                             courseName: engineCourse.name,
@@ -460,36 +485,57 @@ export default function LMSCreatorAdmin() {
 
                     clearTimeout(timeoutId);
 
+                    // ── Handle 401 specifically: force-refresh and retry immediately ──
+                    if (response.status === 401 && attempt < maxTopicRetries) {
+                        console.warn(`[Generation Engine] 401 Unauthorized for "${pName}" — force-refreshing session…`);
+                        await fetchAuthHeaders(true); // Force refresh
+                        await cooldown(1000);
+                        continue; // Retry immediately with fresh token
+                    }
+
+                    // ── Handle 429 rate limit: wait longer and retry ──
+                    if (response.status === 429 && attempt < maxTopicRetries) {
+                        const retryAfter = parseInt(response.headers.get('Retry-After') || '30', 10);
+                        console.warn(`[Generation Engine] Rate limited for "${pName}" — waiting ${retryAfter}s…`);
+                        await cooldown(retryAfter * 1000);
+                        continue;
+                    }
+
                     const data = await response.json();
 
                     if (data.success && data.generatedNotes) {
                         fetchedNotes = data.generatedNotes;
                         success = true;
 
-                        // ── Auto-Save to Supabase ──
-                        // Fire-and-forget: persist generated notes to the database.
-                        fetchAuthHeaders().then(authH => fetch('/api/creator/save', {
-                            method: 'POST',
-                            headers: authH,
-                            body: JSON.stringify({
-                                courseName: engineCourse.name,
-                                subjectName: engineSubject.name,
-                                sectionName: engineSection.name,
-                                topicName: pName,
-                                generatedNotes: fetchedNotes,
-                            }),
-                        })
-                        .then(r => r.json())
-                        .then(saveResult => {
-                            if (saveResult.success) {
-                                console.log(`[Auto-Save] ✅ "${pName}" saved to DB (topic: ${saveResult.topicId})`);
-                            } else {
-                                console.warn(`[Auto-Save] ⚠️ "${pName}" save failed:`, saveResult.error);
+                        // ── Auto-Save to Supabase (fire-and-forget with retry) ──
+                        const saveToDb = async (retries = 2) => {
+                            for (let s = 0; s < retries; s++) {
+                                try {
+                                    const authH = await fetchAuthHeaders(s > 0);
+                                    const saveRes = await fetch('/api/creator/save', {
+                                        method: 'POST',
+                                        headers: authH,
+                                        body: JSON.stringify({
+                                            courseName: engineCourse.name,
+                                            subjectName: engineSubject.name,
+                                            sectionName: engineSection.name,
+                                            topicName: pName,
+                                            generatedNotes: fetchedNotes,
+                                        }),
+                                    });
+                                    const saveResult = await saveRes.json();
+                                    if (saveResult.success) {
+                                        console.log(`[Auto-Save] ✅ "${pName}" saved to DB (topic: ${saveResult.topicId})`);
+                                        return;
+                                    }
+                                    console.warn(`[Auto-Save] ⚠️ "${pName}" save attempt ${s + 1} failed:`, saveResult.error);
+                                } catch (saveErr) {
+                                    console.warn(`[Auto-Save] ⚠️ Network error saving "${pName}" attempt ${s + 1}:`, saveErr);
+                                }
+                                if (s < retries - 1) await cooldown(2000);
                             }
-                        })
-                        .catch(saveErr => {
-                            console.warn(`[Auto-Save] ⚠️ Network error saving "${pName}":`, saveErr);
-                        });
+                        };
+                        saveToDb(); // Fire and forget
 
                         break; // Success — exit retry loop
                     } else {
@@ -497,8 +543,8 @@ export default function LMSCreatorAdmin() {
                         console.warn(`[Generation Engine] Topic "${pName}" attempt ${attempt} failed: ${errorMsg}`);
 
                         if (attempt < maxTopicRetries) {
-                            // Wait longer before retrying (5s, 10s, 20s…)
-                            const retryDelay = 5000 * Math.pow(2, attempt - 1);
+                            // Exponential backoff: 3s, 6s, 12s, 24s…
+                            const retryDelay = 3000 * Math.pow(2, attempt - 1);
                             console.log(`[Generation Engine] Retrying "${pName}" in ${retryDelay / 1000}s…`);
                             await cooldown(retryDelay);
                         } else {
@@ -509,23 +555,40 @@ export default function LMSCreatorAdmin() {
                         }
                     }
                 } catch (err: any) {
-                    console.error(`[Generation Engine] Topic "${pName}" attempt ${attempt} network error:`, err.message);
+                    const isAbort = err.name === 'AbortError';
+                    console.error(`[Generation Engine] Topic "${pName}" attempt ${attempt} ${isAbort ? 'timed out' : 'network error'}:`, err.message);
 
                     if (attempt < maxTopicRetries) {
-                        const retryDelay = 5000 * Math.pow(2, attempt - 1);
+                        const retryDelay = isAbort ? 5000 : 3000 * Math.pow(2, attempt - 1);
                         console.log(`[Generation Engine] Retrying "${pName}" in ${retryDelay / 1000}s…`);
                         await cooldown(retryDelay);
                     } else {
                         engineCourse.lmsNotesStructure.forEach(item => {
-                            fetchedNotes[item.id] = `Network error after ${maxTopicRetries} attempts: ${err.message || 'Unknown error'}`;
+                            fetchedNotes[item.id] = `${isAbort ? 'Timeout' : 'Network error'} after ${maxTopicRetries} attempts: ${err.message || 'Unknown error'}`;
                         });
                     }
                 }
             }
 
-            setProgress(Math.round(((i + 1) / totalTopics) * 100));
+            return { topicId, notes: fetchedNotes, success };
+        };
 
-            // Commit results back into coursesList
+        // ── PARALLEL BATCH GENERATION ──
+        // Process topics in parallel batches of 2 to maximize throughput
+        // while staying within Gemini API rate limits.
+        const BATCH_SIZE = 2; // 2 concurrent generations (safe for Gemini quotas)
+        let completedCount = 0;
+
+        for (let batchStart = 0; batchStart < totalTopics; batchStart += BATCH_SIZE) {
+            const batchEnd = Math.min(batchStart + BATCH_SIZE, totalTopics);
+            const batchTopicIds = engineSelectedTopics.slice(batchStart, batchEnd);
+
+            // Run batch in parallel
+            const results = await Promise.all(
+                batchTopicIds.map((topicId, idx) => generateSingleTopic(topicId, batchStart + idx))
+            );
+
+            // Commit all batch results into coursesList at once
             setCoursesList(prev => prev.map(c => {
                 if (c.id === engineCourse.id) {
                     return {
@@ -536,7 +599,8 @@ export default function LMSCreatorAdmin() {
                                         if (sec.id === engineSection.id) {
                                             return {
                                                 ...sec, topics: sec.topics.map(t => {
-                                                    if (t.id === topicId) return { ...t, generatedNotes: fetchedNotes };
+                                                    const result = results.find(r => r.topicId === t.id);
+                                                    if (result) return { ...t, generatedNotes: result.notes };
                                                     return t;
                                                 })
                                             };
@@ -552,11 +616,13 @@ export default function LMSCreatorAdmin() {
                 return c;
             }));
 
-            // ── CRITICAL: Cooldown between topics ──
-            // Increased to 5s for bulk generation to ensure rate-limit window resets.
-            if (i < totalTopics - 1) {
-                const waitTime = totalTopics > 5 ? 5000 : 3000;
-                console.log(`[Generation Engine] Cooling down ${waitTime/1000}s before next topic…`);
+            completedCount += batchTopicIds.length;
+            setProgress(Math.round((completedCount / totalTopics) * 100));
+
+            // ── Cooldown between batches (not between individual topics) ──
+            if (batchEnd < totalTopics) {
+                const waitTime = totalTopics > 10 ? 3000 : 2000;
+                console.log(`[Generation Engine] Batch complete (${completedCount}/${totalTopics}). Cooling down ${waitTime/1000}s…`);
                 await cooldown(waitTime);
             }
         }
@@ -620,6 +686,94 @@ export default function LMSCreatorAdmin() {
         loadExistingNotes();
     }, [loadExistingNotes]);
 
+    // ── Delete Generated Content from Supabase ──────────────────────────
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteMessage, setDeleteMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+    const handleDeleteContent = async (mode: 'selected' | 'section') => {
+        if (!engineCourse || !engineSubject || !engineSection) return;
+
+        const topicsToDelete = mode === 'selected'
+            ? engineSection.topics.filter(t => engineSelectedTopics.includes(t.id) && t.generatedNotes)
+            : engineSection.topics.filter(t => t.generatedNotes);
+
+        if (topicsToDelete.length === 0) {
+            setDeleteMessage({ type: 'error', text: 'No generated content found to delete.' });
+            setTimeout(() => setDeleteMessage(null), 3000);
+            return;
+        }
+
+        const topicNames = topicsToDelete.map(t => t.name);
+        const confirmMsg = mode === 'selected'
+            ? `Delete generated content for ${topicNames.length} selected topic(s)?\n\n${topicNames.join(', ')}\n\nThis will remove notes & assessments from the database so you can re-generate them.`
+            : `Delete ALL generated content for section "${engineSection.name}"?\n\n${topicNames.length} topic(s) will have their notes & assessments removed from the database.`;
+
+        if (!window.confirm(confirmMsg)) return;
+
+        setIsDeleting(true);
+        setDeleteMessage(null);
+
+        try {
+            // Build auth headers (same pattern as generation)
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            const adminSecret = sessionStorage.getItem('admin_secret') || localStorage.getItem('admin_secret');
+            if (adminSecret) headers['x-admin-secret'] = adminSecret;
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+
+            const res = await fetch('/api/creator/delete', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    courseName: engineCourse.name,
+                    subjectName: engineSubject.name,
+                    sectionName: engineSection.name,
+                    topicNames: mode === 'selected' ? topicNames : undefined,
+                    deleteAll: mode === 'section',
+                }),
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                // Clear generatedNotes from local state for deleted topics
+                const deletedSet = new Set(data.deletedTopics || topicNames);
+                setCoursesList(prev => prev.map(c => {
+                    if (c.id !== engineCourse.id) return c;
+                    return {
+                        ...c, subjects: c.subjects.map(s => {
+                            if (s.id !== engineSubject.id) return s;
+                            return {
+                                ...s, sections: s.sections.map(sec => {
+                                    if (sec.id !== engineSection.id) return sec;
+                                    return {
+                                        ...sec, topics: sec.topics.map(t => {
+                                            if (deletedSet.has(t.name)) {
+                                                const { generatedNotes, ...rest } = t;
+                                                return rest as Topic;
+                                            }
+                                            return t;
+                                        })
+                                    };
+                                })
+                            };
+                        })
+                    };
+                }));
+
+                setDeleteMessage({ type: 'success', text: `Deleted content for ${data.deletedCount} topic(s). You can now re-generate them.` });
+                setEngineSelectedTopics([]);
+            } else {
+                setDeleteMessage({ type: 'error', text: data.error || 'Delete failed.' });
+            }
+        } catch (err: any) {
+            setDeleteMessage({ type: 'error', text: err.message || 'Network error during delete.' });
+        } finally {
+            setIsDeleting(false);
+            setTimeout(() => setDeleteMessage(null), 5000);
+        }
+    };
+
     return (
         <div className="space-y-8 max-w-5xl mx-auto">
             <div className="text-center mb-8">
@@ -641,7 +795,14 @@ export default function LMSCreatorAdmin() {
                     LMS Notes Structure
                 </button>
                 <button
-                    onClick={() => setActiveTab('generation')}
+                    onClick={() => {
+                        // Sync engine course/subject/section with curriculum tab selections
+                        // so the Generation Engine always uses the same structure the user just configured
+                        setEngineCourseId(selectedCourseId);
+                        setEngineSubjectId(selectedSubjectId);
+                        setEngineSectionId(selectedSectionId);
+                        setActiveTab('generation');
+                    }}
                     className={`px-8 py-3 rounded-xl font-bold transition-all text-sm ${activeTab === 'generation' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     Generation Engine
@@ -1130,10 +1291,17 @@ export default function LMSCreatorAdmin() {
                         ))}
                     </div>
 
-                    {/* CONFIRM STRUCTURE BUTTON (Added per task) */}
+                    {/* CONFIRM STRUCTURE BUTTON — syncs engine selections so Generation uses the same course */}
                     <div className="mt-8 flex justify-end max-w-4xl">
-                        <button 
-                            onClick={() => setActiveTab('generation')}
+                        <button
+                            onClick={() => {
+                                // Sync the Generation Engine's course/subject/section to match the Structure tab
+                                setEngineCourseId(selectedCourseId);
+                                setEngineSubjectId(selectedSubjectId);
+                                setEngineSectionId(selectedSectionId);
+                                setEngineSelectedTopics([]);
+                                setActiveTab('generation');
+                            }}
                             className="px-8 py-4 bg-emerald-600 text-white font-bold rounded-xl shadow-lg hover:bg-emerald-700 transition-all flex items-center gap-3 hover:-translate-y-1"
                         >
                             Confirm Structure <CheckCircle2 className="w-5 h-5" />
@@ -1204,6 +1372,45 @@ export default function LMSCreatorAdmin() {
                                     {engineSubject?.sections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                 </select>
                             </div>
+
+                            {/* ── Active LMS Structure Summary ── */}
+                            {engineCourse?.lmsNotesStructure && engineCourse.lmsNotesStructure.length > 0 && (
+                                <div className="mt-4 bg-indigo-50/60 border border-indigo-100 rounded-xl p-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Active LMS Structure</span>
+                                        <button
+                                            onClick={() => setActiveTab('structure')}
+                                            className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 underline tracking-normal"
+                                        >
+                                            Edit
+                                        </button>
+                                    </div>
+                                    <div className="space-y-1">
+                                        {engineCourse.lmsNotesStructure.map(item => {
+                                            const isText = item.type === 'text';
+                                            const wordCount = parseInt(item.wordCount || '0', 10);
+                                            const qty = parseInt(item.value, 10);
+                                            return (
+                                                <div key={item.id} className="flex items-center justify-between text-[11px]">
+                                                    <span className="font-semibold text-slate-700 truncate flex-1 mr-2">{item.title}</span>
+                                                    {isText ? (
+                                                        <span className="flex items-center gap-1.5 shrink-0">
+                                                            <span className="px-1.5 py-0.5 bg-white border border-indigo-200 rounded text-[10px] font-bold text-indigo-700">{item.value || 'Markdown'}</span>
+                                                            {wordCount > 0 && (
+                                                                <span className="px-1.5 py-0.5 bg-indigo-100 rounded text-[10px] font-bold text-indigo-800">{wordCount}w</span>
+                                                            )}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="px-1.5 py-0.5 bg-white border border-indigo-200 rounded text-[10px] font-bold text-indigo-700">
+                                                            {isNaN(qty) ? item.value : `${qty} items`}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Topics Selection Header with Select Uncreated / Select All */}
                             <div className="mt-6">
@@ -1316,12 +1523,42 @@ export default function LMSCreatorAdmin() {
 
                             <button
                                 onClick={handleStartGeneration}
-                                disabled={isGenerating || engineSelectedTopics.length === 0}
+                                disabled={isGenerating || isDeleting || engineSelectedTopics.length === 0}
                                 className="w-full py-3.5 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                             >
                                 <Play className="w-4 h-4 fill-current" />
                                 {isGenerating ? 'Gemini Generating...' : `Generate ${engineSelectedTopics.length} Notes`}
                             </button>
+
+                            {/* ── Delete Content Controls ── */}
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => handleDeleteContent('selected')}
+                                    disabled={isGenerating || isDeleting || engineSelectedTopics.length === 0}
+                                    className="flex-1 py-2.5 bg-red-50 text-red-600 font-bold text-xs rounded-xl border border-red-200 hover:bg-red-100 hover:border-red-300 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    title="Delete generated content for selected topics so you can re-generate"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    {isDeleting ? 'Deleting...' : 'Delete Selected'}
+                                </button>
+                                <button
+                                    onClick={() => handleDeleteContent('section')}
+                                    disabled={isGenerating || isDeleting || createdTopicsInSection === 0}
+                                    className="flex-1 py-2.5 bg-red-50 text-red-700 font-bold text-xs rounded-xl border border-red-200 hover:bg-red-100 hover:border-red-300 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    title="Delete all generated content in this section"
+                                >
+                                    <XCircle className="w-3.5 h-3.5" />
+                                    {isDeleting ? 'Deleting...' : 'Delete All in Section'}
+                                </button>
+                            </div>
+
+                            {/* Delete status message */}
+                            {deleteMessage && (
+                                <div className={`rounded-lg p-2.5 text-xs font-semibold flex items-center gap-2 ${deleteMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                                    {deleteMessage.type === 'success' ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertTriangle className="w-3.5 h-3.5 shrink-0" />}
+                                    {deleteMessage.text}
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -1345,11 +1582,27 @@ export default function LMSCreatorAdmin() {
                                         const topic = engineSection?.topics.find(t => t.id === editingGeneratedTopicId);
                                         const value = topic?.generatedNotes?.[structItem.id] || '';
 
+                                        // Count validation for numbered sections
+                                        const isNumberType = structItem.type === 'number';
+                                        const expectedCount = isNumberType ? (parseInt(structItem.value, 10) || 0) : 0;
+                                        const actualItemCount = isNumberType && value ? (value.match(/(?:^|\n)\s*\d+\.\s/g) || []).length : 0;
+                                        const countMismatch = isNumberType && expectedCount > 0 && actualItemCount < expectedCount;
+
                                         return (
-                                            <div key={structItem.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                                                <div className="mb-3">
-                                                    <h4 className="font-bold text-sm text-slate-800">{structItem.title}</h4>
-                                                    <p className="text-xs text-slate-500 font-medium">{structItem.description} • Auto-Formatting Style: {structItem.value}</p>
+                                            <div key={structItem.id} className={`bg-white p-6 rounded-2xl shadow-sm border ${countMismatch ? 'border-amber-300 bg-amber-50/30' : 'border-slate-200'}`}>
+                                                <div className="mb-3 flex items-start justify-between">
+                                                    <div>
+                                                        <h4 className="font-bold text-sm text-slate-800">{structItem.title}</h4>
+                                                        <p className="text-xs text-slate-500 font-medium">
+                                                            {structItem.description} • {isNumberType ? `Expected: ${expectedCount} items` : `Format: ${structItem.value}`}
+                                                            {structItem.wordCount && structItem.type === 'text' ? ` • Target: ${structItem.wordCount} words` : ''}
+                                                        </p>
+                                                    </div>
+                                                    {isNumberType && expectedCount > 0 && (
+                                                        <span className={`text-[10px] font-bold px-2 py-1 rounded-lg shrink-0 ${countMismatch ? 'bg-amber-100 text-amber-700 border border-amber-300' : 'bg-emerald-100 text-emerald-700'}`}>
+                                                            {actualItemCount}/{expectedCount} items
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <textarea
                                                     className="w-full text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 outline-none p-4 rounded-xl min-h-[120px] focus:border-indigo-500 focus:bg-white transition-all resize-y"

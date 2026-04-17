@@ -63,6 +63,29 @@ export default function LandingPage() {
   };
 
   useEffect(() => {
+    // Check if user is already logged in (role cookie exists)
+    const getCookie = (name: string) => {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop()?.split(';').shift();
+      return null;
+    };
+
+    const role = getCookie('role');
+    if (role) {
+      // Redirect to appropriate dashboard
+      const map: Record<string, string> = {
+        superadmin: '/dashboard/admin',
+        masteradmin: '/dashboard/admin',
+        instadmin: '/dashboard/admin',
+        deptadmin: '/dashboard/admin',
+        teacher: '/dashboard/teacher',
+        student: '/dashboard/student',
+      };
+      const dest = map[role] || `/dashboard/${role}`;
+      window.location.href = dest;
+    }
+
     const handler = (e: Event) => {
       e.preventDefault();
       setInstallPrompt(e as BeforeInstallPromptEvent);

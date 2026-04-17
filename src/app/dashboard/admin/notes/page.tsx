@@ -616,17 +616,97 @@ const MCQViewer = ({ rawText, colorClass = "indigo", marks = 1, currentTopic, cu
 
 
 export default function TeacherLMSNotes() {
-    const { coursesList } = useCurriculumStore();
+    const { coursesList: storeCoursesList } = useCurriculumStore();
+
+    // ── DB-driven hierarchy (courses → subjects → sections → topics) ──
+    // This replaces the pure-Zustand approach so that topics created by superadmin
+    // in the Creator and saved to Supabase appear for ALL users.
+    type DbTopic = { id: string; name: string; section: string; hasNotes: boolean };
+    type DbSection = { id: string; name: string; topics: DbTopic[] };
+    type DbSubject = { id: string; name: string; sections: DbSection[] };
+    type DbCourse = { id: string; name: string; subjects: DbSubject[] };
+
+    const [dbCourses, setDbCourses] = useState<DbCourse[]>([]);
+    const [dbTopicMap, setDbTopicMap] = useState<Record<string, string>>({});   // topicName → DB uuid
+    const [dbLoaded, setDbLoaded] = useState(false);
+
+    // Notes loaded fresh from Supabase
+    const [dbNotes, setDbNotes] = useState<Record<string, string>>({});
+    const [loadingDbNotes, setLoadingDbNotes] = useState(false);
+
+    // Build a merged course list: use Zustand store as the base structure,
+    // then overlay/merge any topics from the database that have actual content.
+    const coursesList = React.useMemo(() => {
+        if (!dbLoaded || dbCourses.length === 0) return storeCoursesList;
+
+        // Start with a deep copy of the store's course list
+        const merged = storeCoursesList.map(course => ({
+            ...course,
+            subjects: course.subjects.map(subj => ({
+                ...subj,
+                sections: subj.sections.map(sec => ({
+                    ...sec,
+                    topics: [...sec.topics],
+                })),
+            })),
+        }));
+
+        // For each DB course, find or create a matching entry and inject DB topics
+        for (const dbCourse of dbCourses) {
+            let storeCourse = merged.find(c =>
+                c.name.toLowerCase().trim() === dbCourse.name.toLowerCase().trim()
+            );
+            if (!storeCourse) {
+                // DB course doesn't exist in store — add it
+                storeCourse = {
+                    id: `db-${dbCourse.id}`,
+                    name: dbCourse.name,
+                    subjects: [],
+                    lmsNotesStructure: [],
+                };
+                merged.push(storeCourse);
+            }
+
+            for (const dbSubject of dbCourse.subjects) {
+                let storeSubject = storeCourse.subjects.find(s =>
+                    s.name.toLowerCase().trim() === dbSubject.name.toLowerCase().trim()
+                );
+                if (!storeSubject) {
+                    storeSubject = { id: `db-${dbSubject.id}`, name: dbSubject.name, sections: [] };
+                    storeCourse.subjects.push(storeSubject);
+                }
+
+                for (const dbSection of dbSubject.sections) {
+                    let storeSection = storeSubject.sections.find(sec =>
+                        sec.name.toLowerCase().trim() === dbSection.name.toLowerCase().trim()
+                    );
+                    if (!storeSection) {
+                        storeSection = { id: `db-sec-${dbSection.id}`, name: dbSection.name, topics: [] };
+                        storeSubject.sections.push(storeSection);
+                    }
+
+                    // Add any DB topics that are missing from the store section
+                    for (const dbTopic of dbSection.topics) {
+                        const exists = storeSection.topics.some(t =>
+                            t.name.toLowerCase().trim() === dbTopic.name.toLowerCase().trim()
+                        );
+                        if (!exists) {
+                            storeSection.topics.push({
+                                id: `db-${dbTopic.id}`,
+                                name: dbTopic.name,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        return merged;
+    }, [storeCoursesList, dbCourses, dbLoaded]);
 
     // Course selection state
-    const [selectedCourseId, setSelectedCourseId] = useState<string>(coursesList[0]?.id || '');
+    const [selectedCourseId, setSelectedCourseId] = useState<string>(storeCoursesList[0]?.id || '');
     const currentCourse = coursesList.find(c => c.id === selectedCourseId) || coursesList[0];
-
-    // DB-driven topic map: topicId → DB uuid (from /api/creator/hierarchy)
-    const [dbTopicMap, setDbTopicMap] = useState<Record<string, string>>({});   // topicName → topicId
-    // Notes loaded fresh from Supabase
-    const [dbNotes, setDbNotes] = useState<Record<string, string>>({});          // lx keys → content
-    const [loadingDbNotes, setLoadingDbNotes] = useState(false);
 
     // UI States
     const [selectedSubjectId, setSelectedSubjectId] = useState<string>(currentCourse?.subjects?.[0]?.id || '');
@@ -674,23 +754,54 @@ export default function TeacherLMSNotes() {
         }
     }, []);
 
-    // Load the DB topic map once (topicName → DB uuid)
+    // Load the DB hierarchy once — builds both dbCourses (for sidebar) and dbTopicMap (for content fetch)
     useEffect(() => {
         fetch('/api/creator/hierarchy')
             .then(r => r.json())
             .then(data => {
                 if (!data.success) return;
                 const map: Record<string, string> = {};
+                const courses: DbCourse[] = [];
+
                 for (const course of (data.courses || [])) {
+                    const dbSubjects: DbSubject[] = [];
+
                     for (const subject of (course.subjects || [])) {
+                        // Group topics by section name
+                        const sectionMap: Record<string, DbTopic[]> = {};
                         for (const topic of (subject.topics || [])) {
                             map[topic.name] = topic.id;
+                            const secName = topic.section || subject.name;
+                            if (!sectionMap[secName]) sectionMap[secName] = [];
+                            sectionMap[secName].push({
+                                id: topic.id,
+                                name: topic.name,
+                                section: secName,
+                                hasNotes: topic.hasNotes || false,
+                            });
                         }
+
+                        const dbSections: DbSection[] = Object.entries(sectionMap).map(([secName, topics]) => ({
+                            id: `${subject.id}-${secName}`,
+                            name: secName,
+                            topics,
+                        }));
+
+                        dbSubjects.push({
+                            id: subject.id,
+                            name: subject.name,
+                            sections: dbSections,
+                        });
                     }
+
+                    courses.push({ id: course.id, name: course.name, subjects: dbSubjects });
                 }
+
                 setDbTopicMap(map);
+                setDbCourses(courses);
+                setDbLoaded(true);
             })
-            .catch(() => {});
+            .catch(() => setDbLoaded(true));
     }, []);
 
     const currentSubject = currentCourse?.subjects?.find(s => s.id === selectedSubjectId) || currentCourse?.subjects?.[0];
@@ -701,7 +812,10 @@ export default function TeacherLMSNotes() {
     // Fetch FRESH notes from DB whenever the selected topic changes
     useEffect(() => {
         if (!currentTopic) { setDbNotes({}); return; }
-        const dbId = dbTopicMap[currentTopic.name];
+        // For DB-injected topics, the id is "db-<uuid>"; for store topics, look up by name
+        const dbId = currentTopic.id.startsWith('db-')
+            ? currentTopic.id.replace('db-', '')
+            : dbTopicMap[currentTopic.name];
         if (!dbId) return;
         setLoadingDbNotes(true);
         fetch(`/api/creator/topic-notes?topicId=${dbId}`)
@@ -846,7 +960,7 @@ export default function TeacherLMSNotes() {
                 <div className="flex-1 overflow-y-auto p-4 space-y-1">
                     {(() => {
                         const allFlatTopics = availableSections.flatMap(section =>
-                            section.topics.filter(t => t.generatedNotes).map(topic => ({ ...topic, sectionName: section.name }))
+                            section.topics.map(topic => ({ ...topic, sectionName: section.name }))
                         );
                         const query = topicSearchQuery.trim().toLowerCase();
                         const filteredTopics = query

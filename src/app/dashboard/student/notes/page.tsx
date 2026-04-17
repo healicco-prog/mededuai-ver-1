@@ -588,10 +588,95 @@ const MCQViewer = ({ rawText, colorClass = "indigo", marks = 1, currentTopic, cu
 
 
 export default function StudentLMSNotes() {
-    const { coursesList } = useCurriculumStore();
+    const { coursesList: storeCoursesList } = useCurriculumStore();
+
+    // ── DB-driven hierarchy (courses → subjects → sections → topics) ──
+    // This replaces the pure-Zustand approach so that topics created by superadmin
+    // in the Creator and saved to Supabase appear for ALL users.
+    type DbTopic = { id: string; name: string; section: string; hasNotes: boolean };
+    type DbSection = { id: string; name: string; topics: DbTopic[] };
+    type DbSubject = { id: string; name: string; sections: DbSection[] };
+    type DbCourse = { id: string; name: string; subjects: DbSubject[] };
+
+    const [dbCourses, setDbCourses] = useState<DbCourse[]>([]);
+    const [dbTopicMap, setDbTopicMap] = useState<Record<string, string>>({});   // topicName → DB uuid
+    const [dbLoaded, setDbLoaded] = useState(false);
+
+    // Notes loaded fresh from Supabase
+    const [dbNotes, setDbNotes] = useState<Record<string, string>>({});
+    const [loadingDbNotes, setLoadingDbNotes] = useState(false);
+
+    // Build a merged course list: use Zustand store as the base structure,
+    // then overlay/merge any topics from the database that have actual content.
+    const coursesList = React.useMemo(() => {
+        if (!dbLoaded || dbCourses.length === 0) return storeCoursesList;
+
+        // Start with a deep copy of the store's course list
+        const merged = storeCoursesList.map(course => ({
+            ...course,
+            subjects: course.subjects.map(subj => ({
+                ...subj,
+                sections: subj.sections.map(sec => ({
+                    ...sec,
+                    topics: [...sec.topics],
+                })),
+            })),
+        }));
+
+        // For each DB course, find or create a matching entry and inject DB topics
+        for (const dbCourse of dbCourses) {
+            let storeCourse = merged.find(c =>
+                c.name.toLowerCase().trim() === dbCourse.name.toLowerCase().trim()
+            );
+            if (!storeCourse) {
+                storeCourse = {
+                    id: `db-${dbCourse.id}`,
+                    name: dbCourse.name,
+                    subjects: [],
+                    lmsNotesStructure: [],
+                };
+                merged.push(storeCourse);
+            }
+
+            for (const dbSubject of dbCourse.subjects) {
+                let storeSubject = storeCourse.subjects.find(s =>
+                    s.name.toLowerCase().trim() === dbSubject.name.toLowerCase().trim()
+                );
+                if (!storeSubject) {
+                    storeSubject = { id: `db-${dbSubject.id}`, name: dbSubject.name, sections: [] };
+                    storeCourse.subjects.push(storeSubject);
+                }
+
+                for (const dbSection of dbSubject.sections) {
+                    let storeSection = storeSubject.sections.find(sec =>
+                        sec.name.toLowerCase().trim() === dbSection.name.toLowerCase().trim()
+                    );
+                    if (!storeSection) {
+                        storeSection = { id: `db-sec-${dbSection.id}`, name: dbSection.name, topics: [] };
+                        storeSubject.sections.push(storeSection);
+                    }
+
+                    // Add any DB topics that are missing from the store section
+                    for (const dbTopic of dbSection.topics) {
+                        const exists = storeSection.topics.some(t =>
+                            t.name.toLowerCase().trim() === dbTopic.name.toLowerCase().trim()
+                        );
+                        if (!exists) {
+                            storeSection.topics.push({
+                                id: `db-${dbTopic.id}`,
+                                name: dbTopic.name,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        return merged;
+    }, [storeCoursesList, dbCourses, dbLoaded]);
 
     // Course selection state
-    const [selectedCourseId, setSelectedCourseId] = useState<string>(coursesList[0]?.id || '');
+    const [selectedCourseId, setSelectedCourseId] = useState<string>(storeCoursesList[0]?.id || '');
     const currentCourse = coursesList.find(c => c.id === selectedCourseId) || coursesList[0];
 
     // UI States
@@ -610,27 +695,27 @@ export default function StudentLMSNotes() {
     const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'ai', content: string }[]>([]);
     const [isTyping, setIsTyping] = useState<boolean>(false);
 
-    const handleSendMessage = (text: string) => {
+    const handleSendMessage = async (text: string) => {
         if (!text.trim()) return;
-        setChatHistory(prev => [...prev, { role: 'user', content: text }]);
+        const updatedHistory = [...chatHistory, { role: 'user' as const, content: text }];
+        setChatHistory(updatedHistory);
         setChatInput('');
         setIsTyping(true);
-
-        setTimeout(() => {
-            let mockResponse = "I am a simulated AI instance processing your request! In a live environment with an active API Key, I would synthesize contextual responses based on this exact syllabus topic.";
-
-            const lowerText = text.toLowerCase();
-            if (lowerText.includes('mnemonic')) {
-                mockResponse = "Here's a clever way to remember this:\n\n**S**ome **L**overs **T**ry **P**ositions **T**hat **T**hey **C**an't **H**andle\n\n*(Scaphoid, Lunate, Triquetrum, Pisiform, Trapezium, Trapezoid, Capitate, Hamate)*";
-            } else if (lowerText.includes('mcq')) {
-                mockResponse = "I've generated some rapid practice questions for you:\n\n**1. What is the most common carpal bone fracture?**\na) Scaphoid\nb) Lunate\nc) Hamate\nd) Pisiform\n*Answer: a) Scaphoid*\n\n*(In live mode, I would generate exactly 5 dynamically!)*";
-            } else if (lowerText.includes('simple')) {
-                mockResponse = "Think of it this way: Just like a car needs an engine to provide power and gears to shift smoothly, your body relies on **muscles** as the engine and **joints** as the gears to create fluid movement!";
-            }
-
-            setChatHistory(prev => [...prev, { role: 'ai', content: mockResponse }]);
+        try {
+            const messages = updatedHistory.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content }));
+            const res = await fetch('/api/mentor', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ messages }),
+            });
+            const data = await res.json();
+            const reply = data.response || 'Sorry, I could not get a response. Please try again.';
+            setChatHistory(prev => [...prev, { role: 'ai', content: reply }]);
+        } catch {
+            setChatHistory(prev => [...prev, { role: 'ai', content: 'Connection error. Please check your network and try again.' }]);
+        } finally {
             setIsTyping(false);
-        }, 1500);
+        }
     };
 
     // Initial setup
@@ -640,25 +725,111 @@ export default function StudentLMSNotes() {
         }
     }, []);
 
+    // Load the DB hierarchy once — builds both dbCourses (for sidebar) and dbTopicMap (for content fetch)
+    useEffect(() => {
+        fetch('/api/creator/hierarchy')
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) return;
+                const map: Record<string, string> = {};
+                const courses: DbCourse[] = [];
+
+                for (const course of (data.courses || [])) {
+                    const dbSubjects: DbSubject[] = [];
+
+                    for (const subject of (course.subjects || [])) {
+                        // Group topics by section name
+                        const sectionMap: Record<string, DbTopic[]> = {};
+                        for (const topic of (subject.topics || [])) {
+                            map[topic.name] = topic.id;
+                            const secName = topic.section || subject.name;
+                            if (!sectionMap[secName]) sectionMap[secName] = [];
+                            sectionMap[secName].push({
+                                id: topic.id,
+                                name: topic.name,
+                                section: secName,
+                                hasNotes: topic.hasNotes || false,
+                            });
+                        }
+
+                        const dbSections: DbSection[] = Object.entries(sectionMap).map(([secName, topics]) => ({
+                            id: `${subject.id}-${secName}`,
+                            name: secName,
+                            topics,
+                        }));
+
+                        dbSubjects.push({
+                            id: subject.id,
+                            name: subject.name,
+                            sections: dbSections,
+                        });
+                    }
+
+                    courses.push({ id: course.id, name: course.name, subjects: dbSubjects });
+                }
+
+                setDbTopicMap(map);
+                setDbCourses(courses);
+                setDbLoaded(true);
+            })
+            .catch(() => setDbLoaded(true));
+    }, []);
+
     const currentSubject = currentCourse?.subjects?.find(s => s.id === selectedSubjectId) || currentCourse?.subjects?.[0];
     const availableSections = currentSubject?.sections || [];
     const currentSection = availableSections.find(s => s.id === selectedSectionId) || availableSections[0];
     const currentTopic = currentSection?.topics.find(t => t.id === selectedTopicId);
 
-    // Initial setup
+    // Fetch FRESH notes from DB whenever the selected topic changes
+    useEffect(() => {
+        if (!currentTopic) { setDbNotes({}); return; }
+        // For DB-injected topics, the id is "db-<uuid>"; for store topics, look up by name
+        const dbId = currentTopic.id.startsWith('db-')
+            ? currentTopic.id.replace('db-', '')
+            : dbTopicMap[currentTopic.name];
+        if (!dbId) return;
+        setLoadingDbNotes(true);
+        fetch(`/api/creator/topic-notes?topicId=${dbId}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.notes) {
+                    const n = data.notes;
+                    const mapped: Record<string, string> = {};
+                    if (n.introduction)          mapped['l1'] = n.introduction;
+                    if (n.detailed_notes)        mapped['l2'] = n.detailed_notes;
+                    if (n.summary)               mapped['l3'] = n.summary;
+                    if (n.marks_10_questions)    mapped['l4'] = n.marks_10_questions;
+                    if (n.marks_5_questions)     mapped['l5'] = n.marks_5_questions;
+                    if (n.marks_3_reasoning)     mapped['l6'] = n.marks_3_reasoning;
+                    if (n.marks_2_case_mcqs)     mapped['l7'] = n.marks_2_case_mcqs;
+                    if (n.marks_1_mcqs)          mapped['l8'] = n.marks_1_mcqs;
+                    if (n.flashcards?.raw)       mapped['l9'] = n.flashcards.raw;
+                    else if (typeof n.flashcards === 'string') mapped['l9'] = n.flashcards;
+                    if (n.ppt_content?.raw)      delete n.ppt_content;
+                    else if (typeof n.ppt_content === 'string') delete n.ppt_content;
+                    setDbNotes(mapped);
+                } else {
+                    setDbNotes({});
+                }
+            })
+            .catch(() => setDbNotes({}))
+            .finally(() => setLoadingDbNotes(false));
+    }, [currentTopic?.id, dbTopicMap]);
+
+    // Initial topic selection
     useEffect(() => {
         if (!selectedTopicId && availableSections.length > 0) {
             const firstSec = availableSections[0];
-            const firstTop = firstSec.topics.filter(t => t.generatedNotes)?.[0];
+            const firstTop = firstSec.topics.filter(t => t.generatedNotes)?.[0] || firstSec.topics?.[0];
             if (firstTop) setSelectedTopicId(firstTop.id);
         }
     }, [selectedSubjectId, availableSections, selectedTopicId]);
 
     const toggleSection = (id: string) => setExpandedSections(p => ({ ...p, [id]: !p[id] }));
 
-    // Extracting parts from generated notes based on structure IDs
-    // Assuming structure IDs follow `l1`..`l10` format from `defaultLMSStructure`
-    const notes = currentTopic?.generatedNotes || {};
+    // Prefer freshly-fetched DB notes over stale Zustand/localStorage cache
+    const storeNotes = currentTopic?.generatedNotes || {};
+    const notes = Object.keys(dbNotes).length > 0 ? dbNotes : storeNotes;
 
     const contentMap = {
         introduction: notes['l1'] ? normaliseContent(notes['l1']) : null,

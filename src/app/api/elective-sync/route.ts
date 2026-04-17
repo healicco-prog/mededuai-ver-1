@@ -2,13 +2,19 @@ import { checkSecurity, validateInput } from '@/lib/apiSecurity';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+// Lazily initialize the Supabase client at request-time so that
+// env vars are available and we never use placeholder strings.
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) throw new Error('[elective-sync] Missing Supabase env vars');
+  return createClient(url, key);
+}
 
 // GET: Fetch shared elective data (used by student/teacher/admin pages)
 export async function GET() {
   try {
+    const supabase = getSupabase();
     const { data, error } = await supabase
       .from('elective_shared_store')
       .select('*')
@@ -67,6 +73,7 @@ export async function POST(req: NextRequest) {
 
     // For partial updates, we need to first fetch existing data and merge
     if (Object.keys(payload).length < 9) {
+    const supabase = getSupabase();
       const { data: existing } = await supabase
         .from('elective_shared_store')
         .select('*')

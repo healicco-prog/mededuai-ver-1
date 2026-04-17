@@ -50,7 +50,7 @@ steps:
           --set-env-vars="NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL}" \
           --set-env-vars="NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY}" \
           --set-env-vars="NEXT_PUBLIC_SITE_URL=${_NEXT_PUBLIC_SITE_URL}" \
-          --set-env-vars="ALLOWED_ORIGINS=${_ALLOWED_ORIGINS}" \
+          --set-env-vars="^@^ALLOWED_ORIGINS=${_ALLOWED_ORIGINS}" \
           --set-env-vars="SUPABASE_SERVICE_ROLE_KEY=${_SUPABASE_SERVICE_ROLE_KEY}" \
           --set-env-vars="RESEND_API_KEY=${_RESEND_API_KEY}" \
           --set-env-vars="GEMINI_API_KEY=${_GEMINI_API_KEY}"

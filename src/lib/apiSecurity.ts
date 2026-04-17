@@ -3,19 +3,26 @@ import { NextResponse } from 'next/server';
 
 const ipCache = new Map<string, { count: number, resetTime: number }>();
 
-export type SecurityResult = 
+export type SecurityResult =
     | { authorized: false; response: NextResponse }
     | { authorized: true; user: any; role: any; response: null };
 
-export async function checkSecurity(req: Request, options: { 
-    roles?: string[], 
-    requireAuth?: boolean, 
-    rateLimitCount?: number 
+export async function checkSecurity(req: Request, options: {
+    roles?: string[],
+    requireAuth?: boolean,
+    rateLimitCount?: number
 } = {}): Promise<SecurityResult> {
+    // ── 0. Check for Admin Secret — bypass rate limiting for bulk operations ──
+    const adminSecret = req.headers.get('x-admin-secret');
+    const expectedSecret = process.env.ADMIN_SECRET;
+    const isAdminBypass = !!(adminSecret && expectedSecret && adminSecret === expectedSecret);
+
     // 1. Rate Limiting (in-memory per container per minute)
+    // Superadmin with admin_secret gets 10x rate limit for bulk operations
     const ip = req.headers.get('x-forwarded-for') || 'unknown';
-    const limit = options.rateLimitCount || 20; // Default 20 req/min
-    
+    const baseLimit = options.rateLimitCount || 20;
+    const limit = isAdminBypass ? baseLimit * 10 : baseLimit; // 200 req/min for admin
+
     const now = Date.now();
     let currentLimit = ipCache.get(ip);
     if (!currentLimit || currentLimit.resetTime < now) {
@@ -39,7 +46,7 @@ export async function checkSecurity(req: Request, options: {
         user = authData.user;
         role = authData.role;
 
-        if (!user || user.role !== 'authenticated' || !role) {
+        if (!user || !role) {
             return { authorized: false, response: NextResponse.json({ success: false, error: 'Unauthorized.' }, { status: 401 }) };
         }
 
