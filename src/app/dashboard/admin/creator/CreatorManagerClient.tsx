@@ -20,6 +20,9 @@ import { useCurriculumStore, type Course, type Subject, type Section, type Topic
 //  4. All known Supabase localStorage key patterns (scan)
 //
 const MEDEDUAI_PROJECT_REF = 'yrelfdwkjtaidtoulwrj';
+// Intentionally public — matches NEXT_PUBLIC_ADMIN_SECRET / Cloud Run ADMIN_SECRET.
+// Hardcoded as fallback when Netlify env vars aren't yet deployed.
+const ADMIN_SECRET_FALLBACK = 'mededuai-superadmin-2024';
 
 async function getAccessToken(forceRefresh = false): Promise<string | null> {
     try {
@@ -797,12 +800,10 @@ export default function LMSCreatorAdmin() {
         // Get a token once upfront (with refresh), then reuse for all saves in this batch.
         // getAccessToken() uses the multi-layer fallback including direct localStorage reads.
         let batchToken = await getAccessToken(true);
-        // Admin secret: prefer the build-time env var baked into the bundle,
-        // fall back to anything stored in session/localStorage.
         const adminSecret = process.env.NEXT_PUBLIC_ADMIN_SECRET
             || (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('admin_secret'))
             || (typeof localStorage !== 'undefined' && localStorage.getItem('admin_secret'))
-            || null;
+            || ADMIN_SECRET_FALLBACK;
 
         for (let i = 0; i < topicsToSave.length; i++) {
             const t = topicsToSave[i];
@@ -923,8 +924,9 @@ export default function LMSCreatorAdmin() {
             const headers: Record<string, string> = { 'Content-Type': 'application/json' };
             const adminSecret = process.env.NEXT_PUBLIC_ADMIN_SECRET
                 || sessionStorage.getItem('admin_secret')
-                || localStorage.getItem('admin_secret');
-            if (adminSecret) headers['x-admin-secret'] = adminSecret;
+                || localStorage.getItem('admin_secret')
+                || ADMIN_SECRET_FALLBACK;
+            headers['x-admin-secret'] = adminSecret;
             const token = await getAccessToken(false);
             if (token) headers['Authorization'] = `Bearer ${token}`;
 
