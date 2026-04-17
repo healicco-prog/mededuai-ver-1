@@ -17,16 +17,7 @@ export default function FetchInterceptor() {
         const headers = new Headers(config.headers || {});
 
         try {
-            // ── 1. Check for Admin Secret (both sessionStorage and localStorage) ──
-            const adminSecret = sessionStorage.getItem('admin_secret') || localStorage.getItem('admin_secret');
-            if (adminSecret) {
-                headers.set('x-admin-secret', adminSecret);
-                // Persist to both storages for resilience across tabs
-                try { sessionStorage.setItem('admin_secret', adminSecret); } catch(_) {}
-                try { localStorage.setItem('admin_secret', adminSecret); } catch(_) {}
-            }
-
-            // ── 2. Robust Supabase token lookup ──
+            // ── 1. Robust Supabase token lookup ──
             // First try the Supabase client (auto-refreshes expired tokens)
             let tokenSet = false;
 
@@ -101,9 +92,6 @@ export default function FetchInterceptor() {
             const retryConfig = { ...config };
             const retryHeaders = new Headers(retryConfig?.headers || {});
             retryHeaders.set('Authorization', `Bearer ${session.access_token}`);
-            // Re-apply admin secret
-            const adminSecret = sessionStorage.getItem('admin_secret') || localStorage.getItem('admin_secret');
-            if (adminSecret) retryHeaders.set('x-admin-secret', adminSecret);
             retryConfig.headers = retryHeaders;
             console.log('[FetchInterceptor] Retrying request with refreshed token…');
             return originalFetch(resource, retryConfig);

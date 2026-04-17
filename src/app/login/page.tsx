@@ -50,10 +50,6 @@ export default function LoginPage() {
                         expires_in: data.session.expires_in,
                         user: data.session.user,
                     }));
-                    if (data.adminSecret) {
-                        sessionStorage.setItem('admin_secret', data.adminSecret);
-                        localStorage.setItem('admin_secret', data.adminSecret);
-                    }
                 } catch (_) {
                     // localStorage may be unavailable in some environments — not critical
                 }

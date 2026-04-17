@@ -91,8 +91,7 @@ export async function POST(req: Request) {
             success: true, 
             role: frontendRole,
             session: authData.session, 
-            redirectUrl,
-            adminSecret: ['superadmin', 'masteradmin'].includes(frontendRole) ? process.env.ADMIN_SECRET : null
+            redirectUrl
         });
 
     } catch (error: any) {

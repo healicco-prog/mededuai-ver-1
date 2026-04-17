@@ -111,6 +111,8 @@ fetch_db.mjs
 create_test_users.mjs
 setup_admins.mjs
 fix_rls.sql
+build_check.json
+newbuild.json
 
 ########################################
 # Misc
@@ -133,4 +135,6 @@ tsc_cmd.txt
 
 ########################################
 # Claude / Antigravity local config
-##########################
+########################################
+.claude
+.claude/*
