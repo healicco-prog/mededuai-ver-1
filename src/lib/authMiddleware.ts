@@ -1,12 +1,11 @@
-import { getSupabaseAdmin } from './supabaseAdmin';
+import { getSupabaseAdmin, getSupabaseForAuth } from './supabaseAdmin';
 
 export async function verifyAuth(req: Request) {
     // ── 1. Check for Admin Secret (Internal/Bulk Ops) ──
     const adminSecret = req.headers.get('x-admin-secret');
     const expectedSecret = process.env.ADMIN_SECRET;
-    
+
     if (adminSecret && expectedSecret && adminSecret === expectedSecret) {
-        // Return a mock superadmin user representing the system/admin
         return {
             id: 'system-admin',
             email: 'admin@mededuai.com',
@@ -27,20 +26,36 @@ export async function verifyAuth(req: Request) {
     const token = authHeader.split(' ')[1];
     if (!token) return null;
 
+    // ── Try 1: Admin client (service role key) ──
+    // getSupabaseAdmin() already detects stale project refs and falls back to anon key.
     try {
         const supabase = getSupabaseAdmin();
         const { data, error } = await supabase.auth.getUser(token);
-        
-        if (error || !data.user) {
-            console.error('[AuthMiddleware] Verify failed:', error?.message);
-            return null;
+        if (!error && data.user) {
+            return data.user;
         }
-
-        return data.user;
+        console.warn('[AuthMiddleware] Admin client verify failed:', error?.message, '— trying anon client…');
     } catch (err: any) {
-        console.error('[AuthMiddleware] Exception getting user:', err.message);
-        return null;
+        console.warn('[AuthMiddleware] Admin client exception:', err.message, '— trying anon client…');
     }
+
+    // ── Try 2: Anon client with hardcoded MedEduAI-1 URL ──
+    // auth.getUser(token) works with the anon key — it calls the Supabase auth API
+    // using the token itself as the credential. Falls back to this when the service
+    // role key points to a stale project (common when Cloud Run env vars aren't updated).
+    try {
+        const supabase = getSupabaseForAuth();
+        const { data, error } = await supabase.auth.getUser(token);
+        if (!error && data.user) {
+            console.log('[AuthMiddleware] Verified via anon-key fallback ✓');
+            return data.user;
+        }
+        console.error('[AuthMiddleware] Anon client verify also failed:', error?.message);
+    } catch (err: any) {
+        console.error('[AuthMiddleware] Anon client exception:', err.message);
+    }
+
+    return null;
 }
 
 /**
