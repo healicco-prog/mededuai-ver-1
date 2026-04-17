@@ -2,10 +2,11 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useCurriculumStore } from '../../../../store/curriculumStore';
+import { supabase } from '@/lib/supabase';
 import {
     BrainCircuit, BookOpen, Search, Bell, Download, ChevronRight, ChevronLeft, ChevronDown, CheckCircle2,
     Sparkles, ArrowLeft, Layers, MessageSquare, Plus, AlignLeft, CheckSquare, Presentation,
-    Image as ImageIcon, RefreshCw, Trophy, Target, Clock, Zap, Menu, X, LogOut
+    Image as ImageIcon, RefreshCw, Trophy, Target, Clock, Zap, Menu, X, LogOut, Trash2, AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
@@ -634,6 +635,53 @@ export default function TeacherLMSNotes() {
     const [dbNotes, setDbNotes] = useState<Record<string, string>>({});
     const [loadingDbNotes, setLoadingDbNotes] = useState(false);
 
+    // ── Superadmin delete content state ──
+    const [isDeletingContent, setIsDeletingContent] = useState(false);
+    const [deleteContentMsg, setDeleteContentMsg] = useState<string | null>(null);
+
+    const handleDeleteTopicContent = async () => {
+        if (!currentTopic) return;
+        const dbId = currentTopic.id.startsWith('db-')
+            ? currentTopic.id.replace('db-', '')
+            : dbTopicMap[currentTopic.name];
+        if (!dbId) {
+            setDeleteContentMsg('No saved content found in database for this topic.');
+            setTimeout(() => setDeleteContentMsg(null), 4000);
+            return;
+        }
+        if (!window.confirm(`Delete all generated content for "${currentTopic.name}"?\n\nThis removes the notes & assessments from the database. The superadmin can re-generate them from the Creator.`)) return;
+
+        setIsDeletingContent(true);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+
+            const res = await fetch('/api/creator/delete', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    courseName: currentCourse?.name,
+                    subjectName: currentSubject?.name,
+                    sectionName: currentSection?.name,
+                    topicNames: [currentTopic.name],
+                }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setDbNotes({});
+                setDeleteContentMsg(`Content deleted. Re-generate from the Creator page.`);
+            } else {
+                setDeleteContentMsg(`Delete failed: ${data.error}`);
+            }
+        } catch (err: any) {
+            setDeleteContentMsg(`Error: ${err.message}`);
+        } finally {
+            setIsDeletingContent(false);
+            setTimeout(() => setDeleteContentMsg(null), 6000);
+        }
+    };
+
     // Build a merged course list: use Zustand store as the base structure,
     // then overlay/merge any topics from the database that have actual content.
     const coursesList = React.useMemo(() => {
@@ -1111,8 +1159,27 @@ export default function TeacherLMSNotes() {
                                             >
                                                 <CheckCircle2 className="w-4 h-4" /> {completedTopics[currentTopic.id] ? 'Completed' : 'Mark Completed'}
                                             </button>
+                                            {/* ── Superadmin: Delete content button ── */}
+                                            {(Object.keys(dbNotes).length > 0 || (currentTopic.id.startsWith('db-') || dbTopicMap[currentTopic.name])) && (
+                                                <button
+                                                    onClick={handleDeleteTopicContent}
+                                                    disabled={isDeletingContent}
+                                                    title="Delete this topic's content from the database so it can be re-generated"
+                                                    className="flex-none px-3 py-2.5 rounded-xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 hover:border-red-300 transition-all flex items-center gap-1.5 font-bold text-sm disabled:opacity-50"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                    {isDeletingContent ? 'Deleting…' : 'Delete Content'}
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
+                                    {/* Delete feedback message */}
+                                    {deleteContentMsg && (
+                                        <div className={`mt-3 px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 ${deleteContentMsg.startsWith('Content deleted') ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                                            {deleteContentMsg.startsWith('Content deleted') ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertTriangle className="w-4 h-4 shrink-0" />}
+                                            {deleteContentMsg}
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Tabs Navigation */}

@@ -225,7 +225,8 @@ export default function ControlPanelPage() {
                     localStorage.setItem(storageKey, JSON.stringify({
                         access_token: data.session.access_token,
                         refresh_token: data.session.refresh_token,
-                        token_type: 'bearer',\n                        expires_at: data.session.expires_at,
+                        token_type: 'bearer',
+                        expires_at: data.session.expires_at,
                         expires_in: data.session.expires_in,
                         user: data.session.user,
                     }));

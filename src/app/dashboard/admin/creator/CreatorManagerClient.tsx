@@ -397,50 +397,30 @@ export default function LMSCreatorAdmin() {
         const cooldown = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
         // ── ROBUST Auth header helper ──
-        // 1. Always includes admin_secret if available (never expires, unlike JWT)
-        // 2. Proactively refreshes the Supabase session before every call
-        // 3. Falls back to localStorage if session refresh fails
+        // Uses the Supabase client directly — always returns a fresh, valid JWT.
+        // Calls refreshSession() when forceRefresh=true (e.g. after a 401 or every N topics).
         const fetchAuthHeaders = async (forceRefresh = false): Promise<Record<string, string>> => {
             const h: Record<string, string> = { 'Content-Type': 'application/json' };
             try {
-                // ── Admin secret bypass (primary auth for superadmin bulk operations) ──
-                // Check both sessionStorage (per-tab) and localStorage (persistent)
-                const adminSecret = sessionStorage.getItem('admin_secret') || localStorage.getItem('admin_secret');
-                if (adminSecret) {
-                    h['x-admin-secret'] = adminSecret;
-                    // Persist to both storages for resilience
-                    try { sessionStorage.setItem('admin_secret', adminSecret); } catch(_) {}
-                    try { localStorage.setItem('admin_secret', adminSecret); } catch(_) {}
-                }
-
-                // ── JWT token (secondary auth, also sent for user identification) ──
                 if (forceRefresh) {
-                    // Force a session refresh to get a new JWT
-                    const { data: { session }, error } = await supabase.auth.refreshSession();
-                    if (session?.access_token) {
-                        h['Authorization'] = `Bearer ${session.access_token}`;
-                        console.log('[fetchAuthHeaders] Session refreshed successfully');
-                    } else {
-                        console.warn('[fetchAuthHeaders] Session refresh failed:', error?.message);
+                    // Explicitly ask Supabase to refresh the JWT before the next batch
+                    const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+                    if (!refreshError && refreshData.session?.access_token) {
+                        h['Authorization'] = `Bearer ${refreshData.session.access_token}`;
+                        console.log('[fetchAuthHeaders] Session force-refreshed ✓');
+                        return h;
                     }
-                } else {
-                    // Use Supabase client — auto-refreshes expired JWTs transparently
-                    const { data: { session } } = await supabase.auth.getSession();
-                    if (session?.access_token) {
-                        h['Authorization'] = `Bearer ${session.access_token}`;
+                    if (refreshError) {
+                        console.warn('[fetchAuthHeaders] Force-refresh error:', refreshError.message);
                     }
                 }
 
-                // Final fallback: read directly from localStorage
-                if (!h['Authorization']) {
-                    for (let i = 0; i < localStorage.length; i++) {
-                        const key = localStorage.key(i);
-                        if (key?.startsWith('sb-') && key?.endsWith('-auth-token')) {
-                            const parsed = JSON.parse(localStorage.getItem(key) || '{}');
-                            if (parsed.access_token) h['Authorization'] = `Bearer ${parsed.access_token}`;
-                            break;
-                        }
-                    }
+                // getSession() returns the in-memory session (auto-refreshes if near expiry)
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.access_token) {
+                    h['Authorization'] = `Bearer ${session.access_token}`;
+                } else {
+                    console.warn('[fetchAuthHeaders] No active session found — user may need to log in again');
                 }
             } catch(e) { console.warn('[fetchAuthHeaders] Failed to build auth headers:', e); }
             return h;
@@ -507,8 +487,8 @@ export default function LMSCreatorAdmin() {
                         fetchedNotes = data.generatedNotes;
                         success = true;
 
-                        // ── Auto-Save to Supabase (fire-and-forget with retry) ──
-                        const saveToDb = async (retries = 2) => {
+                        // ── Synchronous Save to Supabase (awaited — guaranteed DB write) ──
+                        const saveToDb = async (retries = 3) => {
                             for (let s = 0; s < retries; s++) {
                                 try {
                                     const authH = await fetchAuthHeaders(s > 0);
@@ -534,8 +514,9 @@ export default function LMSCreatorAdmin() {
                                 }
                                 if (s < retries - 1) await cooldown(2000);
                             }
+                            console.error(`[Auto-Save] ❌ "${pName}" could not be saved after ${retries} attempts.`);
                         };
-                        saveToDb(); // Fire and forget
+                        await saveToDb(); // AWAITED — ensures content is in DB before moving on
 
                         break; // Success — exit retry loop
                     } else {
@@ -574,9 +555,9 @@ export default function LMSCreatorAdmin() {
         };
 
         // ── PARALLEL BATCH GENERATION ──
-        // Process topics in parallel batches of 2 to maximize throughput
+        // Process topics in parallel batches of 4 to maximize throughput
         // while staying within Gemini API rate limits.
-        const BATCH_SIZE = 2; // 2 concurrent generations (safe for Gemini quotas)
+        const BATCH_SIZE = 4; // 4 concurrent generations (optimal for Gemini Flash)
         let completedCount = 0;
 
         for (let batchStart = 0; batchStart < totalTopics; batchStart += BATCH_SIZE) {
@@ -621,7 +602,7 @@ export default function LMSCreatorAdmin() {
 
             // ── Cooldown between batches (not between individual topics) ──
             if (batchEnd < totalTopics) {
-                const waitTime = totalTopics > 10 ? 3000 : 2000;
+                const waitTime = totalTopics > 20 ? 3000 : 1500;
                 console.log(`[Generation Engine] Batch complete (${completedCount}/${totalTopics}). Cooling down ${waitTime/1000}s…`);
                 await cooldown(waitTime);
             }
@@ -685,6 +666,82 @@ export default function LMSCreatorAdmin() {
     useEffect(() => {
         loadExistingNotes();
     }, [loadExistingNotes]);
+
+    // ── Force Save Generated Content to Supabase ────────────────────────
+    // Saves all topics that have generatedNotes in Zustand but may not be in DB
+    const [isForceSaving, setIsForceSaving] = useState(false);
+    const [forceSaveProgress, setForceSaveProgress] = useState(0);
+    const [forceSaveMessage, setForceSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+    const handleForceSaveToDb = async () => {
+        if (!engineCourse || !engineSubject || !engineSection) return;
+
+        const topicsToSave = engineSection.topics.filter(t =>
+            t.generatedNotes && Object.keys(t.generatedNotes).length > 0
+        );
+
+        if (topicsToSave.length === 0) {
+            setForceSaveMessage({ type: 'error', text: 'No generated content found in memory to save.' });
+            setTimeout(() => setForceSaveMessage(null), 4000);
+            return;
+        }
+
+        setIsForceSaving(true);
+        setForceSaveProgress(0);
+        setForceSaveMessage(null);
+
+        let savedCount = 0;
+        let failedCount = 0;
+
+        for (let i = 0; i < topicsToSave.length; i++) {
+            const t = topicsToSave[i];
+            setForceSaveProgress(Math.round(((i) / topicsToSave.length) * 100));
+            try {
+                // Get a fresh session token for each save
+                const { data: { session } } = await supabase.auth.getSession();
+                const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+
+                const res = await fetch('/api/creator/save', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        courseName: engineCourse.name,
+                        subjectName: engineSubject.name,
+                        sectionName: engineSection.name,
+                        topicName: t.name,
+                        generatedNotes: t.generatedNotes,
+                    }),
+                });
+                const result = await res.json();
+                if (result.success) {
+                    savedCount++;
+                    console.log(`[ForceSave] ✅ Saved "${t.name}" (topicId: ${result.topicId})`);
+                } else {
+                    failedCount++;
+                    console.warn(`[ForceSave] ⚠️ Failed to save "${t.name}":`, result.error);
+                }
+            } catch (err: any) {
+                failedCount++;
+                console.warn(`[ForceSave] ⚠️ Network error saving "${t.name}":`, err.message);
+            }
+            // Small delay between saves to avoid overwhelming the DB
+            if (i < topicsToSave.length - 1) await new Promise(r => setTimeout(r, 300));
+        }
+
+        setForceSaveProgress(100);
+        setIsForceSaving(false);
+
+        if (failedCount === 0) {
+            setForceSaveMessage({ type: 'success', text: `✅ Saved ${savedCount} topic(s) to database. Content is now visible to all users!` });
+        } else {
+            setForceSaveMessage({
+                type: savedCount > 0 ? 'success' : 'error',
+                text: `Saved ${savedCount} topic(s). ${failedCount} failed — check auth/session and retry.`
+            });
+        }
+        setTimeout(() => setForceSaveMessage(null), 8000);
+    };
 
     // ── Delete Generated Content from Supabase ──────────────────────────
     const [isDeleting, setIsDeleting] = useState(false);
@@ -1523,12 +1580,44 @@ export default function LMSCreatorAdmin() {
 
                             <button
                                 onClick={handleStartGeneration}
-                                disabled={isGenerating || isDeleting || engineSelectedTopics.length === 0}
+                                disabled={isGenerating || isDeleting || isForceSaving || engineSelectedTopics.length === 0}
                                 className="w-full py-3.5 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                             >
                                 <Play className="w-4 h-4 fill-current" />
                                 {isGenerating ? 'Gemini Generating...' : `Generate ${engineSelectedTopics.length} Notes`}
                             </button>
+
+                            {/* ── Force Save to DB ── */}
+                            {(() => {
+                                const topicsWithNotes = engineSection?.topics.filter(t => t.generatedNotes && Object.keys(t.generatedNotes).length > 0) || [];
+                                if (topicsWithNotes.length === 0) return null;
+                                return (
+                                    <div className="space-y-2">
+                                        <button
+                                            onClick={handleForceSaveToDb}
+                                            disabled={isGenerating || isDeleting || isForceSaving}
+                                            className="w-full py-2.5 bg-emerald-600 text-white font-bold text-sm rounded-xl hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                                            title="Push all in-memory generated notes to Supabase so they are visible to all users"
+                                        >
+                                            <CheckCircle2 className="w-4 h-4" />
+                                            {isForceSaving
+                                                ? `Saving... ${forceSaveProgress}%`
+                                                : `Save ${topicsWithNotes.length} Notes to DB`}
+                                        </button>
+                                        {isForceSaving && (
+                                            <div className="w-full h-1.5 bg-emerald-100 rounded-full overflow-hidden">
+                                                <div className="h-full bg-emerald-500 rounded-full transition-all duration-300" style={{ width: `${forceSaveProgress}%` }} />
+                                            </div>
+                                        )}
+                                        {forceSaveMessage && (
+                                            <div className={`rounded-lg p-2.5 text-xs font-semibold flex items-start gap-2 ${forceSaveMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                                                {forceSaveMessage.type === 'success' ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5" /> : <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />}
+                                                {forceSaveMessage.text}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })()}
 
                             {/* ── Delete Content Controls ── */}
                             <div className="flex gap-2">

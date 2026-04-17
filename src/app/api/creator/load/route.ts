@@ -64,7 +64,7 @@ export async function GET(req: Request) {
         // Fetch all lms_content for these topics
         const { data: lmsContents } = await supabase
             .from('lms_content')
-            .select('topic_id, introduction, detailed_notes, summary, marks_10_questions, marks_5_questions, marks_3_reasoning, marks_2_case_mcqs, marks_1_mcqs, flashcards')
+            .select('topic_id, introduction, detailed_notes, summary, marks_10_questions, marks_5_questions, marks_3_reasoning, marks_2_case_mcqs, marks_1_mcqs, flashcards, ppt_content')
             .in('topic_id', topicIds);
 
         // Build a map: topicName → generatedNotes (l1…l10 keys)
@@ -85,6 +85,9 @@ export async function GET(req: Request) {
             if (content.marks_2_case_mcqs) notes['l7'] = content.marks_2_case_mcqs;
             if (content.marks_1_mcqs) notes['l8'] = content.marks_1_mcqs;
             if (content.flashcards?.raw) notes['l9'] = content.flashcards.raw;
+            else if (typeof content.flashcards === 'string') notes['l9'] = content.flashcards;
+            if (content.ppt_content?.raw) notes['l10'] = content.ppt_content.raw;
+            else if (typeof content.ppt_content === 'string') notes['l10'] = content.ppt_content;
 
             if (Object.keys(notes).length > 0) {
                 lmsMap[topic.name] = notes;
