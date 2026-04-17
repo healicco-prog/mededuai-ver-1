@@ -818,13 +818,12 @@ export default function LMSCreatorAdmin() {
         let failedCount = 0;
         let lastError = '';
 
-        // ── Resolve course/subject/section IDs once (shared across all topic saves) ──
+        // ── Resolve course + subject IDs once (shared across all topic saves) ──
+        // DB schema: courses → subjects → topics (section stored as TEXT in topics.section)
+        // There is NO separate 'sections' table.
         // We write DIRECTLY to Supabase from the browser — bypasses Cloud Run auth entirely.
-        // The user's active JWT (they're logged in as superadmin) is sent automatically
-        // by the supabase client. This works regardless of Cloud Run env var misconfigs.
         let courseId: string | null = null;
         let subjectId: string | null = null;
-        let sectionId: string | null = null;
         try {
             courseId = await resolveOrCreate(
                 'courses', { name: engineCourse.name }, { name: engineCourse.name }
@@ -834,27 +833,34 @@ export default function LMSCreatorAdmin() {
                 { name: engineSubject.name, course_id: courseId },
                 { name: engineSubject.name, course_id: courseId }
             );
-            if (subjectId) sectionId = await resolveOrCreate(
-                'sections',
-                { name: engineSection.name, subject_id: subjectId },
-                { name: engineSection.name, subject_id: subjectId }
-            );
         } catch (e: any) {
-            console.warn('[DirectSave] Could not resolve course/subject/section:', e.message);
+            console.warn('[DirectSave] Could not resolve course/subject:', e.message);
         }
 
         for (let i = 0; i < topicsToSave.length; i++) {
             const t = topicsToSave[i];
             setForceSaveProgress(Math.round(((i) / topicsToSave.length) * 100));
             try {
-                if (!sectionId) throw new Error('Could not resolve section in DB');
+                if (!subjectId) throw new Error('Could not resolve subject in DB');
 
-                // Resolve/create topic
-                const topicId = await resolveOrCreate(
-                    'topics',
-                    { name: t.name, section_id: sectionId },
-                    { name: t.name, section_id: sectionId }
-                );
+                // Resolve/create topic — section stored as text column, not FK
+                const { data: existingTopic } = await supabase
+                    .from('topics')
+                    .select('id')
+                    .eq('name', t.name)
+                    .eq('subject_id', subjectId)
+                    .maybeSingle();
+
+                let topicId: string | null = existingTopic?.id || null;
+                if (!topicId) {
+                    const { data: newTopic, error: topicErr } = await supabase
+                        .from('topics')
+                        .insert({ name: t.name, subject_id: subjectId, section: engineSection.name })
+                        .select('id')
+                        .single();
+                    if (topicErr || !newTopic?.id) throw new Error(`Could not create topic: ${topicErr?.message}`);
+                    topicId = newTopic.id;
+                }
                 if (!topicId) throw new Error('Could not resolve topic in DB');
 
                 // Build lms_content payload
