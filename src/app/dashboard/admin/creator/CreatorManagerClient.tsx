@@ -796,6 +796,7 @@ export default function LMSCreatorAdmin() {
 
         let savedCount = 0;
         let failedCount = 0;
+        let lastError = '';
 
         // Get a token once upfront (with refresh), then reuse for all saves in this batch.
         // getAccessToken() uses the multi-layer fallback including direct localStorage reads.
@@ -837,6 +838,7 @@ export default function LMSCreatorAdmin() {
                     console.log(`[ForceSave] ✅ Saved "${t.name}" (topicId: ${result.topicId})`);
                 } else {
                     failedCount++;
+                    lastError = `HTTP ${res.status}: ${result.error || 'unknown'}`;
                     console.warn(`[ForceSave] ⚠️ Failed to save "${t.name}" (HTTP ${res.status}):`, result.error);
                     // If we get a 401, try once more with a forced token refresh
                     if (res.status === 401) {
@@ -869,6 +871,7 @@ export default function LMSCreatorAdmin() {
                 }
             } catch (err: any) {
                 failedCount++;
+                lastError = `Network: ${err.message}`;
                 console.warn(`[ForceSave] ⚠️ Network error saving "${t.name}":`, err.message);
             }
             // Small delay between saves to avoid overwhelming the DB
@@ -886,7 +889,7 @@ export default function LMSCreatorAdmin() {
                 type: savedCount > 0 ? 'success' : 'error',
                 text: noToken
                     ? `Save failed — not logged in. Please log out and log back in, then retry.`
-                    : `Saved ${savedCount} topic(s). ${failedCount} failed — please retry.`
+                    : `Saved ${savedCount} topic(s). ${failedCount} failed — ${lastError || 'please retry.'}`
             });
         }
         setTimeout(() => setForceSaveMessage(null), 10000);
