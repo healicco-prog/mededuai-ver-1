@@ -799,12 +799,12 @@ export default function LMSCreatorAdmin() {
         let lastError = '';
 
         // Get a token once upfront (with refresh), then reuse for all saves in this batch.
-        // getAccessToken() uses the multi-layer fallback including direct localStorage reads.
+        // getAccessToken() uses a multi-layer fallback including direct localStorage reads,
+        // so it finds the MedEduAI-1 token even if the supabase client points to a stale project.
+        // NOTE: We deliberately do NOT send x-admin-secret here — that custom header triggers
+        // a CORS preflight and the current Cloud Run deployment doesn't allow it yet.
+        // JWT Bearer token is sufficient once Cloud Run's SUPABASE_SERVICE_ROLE_KEY is correct.
         let batchToken = await getAccessToken(true);
-        const adminSecret = process.env.NEXT_PUBLIC_ADMIN_SECRET
-            || (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('admin_secret'))
-            || (typeof localStorage !== 'undefined' && localStorage.getItem('admin_secret'))
-            || ADMIN_SECRET_FALLBACK;
 
         for (let i = 0; i < topicsToSave.length; i++) {
             const t = topicsToSave[i];
@@ -814,7 +814,6 @@ export default function LMSCreatorAdmin() {
                 if (i > 0 && i % 5 === 0) batchToken = await getAccessToken(true);
                 const headers: Record<string, string> = { 'Content-Type': 'application/json' };
                 if (batchToken) headers['Authorization'] = `Bearer ${batchToken}`;
-                if (adminSecret) headers['x-admin-secret'] = adminSecret;
 
                 const res = await fetch('/api/creator/save', {
                     method: 'POST',
@@ -846,7 +845,6 @@ export default function LMSCreatorAdmin() {
                         batchToken = await getAccessToken(true);
                         if (batchToken) {
                             const retryHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${batchToken}` };
-                            if (adminSecret) (retryHeaders as any)['x-admin-secret'] = adminSecret;
                             try {
                                 const retryRes = await fetch('/api/creator/save', {
                                     method: 'POST',
@@ -923,13 +921,8 @@ export default function LMSCreatorAdmin() {
         setDeleteMessage(null);
 
         try {
-            // Build auth headers — use robust multi-layer token fallback
+            // Build auth headers — use robust multi-layer token fallback (JWT only, no x-admin-secret)
             const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-            const adminSecret = process.env.NEXT_PUBLIC_ADMIN_SECRET
-                || sessionStorage.getItem('admin_secret')
-                || localStorage.getItem('admin_secret')
-                || ADMIN_SECRET_FALLBACK;
-            headers['x-admin-secret'] = adminSecret;
             const token = await getAccessToken(false);
             if (token) headers['Authorization'] = `Bearer ${token}`;
 
