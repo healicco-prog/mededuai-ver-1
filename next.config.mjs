@@ -15,19 +15,9 @@ const nextConfig = {
     ],
   },
 
-  async headers() {
-    return [
-      {
-        source: '/api/:path*',
-        headers: [
-          { key: 'Access-Control-Allow-Origin', value: '*' },
-          { key: 'Access-Control-Allow-Methods', value: 'GET, POST, PUT, PATCH, DELETE, OPTIONS' },
-          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization, X-Requested-With, x-admin-secret' },
-          { key: 'Access-Control-Max-Age', value: '86400' },
-        ],
-      },
-    ];
-  },
+  // CORS is handled dynamically by src/middleware.ts (per-origin check).
+  // Do NOT add static Access-Control-Allow-Origin headers here — a single
+  // comma-joined multi-origin value is invalid and browsers will reject it.
 
   async rewrites() {
     // When running on Netlify, proxy ALL API calls to Cloud Run.

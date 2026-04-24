@@ -115,7 +115,7 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
     const isDeptAdmin = role === 'deptadmin' || role === 'masteradmin' || role === 'superadmin';
     const isInstAdmin = role === 'instadmin' || role === 'masteradmin' || role === 'superadmin';
     const isMasterOrSuperAdmin = role === 'masteradmin' || role === 'superadmin';
-    const showControlPanelButton = ['superadmin', 'masteradmin', 'instadmin', 'deptadmin'].includes(role);
+    const showControlPanelButton = role === 'superadmin' || role === 'masteradmin';
     const isSuperAdmin = role === 'superadmin';
 
     const getDashboardTitle = (roleName: string) => {

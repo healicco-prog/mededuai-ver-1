@@ -8,6 +8,7 @@ interface SavePayload {
     sectionName: string;
     topicName: string;
     generatedNotes: Record<string, string>;
+    version?: string; // e.g. "2025", "2026", "2027"
 }
 
 /**
@@ -66,7 +67,7 @@ export async function POST(req: Request) {
 
     try {
         const body: SavePayload = await req.json();
-        const { courseName, subjectName, sectionName, topicName, generatedNotes } = body;
+        const { courseName, subjectName, sectionName, topicName, generatedNotes, version } = body;
 
         if (!courseName || !subjectName || !topicName || !generatedNotes) {
             return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
@@ -123,18 +124,25 @@ export async function POST(req: Request) {
         const lmsPayload: Record<string, any> = {
             topic_id: topicId,
             last_generated_at: new Date().toISOString(),
+            // ── Denormalized metadata for easy public querying ──
+            course: courseName,
+            subject: subjectName,
+            topic: topicName,
         };
+
+        // ── Version (e.g. "2025", "2026") — defaults to current year ──
+        lmsPayload['version'] = version || new Date().getFullYear().toString();
 
         // Map generic LMS structure IDs to lms_content columns
         if (generatedNotes['l1']) lmsPayload['introduction'] = generatedNotes['l1'];
         if (generatedNotes['l2']) lmsPayload['detailed_notes'] = generatedNotes['l2'];
         if (generatedNotes['l3']) lmsPayload['summary'] = generatedNotes['l3'];
-        // ── New question columns (l4–l8) ──
+        // ── Question columns (standardized names) ──
         if (generatedNotes['l4'] && generatedNotes['l4'] !== 'None requested.') lmsPayload['marks_10_questions'] = generatedNotes['l4'];
         if (generatedNotes['l5'] && generatedNotes['l5'] !== 'None requested.') lmsPayload['marks_5_questions'] = generatedNotes['l5'];
-        if (generatedNotes['l6'] && generatedNotes['l6'] !== 'None requested.') lmsPayload['marks_3_reasoning'] = generatedNotes['l6'];
-        if (generatedNotes['l7'] && generatedNotes['l7'] !== 'None requested.') lmsPayload['marks_2_case_mcqs'] = generatedNotes['l7'];
-        if (generatedNotes['l8'] && generatedNotes['l8'] !== 'None requested.') lmsPayload['marks_1_mcqs'] = generatedNotes['l8'];
+        if (generatedNotes['l6'] && generatedNotes['l6'] !== 'None requested.') lmsPayload['marks_3_questions'] = generatedNotes['l6'];
+        if (generatedNotes['l7'] && generatedNotes['l7'] !== 'None requested.') lmsPayload['marks_2_questions'] = generatedNotes['l7'];
+        if (generatedNotes['l8'] && generatedNotes['l8'] !== 'None requested.') lmsPayload['marks_1_questions'] = generatedNotes['l8'];
         if (generatedNotes['l9'] && generatedNotes['l9'] !== 'None requested.') {
             lmsPayload['flashcards'] = { raw: generatedNotes['l9'] };
         }
@@ -162,7 +170,7 @@ export async function POST(req: Request) {
 
         // If the error is about missing columns (old schema), retry with only core columns
         if (saveErr && (saveErr.message?.includes('column') || saveErr.message?.includes('does not exist'))) {
-            console.warn('[Creator Save] marks_* columns missing — falling back to core columns only:', saveErr.message);
+            console.warn('[Creator Save] Extended columns missing — falling back to core columns only:', saveErr.message);
             const corePayload: Record<string, any> = {
                 topic_id: topicId,
                 last_generated_at: lmsPayload['last_generated_at'],
@@ -175,7 +183,7 @@ export async function POST(req: Request) {
             const { error: coreErr } = await trySave(corePayload);
             if (coreErr) throw new Error(`lms_content save failed: ${coreErr.message}`);
             saveErr = null; // Core save succeeded
-            console.log('[Creator Save] Core columns saved successfully (marks_* skipped)');
+            console.log('[Creator Save] Core columns saved successfully (extended columns skipped — run migration SQL)');
         } else if (saveErr) {
             throw new Error(`lms_content save failed: ${saveErr.message}`);
         }
@@ -185,7 +193,7 @@ export async function POST(req: Request) {
         const assessmentSources = [
             { key: 'l4', marks: 10, type: 'essay' },
             { key: 'l5', marks: 5, type: 'essay' },
-            { key: 'l6', marks: 3, type: 'reasoning' },
+            { key: 'l6', marks: 3, type: 'short-answer' },
             { key: 'l7', marks: 2, type: 'case-based' },
             { key: 'l8', marks: 1, type: 'mcq' },
         ];

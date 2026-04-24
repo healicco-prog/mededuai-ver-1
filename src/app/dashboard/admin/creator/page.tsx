@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import CreatorManagerClient from './CreatorManagerClient';
+import CreatorManagerWrapper from './CreatorManagerWrapper';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -17,7 +17,7 @@ export default async function AdminCreatorPage() {
 
     return (
         <div className="w-full">
-            <CreatorManagerClient />
+            <CreatorManagerWrapper />
         </div>
     );
 }

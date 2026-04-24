@@ -1,21 +1,18 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { checkSecurity } from '@/lib/apiSecurity';
 
 /**
  * POST /api/admin/fix-admin-role
  * One-time utility: sets drnarayanak@gmail.com as superadmin
  * in both auth.users (user_metadata) and the public.profiles table.
- * Protected by a secret token in the request body.
+ * Requires superadmin or masteradmin JWT.
  */
 export async function POST(req: Request) {
+    const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin'] });
+    if (!sec.authorized) return sec.response;
+
     try {
-        const { secret } = await req.json();
-
-        // Simple guard – change this to something private if you need
-        if (secret !== 'mededuai-fix-2026') {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
         const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 

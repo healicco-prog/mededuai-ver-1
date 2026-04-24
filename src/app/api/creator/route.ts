@@ -314,7 +314,7 @@ You are generating notes for BSc Nursing students. Your content must be:
             prompt += `IMPORTANT: Respect the WRITING FORMAT for each section (essay vs bullet points vs concise summary). If a word count is specified, you MUST reach that word count. If a quantity is specified, you MUST generate that exact number of items.`;
 
             console.log(`[Creator API] [${chunkLabel}] Generating ${items.length} section(s) for "${topicName}"…`);
-            const rawText = await generateText(prompt);
+            const rawText = await generateText(prompt, undefined, true);
             console.log(`[Creator API] [${chunkLabel}] Raw output length: ${rawText.length} chars`);
 
             return parseDelimitedSections(rawText, items);
@@ -369,7 +369,7 @@ You are generating notes for BSc Nursing students. Your content must be:
                     `REMEMBER: Use the EXACT delimiter format.`;
 
                 try {
-                    const topUpRaw = await generateText(topUpPrompt);
+                    const topUpRaw = await generateText(topUpPrompt, undefined, true);
                     const topUpParsed = parseDelimitedSections(topUpRaw, [item]);
                     const topUpContent = topUpParsed[item.id] || '';
 

@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '../../../../lib/supabaseAdmin';
+import { checkSecurity } from '@/lib/apiSecurity';
 
-export async function GET(_req: NextRequest) {
+const ADMIN_ROLES = ['superadmin', 'masteradmin'];
+
+export async function GET(req: NextRequest) {
+  const sec = await checkSecurity(req, { roles: ADMIN_ROLES });
+  if (!sec.authorized) return sec.response;
+
   const supabaseAdmin = getSupabaseAdmin();
   // Fetch all users with their subscription data
   const { data: users, error: uErr } = await supabaseAdmin
@@ -47,6 +53,9 @@ export async function GET(_req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const sec = await checkSecurity(req, { roles: ADMIN_ROLES });
+  if (!sec.authorized) return sec.response;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const { userId, newBalance, reason, adminId } = await req.json();
@@ -78,6 +87,9 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
+  const sec = await checkSecurity(req, { roles: ADMIN_ROLES });
+  if (!sec.authorized) return sec.response;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const { userId, plan_tier, billing_status, ai_tokens_balance, ai_tokens_allotment, role } = await req.json();

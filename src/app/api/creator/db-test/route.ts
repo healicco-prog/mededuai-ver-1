@@ -50,7 +50,7 @@ export async function GET() {
         // 4. Check lms_content table and columns
         const { data: lms, error: lmsErr } = await supabase
             .from('lms_content')
-            .select('id, topic_id, introduction, detailed_notes, summary, marks_10_questions, marks_5_questions, marks_3_reasoning, marks_2_case_mcqs, marks_1_mcqs, flashcards, ppt_content')
+            .select('id, topic_id, version, course, subject, topic, introduction, detailed_notes, summary, marks_10_questions, marks_5_questions, marks_3_questions, marks_2_questions, marks_1_questions, flashcards, ppt_content')
             .limit(3);
 
         if (lmsErr) {
@@ -89,16 +89,22 @@ export async function GET() {
             report.profilesSample = profiles?.map(p => ({ email: p.email, role: p.role })) ?? [];
         }
 
-        // 8. Try inserting/checking lms_content schema for marks columns
-        // (check if the marks_* columns exist by looking at a known missing column error)
-        const { error: colCheckErr } = await supabase
-            .from('lms_content')
-            .select('marks_10_questions')
-            .limit(1);
-        report.hasMarksColumns = !colCheckErr;
-        if (colCheckErr) {
-            report.marksColumnError = colCheckErr.message;
-            report.errors.push('marks columns missing: ' + colCheckErr.message);
+        // 8. Check all extended columns exist
+        const { error: colMarksErr } = await supabase
+            .from('lms_content').select('marks_10_questions, marks_3_questions').limit(1);
+        const { error: colMetaErr } = await supabase
+            .from('lms_content').select('version, course, subject, topic').limit(1);
+
+        report.hasMarksColumns = !colMarksErr;
+        report.hasMetaColumns = !colMetaErr;
+
+        if (colMarksErr) {
+            report.marksColumnError = colMarksErr.message;
+            report.errors.push('marks columns missing (run migration SQL): ' + colMarksErr.message);
+        }
+        if (colMetaErr) {
+            report.metaColumnError = colMetaErr.message;
+            report.errors.push('version/course/subject/topic columns missing (run migration SQL): ' + colMetaErr.message);
         }
 
         report.status = report.errors.length === 0 ? 'ALL_OK' : 'HAS_ERRORS';

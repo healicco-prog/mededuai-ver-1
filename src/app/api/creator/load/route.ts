@@ -65,16 +65,27 @@ export async function GET(req: Request) {
         let lmsContents: any[] | null = null;
         const { data: lmsFull, error: lmsFullErr } = await supabase
             .from('lms_content')
-            .select('topic_id, introduction, detailed_notes, summary, marks_10_questions, marks_5_questions, marks_3_reasoning, marks_2_case_mcqs, marks_1_mcqs, flashcards, ppt_content')
+            .select('topic_id, version, course, subject, topic, introduction, detailed_notes, summary, marks_10_questions, marks_5_questions, marks_3_questions, marks_2_questions, marks_1_questions, flashcards, ppt_content')
             .in('topic_id', topicIds);
 
         if (lmsFullErr && (lmsFullErr.message?.includes('column') || lmsFullErr.message?.includes('does not exist'))) {
-            console.warn('[Creator Load] marks_* columns missing, fetching core columns only');
-            const { data: lmsCore } = await supabase
+            // Try without new columns (partially migrated schema)
+            console.warn('[Creator Load] Some columns missing, trying reduced column set');
+            const { data: lmsMid, error: lmsMidErr } = await supabase
                 .from('lms_content')
-                .select('topic_id, introduction, detailed_notes, summary, flashcards, ppt_content')
+                .select('topic_id, introduction, detailed_notes, summary, marks_10_questions, marks_5_questions, marks_3_questions, marks_2_questions, marks_1_questions, flashcards, ppt_content')
                 .in('topic_id', topicIds);
-            lmsContents = lmsCore;
+            if (lmsMidErr && (lmsMidErr.message?.includes('column') || lmsMidErr.message?.includes('does not exist'))) {
+                // Old schema fallback
+                console.warn('[Creator Load] marks_* columns missing, fetching core columns only');
+                const { data: lmsCore } = await supabase
+                    .from('lms_content')
+                    .select('topic_id, introduction, detailed_notes, summary, flashcards, ppt_content')
+                    .in('topic_id', topicIds);
+                lmsContents = lmsCore;
+            } else {
+                lmsContents = lmsMid;
+            }
         } else {
             lmsContents = lmsFull;
         }
@@ -90,12 +101,12 @@ export async function GET(req: Request) {
             if (content.introduction) notes['l1'] = content.introduction;
             if (content.detailed_notes) notes['l2'] = content.detailed_notes;
             if (content.summary) notes['l3'] = content.summary;
-            // ── New question columns ──
+            // ── Question columns (standardized names) ──
             if (content.marks_10_questions) notes['l4'] = content.marks_10_questions;
             if (content.marks_5_questions) notes['l5'] = content.marks_5_questions;
-            if (content.marks_3_reasoning) notes['l6'] = content.marks_3_reasoning;
-            if (content.marks_2_case_mcqs) notes['l7'] = content.marks_2_case_mcqs;
-            if (content.marks_1_mcqs) notes['l8'] = content.marks_1_mcqs;
+            if (content.marks_3_questions) notes['l6'] = content.marks_3_questions;
+            if (content.marks_2_questions) notes['l7'] = content.marks_2_questions;
+            if (content.marks_1_questions) notes['l8'] = content.marks_1_questions;
             if (content.flashcards?.raw) notes['l9'] = content.flashcards.raw;
             else if (typeof content.flashcards === 'string') notes['l9'] = content.flashcards;
             if (content.ppt_content?.raw) notes['l10'] = content.ppt_content.raw;

@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '../../../lib/supabaseAdmin';
+import { verifyAuthAndRole } from '@/lib/authMiddleware';
+import { checkSecurity } from '@/lib/apiSecurity';
 
 // ── GET: Fetch subscription for a user ─────────────────────
 export async function GET(req: NextRequest) {
+  const { user, role } = await verifyAuthAndRole(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const supabaseAdmin = getSupabaseAdmin();
   const userId = req.nextUrl.searchParams.get('userId');
   if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 });
+
+  const isAdmin = role === 'superadmin' || role === 'masteradmin';
+  if (!isAdmin && user.id !== userId) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   const { data, error } = await supabaseAdmin
     .from('subscriptions')
@@ -83,6 +93,9 @@ export async function GET(req: NextRequest) {
 
 // ── PUT: Admin actions (extend trial, add bonus tokens) ────
 export async function PUT(req: NextRequest) {
+  const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin'] });
+  if (!sec.authorized) return sec.response;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const { action, targetUserId, adminId, amount, reason } = await req.json();

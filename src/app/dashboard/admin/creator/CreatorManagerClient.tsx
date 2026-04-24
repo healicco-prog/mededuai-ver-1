@@ -5,6 +5,7 @@ import { BrainCircuit, Play, CheckCircle2, RotateCcw, AlertTriangle, Plus, Spark
 import { supabase } from '@/lib/supabase';
 
 import { useCurriculumStore, type Course, type Subject, type Section, type Topic, type LMSNotesStructureItem, defaultLMSStructure } from '../../../../store/curriculumStore';
+import { useCurriculumStoreHydrated } from '@/hooks/useCurriculumStoreHydrated';
 
 // ── Robust session token retrieval ──────────────────────────────────────────
 // The Netlify frontend's NEXT_PUBLIC_SUPABASE_URL may still point to a stale
@@ -20,9 +21,9 @@ import { useCurriculumStore, type Course, type Subject, type Section, type Topic
 //  4. All known Supabase localStorage key patterns (scan)
 //
 const MEDEDUAI_PROJECT_REF = 'yrelfdwkjtaidtoulwrj';
-// Intentionally public — matches NEXT_PUBLIC_ADMIN_SECRET / Cloud Run ADMIN_SECRET.
-// Hardcoded as fallback when Netlify env vars aren't yet deployed.
-const ADMIN_SECRET_FALLBACK = 'mededuai-superadmin-2024';
+// Comes from NEXT_PUBLIC_ADMIN_SECRET baked into .env.production at build time.
+// Must match ADMIN_SECRET set in Cloud Run environment variables.
+const ADMIN_SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET || '';
 
 async function getAccessToken(forceRefresh = false): Promise<string | null> {
     try {
@@ -50,10 +51,7 @@ async function getAccessToken(forceRefresh = false): Promise<string | null> {
             const token = parsed?.access_token
                 || parsed?.currentSession?.access_token
                 || parsed?.session?.access_token;
-            if (token) {
-                console.log(`[getAccessToken] Fallback token found via localStorage key "${key}" ✓`);
-                return token;
-            }
+            if (token) return token;
         }
         // 3. Scan all localStorage keys for any sb-*-auth-token pattern
         for (let i = 0; i < localStorage.length; i++) {
@@ -65,10 +63,7 @@ async function getAccessToken(forceRefresh = false): Promise<string | null> {
                 const token = parsed?.access_token
                     || parsed?.currentSession?.access_token
                     || parsed?.session?.access_token;
-                if (token) {
-                    console.log(`[getAccessToken] Fallback token found via scan of localStorage key "${k}" ✓`);
-                    return token;
-                }
+                if (token) return token;
             }
         }
     } catch (_) { /* localStorage unavailable */ }
@@ -78,6 +73,11 @@ async function getAccessToken(forceRefresh = false): Promise<string | null> {
 }
 
 export default function LMSCreatorAdmin() {
+    // ── Hydration guard: prevents Zustand persist rehydration mismatch crash ──
+    // Must be called before any store access so the component returns a loading
+    // state on the first render (before localStorage data is loaded into the store).
+    const storeHydrated = useCurriculumStoreHydrated();
+
     // Top-Level State
     const [activeTab, setActiveTab] = useState<'generation' | 'curriculum' | 'structure'>('curriculum');
 
@@ -124,6 +124,8 @@ export default function LMSCreatorAdmin() {
     const [engineSelectedTopics, setEngineSelectedTopics] = useState<string[]>([]);
     const [currentTopicName, setCurrentTopicName] = useState('');
     const [editingGeneratedTopicId, setEditingGeneratedTopicId] = useState<string | null>(null);
+    // Curriculum version (e.g. "2025", "2026", "2027") — used to tag generated content
+    const [engineVersion, setEngineVersion] = useState<string>(new Date().getFullYear().toString());
 
     // Drag-and-drop state for LMS Structure sections
     const dragItemRef = useRef<number | null>(null);
@@ -475,8 +477,15 @@ export default function LMSCreatorAdmin() {
         // ── ROBUST Auth header helper ──
         // Delegates to the module-level getAccessToken() which has a multi-layer
         // fallback including direct localStorage reads for the MedEduAI-1 project ref.
+        // Also sends x-admin-secret so the server can authenticate even when the JWT
+        // is expired — all three are accepted independently by authMiddleware.ts.
         const fetchAuthHeaders = async (forceRefresh = false): Promise<Record<string, string>> => {
-            const h: Record<string, string> = { 'Content-Type': 'application/json' };
+            const h: Record<string, string> = {
+                'Content-Type': 'application/json',
+                // Admin secret: accepted by authMiddleware as Layer 1, before JWT.
+                // Ensures superadmin requests always go through regardless of JWT state.
+                'x-admin-secret': ADMIN_SECRET,
+            };
             const token = await getAccessToken(forceRefresh);
             if (token) h['Authorization'] = `Bearer ${token}`;
             return h;
@@ -496,15 +505,16 @@ export default function LMSCreatorAdmin() {
 
             for (let attempt = 1; attempt <= maxTopicRetries; attempt++) {
                 try {
-                    console.log(`[Generation Engine] Topic "${pName}" — attempt ${attempt}/${maxTopicRetries}`);
                     setCurrentTopicName(`${pName} (${topicIndex + 1}/${totalTopics}${attempt > 1 ? ` — Retry ${attempt}` : ''})`);
 
                     // ── Refresh session every 5 topics or on auth-retry to prevent JWT expiry ──
                     const needsRefresh = attempt > 1 || topicIndex % 5 === 0;
 
                     const controller = new AbortController();
-                    // 10-minute timeout per topic (enough for the largest generations)
-                    const timeoutId = setTimeout(() => controller.abort(), 600000);
+                    // 3-minute timeout per topic. Thinking tokens are disabled on the
+                    // server (thinkingBudget:0), so each topic completes in ~30–90s.
+                    // Shorter timeout = failed topics retry faster during large batches.
+                    const timeoutId = setTimeout(() => controller.abort(), 180000);
 
                     const response = await fetch('/api/creator', {
                         method: 'POST',
@@ -557,11 +567,11 @@ export default function LMSCreatorAdmin() {
                                             sectionName: engineSection.name,
                                             topicName: pName,
                                             generatedNotes: fetchedNotes,
+                                            version: engineVersion,
                                         }),
                                     });
                                     const saveResult = await saveRes.json();
                                     if (saveResult.success) {
-                                        console.log(`[Auto-Save] ✅ "${pName}" saved to DB (topic: ${saveResult.topicId})`);
                                         return;
                                     }
                                     console.warn(`[Auto-Save] ⚠️ "${pName}" save attempt ${s + 1} failed:`, saveResult.error);
@@ -580,9 +590,7 @@ export default function LMSCreatorAdmin() {
                         console.warn(`[Generation Engine] Topic "${pName}" attempt ${attempt} failed: ${errorMsg}`);
 
                         if (attempt < maxTopicRetries) {
-                            // Exponential backoff: 3s, 6s, 12s, 24s…
                             const retryDelay = 3000 * Math.pow(2, attempt - 1);
-                            console.log(`[Generation Engine] Retrying "${pName}" in ${retryDelay / 1000}s…`);
                             await cooldown(retryDelay);
                         } else {
                             // All retries exhausted
@@ -597,7 +605,6 @@ export default function LMSCreatorAdmin() {
 
                     if (attempt < maxTopicRetries) {
                         const retryDelay = isAbort ? 5000 : 3000 * Math.pow(2, attempt - 1);
-                        console.log(`[Generation Engine] Retrying "${pName}" in ${retryDelay / 1000}s…`);
                         await cooldown(retryDelay);
                     } else {
                         engineCourse.lmsNotesStructure.forEach(item => {
@@ -610,22 +617,19 @@ export default function LMSCreatorAdmin() {
             return { topicId, notes: fetchedNotes, success };
         };
 
-        // ── PARALLEL BATCH GENERATION ──
-        // Process topics in parallel batches of 4 to maximize throughput
-        // while staying within Gemini API rate limits.
-        const BATCH_SIZE = 4; // 4 concurrent generations (optimal for Gemini Flash)
+        // ── SEQUENTIAL GENERATION (one topic at a time) ──
+        // Gemini free tier: 15 RPM, ~500 RPD for 2.5 Flash.
+        // Each topic makes ~8 API calls inside the route, so running 4 in parallel
+        // fires 32 simultaneous requests — guaranteed 429s.
+        // Sequential generation with a cooldown between topics stays well within limits.
         let completedCount = 0;
 
-        for (let batchStart = 0; batchStart < totalTopics; batchStart += BATCH_SIZE) {
-            const batchEnd = Math.min(batchStart + BATCH_SIZE, totalTopics);
-            const batchTopicIds = engineSelectedTopics.slice(batchStart, batchEnd);
+        for (let i = 0; i < totalTopics; i++) {
+            const topicId = engineSelectedTopics[i];
 
-            // Run batch in parallel
-            const results = await Promise.all(
-                batchTopicIds.map((topicId, idx) => generateSingleTopic(topicId, batchStart + idx))
-            );
+            const result = await generateSingleTopic(topicId, i);
 
-            // Commit all batch results into coursesList at once
+            // Commit result for this topic immediately so the UI updates
             setCoursesList(prev => prev.map(c => {
                 if (c.id === engineCourse.id) {
                     return {
@@ -636,8 +640,7 @@ export default function LMSCreatorAdmin() {
                                         if (sec.id === engineSection.id) {
                                             return {
                                                 ...sec, topics: sec.topics.map(t => {
-                                                    const result = results.find(r => r.topicId === t.id);
-                                                    if (result) return { ...t, generatedNotes: result.notes };
+                                                    if (t.id === result.topicId) return { ...t, generatedNotes: result.notes };
                                                     return t;
                                                 })
                                             };
@@ -653,13 +656,12 @@ export default function LMSCreatorAdmin() {
                 return c;
             }));
 
-            completedCount += batchTopicIds.length;
+            completedCount += 1;
             setProgress(Math.round((completedCount / totalTopics) * 100));
 
-            // ── Cooldown between batches (not between individual topics) ──
-            if (batchEnd < totalTopics) {
-                const waitTime = totalTopics > 20 ? 3000 : 1500;
-                console.log(`[Generation Engine] Batch complete (${completedCount}/${totalTopics}). Cooling down ${waitTime/1000}s…`);
+            // ── Cooldown between topics to respect Gemini RPM limits ──
+            if (i < totalTopics - 1) {
+                const waitTime = 8000; // 8s gap — each topic uses ~8 calls, keeps us under 15 RPM
                 await cooldown(waitTime);
             }
         }
@@ -871,6 +873,12 @@ export default function LMSCreatorAdmin() {
                 const lmsPayload: Record<string, any> = {
                     topic_id: topicId,
                     last_generated_at: new Date().toISOString(),
+                    // ── Denormalized metadata ──
+                    version: engineVersion,
+                    course: engineCourse.name,
+                    subject: engineSubject.name,
+                    topic: t.name,
+                    // ── Content columns ──
                     introduction: notes.l1 || null,
                     detailed_notes: notes.l2 || null,
                     summary: notes.l3 || null,
@@ -880,9 +888,9 @@ export default function LMSCreatorAdmin() {
                 // Add marks columns if they're available (safe to omit if schema is old)
                 if (notes.l4) lmsPayload['marks_10_questions'] = notes.l4;
                 if (notes.l5) lmsPayload['marks_5_questions'] = notes.l5;
-                if (notes.l6) lmsPayload['marks_3_reasoning'] = notes.l6;
-                if (notes.l7) lmsPayload['marks_2_case_mcqs'] = notes.l7;
-                if (notes.l8) lmsPayload['marks_1_mcqs'] = notes.l8;
+                if (notes.l6) lmsPayload['marks_3_questions'] = notes.l6;
+                if (notes.l7) lmsPayload['marks_2_questions'] = notes.l7;
+                if (notes.l8) lmsPayload['marks_1_questions'] = notes.l8;
 
                 // Check if existing row exists
                 const { data: existingLms } = await supabase
@@ -894,7 +902,7 @@ export default function LMSCreatorAdmin() {
                     saveError = error;
                 } else {
                     const { error } = await supabase.from('lms_content').insert(lmsPayload);
-                    // If marks columns missing, retry with core columns only
+                    // If extended columns missing, retry with core columns only
                     if (error?.message?.includes('column') || error?.message?.includes('does not exist')) {
                         const corePayload = {
                             topic_id: topicId,
@@ -915,7 +923,6 @@ export default function LMSCreatorAdmin() {
                 if (saveError) throw new Error(saveError.message);
 
                 savedCount++;
-                console.log(`[DirectSave] ✅ Saved "${t.name}" (topicId: ${topicId})`);
 
             } catch (err: any) {
                 failedCount++;
@@ -968,8 +975,11 @@ export default function LMSCreatorAdmin() {
         setDeleteMessage(null);
 
         try {
-            // Build auth headers — use robust multi-layer token fallback (JWT only, no x-admin-secret)
-            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            // Auth headers — include admin secret so delete works even with expired JWT
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/json',
+                'x-admin-secret': ADMIN_SECRET,
+            };
             const token = await getAccessToken(false);
             if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -987,9 +997,25 @@ export default function LMSCreatorAdmin() {
 
             const data = await res.json();
 
-            if (data.success) {
-                // Clear generatedNotes from local state for deleted topics
-                const deletedSet = new Set(data.deletedTopics || topicNames);
+            // ── Determine which topic names to clear from local state ──
+            // If DB delete succeeded, use the confirmed list from the server.
+            // If DB returned "not found" (content was never saved or already deleted),
+            // still clear local Zustand state — the user's intent is to wipe & re-generate.
+            const isNotFoundError = !data.success && (
+                res.status === 404 ||
+                (typeof data.error === 'string' && (
+                    data.error.toLowerCase().includes('not found') ||
+                    data.error.toLowerCase().includes('no matching')
+                ))
+            );
+
+            const shouldClearLocal = data.success || isNotFoundError;
+            const namesToClear = new Set<string>(
+                data.success ? (data.deletedTopics || topicNames) : topicNames
+            );
+
+            if (shouldClearLocal) {
+                // Always clear generatedNotes from Zustand for the affected topics
                 setCoursesList(prev => prev.map(c => {
                     if (c.id !== engineCourse.id) return c;
                     return {
@@ -1000,8 +1026,9 @@ export default function LMSCreatorAdmin() {
                                     if (sec.id !== engineSection.id) return sec;
                                     return {
                                         ...sec, topics: sec.topics.map(t => {
-                                            if (deletedSet.has(t.name)) {
-                                                const { generatedNotes, ...rest } = t;
+                                            if (namesToClear.has(t.name)) {
+                                                // Remove generatedNotes — topic row stays, just notes cleared
+                                                const { generatedNotes: _removed, ...rest } = t;
                                                 return rest as Topic;
                                             }
                                             return t;
@@ -1012,9 +1039,20 @@ export default function LMSCreatorAdmin() {
                         })
                     };
                 }));
-
-                setDeleteMessage({ type: 'success', text: `Deleted content for ${data.deletedCount} topic(s). You can now re-generate them.` });
                 setEngineSelectedTopics([]);
+
+                if (data.success) {
+                    setDeleteMessage({
+                        type: 'success',
+                        text: `✅ Deleted ${data.deletedCount} topic(s) from database. You can now re-generate.`
+                    });
+                } else {
+                    // Not in DB but local state cleared
+                    setDeleteMessage({
+                        type: 'success',
+                        text: `Cleared ${namesToClear.size} topic(s) from local state (content was not yet saved to DB). Ready to re-generate.`
+                    });
+                }
             } else {
                 setDeleteMessage({ type: 'error', text: data.error || 'Delete failed.' });
             }
@@ -1025,6 +1063,20 @@ export default function LMSCreatorAdmin() {
             setTimeout(() => setDeleteMessage(null), 5000);
         }
     };
+
+    // ── Block render until Zustand persist has finished rehydrating from localStorage ──
+    // Without this guard, the first render uses default MBBS state while the real
+    // persisted state is loading — Zustand's state update then causes a React crash.
+    if (!storeHydrated) {
+        return (
+            <div className="flex items-center justify-center min-h-96">
+                <div className="text-center space-y-4">
+                    <div className="w-10 h-10 border-2 border-violet-400 border-t-transparent rounded-full animate-spin mx-auto" />
+                    <p className="text-sm text-slate-400 font-semibold">Loading Content Creator...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8 max-w-5xl mx-auto">
@@ -1648,6 +1700,31 @@ export default function LMSCreatorAdmin() {
                                     {!engineSubject?.sections.length && <option>No Sections</option>}
                                     {engineSubject?.sections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                 </select>
+                            </div>
+
+                            {/* ── Curriculum Version ── */}
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Curriculum Version</label>
+                                <div className="flex gap-2">
+                                    <select
+                                        value={engineVersion}
+                                        onChange={(e) => setEngineVersion(e.target.value)}
+                                        className="flex-1 px-3 py-2 text-sm rounded-lg bg-white border border-indigo-200 outline-none focus:border-indigo-500 transition-colors font-semibold text-indigo-700"
+                                    >
+                                        {['2024', '2025', '2026', '2027', '2028'].map(yr => (
+                                            <option key={yr} value={yr}>{yr}</option>
+                                        ))}
+                                    </select>
+                                    <input
+                                        type="text"
+                                        value={engineVersion}
+                                        onChange={(e) => setEngineVersion(e.target.value.trim())}
+                                        placeholder="Custom…"
+                                        className="w-24 px-2 py-2 text-sm rounded-lg bg-white border border-slate-200 outline-none focus:border-indigo-500 transition-colors text-center"
+                                        maxLength={10}
+                                    />
+                                </div>
+                                <p className="text-[10px] text-slate-400 mt-1">Tags all generated content with this version (e.g. 2025, 2026).</p>
                             </div>
 
                             {/* ── Active LMS Structure Summary ── */}

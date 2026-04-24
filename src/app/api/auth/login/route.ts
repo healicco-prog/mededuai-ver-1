@@ -2,6 +2,24 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
+// Normalises any variant the DB might store to the canonical lowercase frontend key.
+function mapRole(raw: string): string {
+    const r = (raw || '').toLowerCase().replace(/[_\s]+/g, '');
+    const map: Record<string, string> = {
+        superadmin:       'superadmin',
+        admin:            'superadmin',
+        administrator:    'superadmin',
+        masteradmin:      'masteradmin',
+        institutionadmin: 'instadmin',
+        instadmin:        'instadmin',
+        departmentadmin:  'deptadmin',
+        deptadmin:        'deptadmin',
+        teacher:          'teacher',
+        student:          'student',
+    };
+    return map[r] ?? 'student';
+}
+
 const roleMapping: Record<string, string> = {
     'super_admin': 'superadmin',
     'master_admin': 'masteradmin',
@@ -11,10 +29,10 @@ const roleMapping: Record<string, string> = {
     'deptadmin': 'deptadmin',
     'superadmin': 'superadmin',
     'masteradmin': 'masteradmin',
-    'admin': 'superadmin',          // 'admin' role → full superadmin access
-    'administrator': 'superadmin',   // 'administrator' role → full superadmin access
+    'admin': 'superadmin',
+    'administrator': 'superadmin',
     'teacher': 'teacher',
-    'student': 'student'
+    'student': 'student',
 };
 
 const dashboardMap: Record<string, string> = {
@@ -32,7 +50,6 @@ export async function POST(req: Request) {
 
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
         const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-        // Use a backend-only server client to bypass browser ISP blocks
         const supabase = createClient(supabaseUrl, supabaseAnonKey, {
             auth: { persistSession: false }
         });
@@ -57,7 +74,6 @@ export async function POST(req: Request) {
             role = rawAppRole;
             console.log(`[login] role from app_metadata: ${role}`);
         } else {
-            // Fetch from profiles
             try {
                 const { data: profile, error: profileErr } = await supabase
                     .from('profiles')
@@ -75,10 +91,13 @@ export async function POST(req: Request) {
             }
         }
 
-        const frontendRole = roleMapping[role] || role || 'student';
+        // Use the exhaustive mapRole() normaliser — falls back to 'student' for unknowns
+        const frontendRole = roleMapping[role] ?? mapRole(role);
         const redirectUrl = dashboardMap[frontendRole] || `/dashboard/${frontendRole}`;
 
         const cookieStore = await cookies();
+
+        // ── Role cookie (7-day, JS-readable for client-side role checks) ──
         cookieStore.set('role', frontendRole, {
             httpOnly: false,
             secure: process.env.NODE_ENV === 'production',
@@ -87,10 +106,21 @@ export async function POST(req: Request) {
             maxAge: 60 * 60 * 24 * 7,
         });
 
-        return NextResponse.json({ 
-            success: true, 
+        // ── Supabase access token cookie (httpOnly, same lifetime as JWT ~1hr) ──
+        if (authData.session?.access_token) {
+            cookieStore.set('sb-access-token', authData.session.access_token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                path: '/',
+                sameSite: 'lax',
+                maxAge: authData.session.expires_in ?? 3600,
+            });
+        }
+
+        return NextResponse.json({
+            success: true,
             role: frontendRole,
-            session: authData.session, 
+            session: authData.session,
             redirectUrl
         });
 

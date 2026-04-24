@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 export default function FetchInterceptor() {
   useEffect(() => {
     const originalFetch = window.fetch;
-    const CLOUD_RUN_URL = 'https://mededuai-3js7mh5u5a-uc.a.run.app';
+    const CLOUD_RUN_URL = 'https://mededuai-backend-945029424967.us-central1.run.app';
 
     window.fetch = async (...args) => {
       let [resource, config] = args;
@@ -93,7 +93,6 @@ export default function FetchInterceptor() {
             const retryHeaders = new Headers(retryConfig?.headers || {});
             retryHeaders.set('Authorization', `Bearer ${session.access_token}`);
             retryConfig.headers = retryHeaders;
-            console.log('[FetchInterceptor] Retrying request with refreshed token…');
             return originalFetch(resource, retryConfig);
           }
         } catch (refreshErr) {

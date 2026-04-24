@@ -88,6 +88,10 @@ export async function generateWithFallback(
         jsonMode?: boolean;
         preferredModels?: string[];
         maxRetries?: number;
+        /** Set true for bulk/creator generation — disables Gemini 2.5 thinking tokens.
+         *  Thinking tokens eat into the maxOutputTokens budget and add 5–30s latency per call.
+         *  For structured content generation we want speed + full token budget for content. */
+        disableThinking?: boolean;
     }
 ): Promise<string> {
     const models = options?.preferredModels || [
@@ -97,11 +101,15 @@ export async function generateWithFallback(
         MODELS.quaternary,
     ];
     // ── Output token limits ──
-    // Gemini 2.0 Flash supports up to 8192 output tokens by default and 65536 with config.
-    // For bulk content generation (notes + questions + flashcards), we need maximum output.
-    const config = options?.jsonMode
-        ? { responseMimeType: 'application/json' as const, maxOutputTokens: 65536 }
-        : { maxOutputTokens: 65536 };
+    // Gemini 2.5 Flash has thinking enabled by default; thinking tokens count against
+    // maxOutputTokens. Setting thinkingBudget:0 reserves all 65536 tokens for content.
+    const config: Record<string, any> = { maxOutputTokens: 65536 };
+    if (options?.jsonMode) config.responseMimeType = 'application/json';
+    if (options?.disableThinking) {
+        // Disable thinking tokens: faster responses + full output budget for content.
+        // Supported on gemini-2.5-flash and gemini-2.5-pro (ignored by 2.0 models).
+        config.thinkingConfig = { thinkingBudget: 0 };
+    }
     const maxRetries = options?.maxRetries ?? 4; // Increased from 3 for better resilience
 
     let lastError: Error | null = null;
@@ -141,11 +149,12 @@ export async function generateWithFallback(
                 }
 
                 // Exponential backoff with jitter
-                // For 429 (rate limit) use longer delays but capped to prevent excessive waits
-                // For 503 (overload) use moderate delays to let the model recover
-                const baseDelay = httpCode === 429 ? 5000 : (httpCode === 503 ? 3000 : 1500);
-                const backoffMs = Math.min(baseDelay * Math.pow(1.5, attempt - 1) + Math.random() * 1500, 30000);
-                console.log(`[MedEduAI AI] Retrying model=${model} in ${Math.round(backoffMs)}ms…`);
+                // 429 = rate limit / quota — use aggressive delays to let the quota window reset.
+                // Free tier resets per minute, so waiting up to 65s covers a full window.
+                // 503 = overload — moderate delay.
+                const baseDelay = httpCode === 429 ? 15000 : (httpCode === 503 ? 5000 : 2000);
+                const backoffMs = Math.min(baseDelay * Math.pow(2, attempt - 1) + Math.random() * 2000, 65000);
+                console.log(`[MedEduAI AI] Retrying model=${model} in ${Math.round(backoffMs / 1000)}s (httpCode=${httpCode})…`);
                 await sleep(backoffMs);
             }
         }
@@ -301,11 +310,13 @@ export async function generateJSON<T = any>(
  */
 export async function generateText(
     prompt: string,
-    preferredModels?: string[]
+    preferredModels?: string[],
+    disableThinking?: boolean,
 ): Promise<string> {
     return generateWithFallback(prompt, {
         jsonMode: false,
         preferredModels,
+        disableThinking,
     });
 }
 

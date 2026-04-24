@@ -20,8 +20,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, error: 'Unauthorized.' }, { status: 401 });
     }
 
-    // Allow superadmin, masteradmin, and system-admin
-    // (authMiddleware now normalizes roles, so 'admin', 'super_admin' etc. all resolve to 'superadmin')
     const isAdmin = role === 'superadmin' || role === 'masteradmin' || user.id === 'system-admin';
     if (!isAdmin) {
         console.warn(`[Creator Delete] Forbidden for role="${role}", user=${user.id}`);
@@ -46,7 +44,17 @@ export async function POST(req: Request) {
             .maybeSingle();
 
         if (!course?.id) {
-            return NextResponse.json({ success: false, error: `Course "${courseName}" not found.` }, { status: 404 });
+            // Course not in DB — content was never saved or already cleaned up.
+            // Return success so the client still clears local state.
+            console.log(`[Creator Delete] Course "${courseName}" not found in DB — nothing to delete.`);
+            return NextResponse.json({
+                success: true,
+                deletedCount: 0,
+                deletedTopics: [],
+                lmsDeleted: 0,
+                assessmentsDeleted: 0,
+                message: `Course "${courseName}" not found in database — content was not saved to DB.`,
+            });
         }
 
         // ── Resolve Subject ──
@@ -58,7 +66,15 @@ export async function POST(req: Request) {
             .maybeSingle();
 
         if (!subject?.id) {
-            return NextResponse.json({ success: false, error: `Subject "${subjectName}" not found.` }, { status: 404 });
+            console.log(`[Creator Delete] Subject "${subjectName}" not found in DB — nothing to delete.`);
+            return NextResponse.json({
+                success: true,
+                deletedCount: 0,
+                deletedTopics: [],
+                lmsDeleted: 0,
+                assessmentsDeleted: 0,
+                message: `Subject "${subjectName}" not found in database — content was not saved to DB.`,
+            });
         }
 
         // ── Resolve Topics ──
@@ -78,7 +94,14 @@ export async function POST(req: Request) {
         const { data: topics } = await topicsQuery;
 
         if (!topics || topics.length === 0) {
-            return NextResponse.json({ success: true, deletedCount: 0, message: 'No matching topics found.' });
+            return NextResponse.json({
+                success: true,
+                deletedCount: 0,
+                deletedTopics: [],
+                lmsDeleted: 0,
+                assessmentsDeleted: 0,
+                message: 'No matching topics found in database.',
+            });
         }
 
         const topicIds = topics.map(t => t.id);

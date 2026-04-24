@@ -1,18 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-
-const roleMapping: Record<string, string> = {
-    'super_admin': 'superadmin',
-    'master_admin': 'masteradmin',
-    'institution_admin': 'instadmin',
-    'department_admin': 'deptadmin',
-    'instadmin': 'instadmin',
-    'deptadmin': 'deptadmin',
-    'superadmin': 'superadmin',
-    'masteradmin': 'masteradmin',
-    'teacher': 'teacher',
-    'student': 'student'
-};
+import { verifyAuthAndRole } from '@/lib/authMiddleware';
 
 const dashboardMap: Record<string, string> = {
     superadmin: '/dashboard/admin',
@@ -25,8 +13,13 @@ const dashboardMap: Record<string, string> = {
 
 export async function POST(req: Request) {
     try {
-        const { role } = await req.json();
-        const frontendRole = roleMapping[role] || role || 'student';
+        // Require a valid JWT — role is derived from the DB, never trusted from body.
+        const { user, role } = await verifyAuthAndRole(req);
+        if (!user || !role) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const frontendRole = role;
         const redirectUrl = dashboardMap[frontendRole] || `/dashboard/${frontendRole}`;
 
         const cookieStore = await cookies();
@@ -35,7 +28,7 @@ export async function POST(req: Request) {
             secure: process.env.NODE_ENV === 'production',
             path: '/',
             sameSite: 'lax',
-            maxAge: 60 * 60 * 24 * 7, // 7 days
+            maxAge: 60 * 60 * 24 * 7,
         });
 
         return NextResponse.json({ redirectUrl, role: frontendRole });
