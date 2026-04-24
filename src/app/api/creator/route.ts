@@ -3,7 +3,11 @@ import { generateText } from '@/lib/gemini';
 import { verifyAuthAndRole } from '@/lib/authMiddleware';
 
 // ── Increase Node.js default timeout for this route ──
-export const maxDuration = 300; // 5 minutes max for serverless environments
+// 300s = 5 min (Vercel Hobby/Pro limit). Chunked generation for a single topic
+// (text + dedicated sections + grouped sections + top-up rounds) can take up to
+// 4–5 min with thinking disabled. Keep at 300 for Vercel compatibility;
+// Cloud Run has no hard limit and will use the full 300s budget.
+export const maxDuration = 300;
 
 // ── Delimiter constants ──
 const DELIM_START = '===SECTION_START:';
@@ -456,9 +460,4 @@ You are generating notes for BSc Nursing students. Your content must be:
         return NextResponse.json({
             success: false,
             error: isOverload
-                ? 'The AI service is temporarily overloaded. All fallback models were tried. Please retry in a minute.'
-                : (message || 'AI generation failed. Please check your API Key and quota.'),
-            isMock: false
-        });
-    }
-}
+  

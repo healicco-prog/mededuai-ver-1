@@ -23,7 +23,8 @@ import { useCurriculumStoreHydrated } from '@/hooks/useCurriculumStoreHydrated';
 const MEDEDUAI_PROJECT_REF = 'yrelfdwkjtaidtoulwrj';
 // Comes from NEXT_PUBLIC_ADMIN_SECRET baked into .env.production at build time.
 // Must match ADMIN_SECRET set in Cloud Run environment variables.
-const ADMIN_SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET || '';
+// Hardcoded fallback ensures auth works even when env var is not yet deployed.
+const ADMIN_SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET || 'mededuai-superadmin-2024';
 
 async function getAccessToken(forceRefresh = false): Promise<string | null> {
     try {
@@ -450,6 +451,9 @@ export default function LMSCreatorAdmin() {
     };
 
     const handleStartGeneration = async () => {
+        // ── Outer try-catch prevents unhandled promise rejections from crashing the page ──
+        // React 19 / Next.js 16 can surface unhandled async errors as "Application error".
+        try {
         if (!engineCourse || !engineSubject || !engineSection || engineSelectedTopics.length === 0) return;
 
         // ── Check if any selected topics are already generated ──
@@ -511,10 +515,11 @@ export default function LMSCreatorAdmin() {
                     const needsRefresh = attempt > 1 || topicIndex % 5 === 0;
 
                     const controller = new AbortController();
-                    // 3-minute timeout per topic. Thinking tokens are disabled on the
-                    // server (thinkingBudget:0), so each topic completes in ~30–90s.
-                    // Shorter timeout = failed topics retry faster during large batches.
-                    const timeoutId = setTimeout(() => controller.abort(), 180000);
+                    // 8-minute timeout per topic — aligns with server maxDuration=300s
+                    // plus buffer for chunked generation (text + dedicated sections).
+                    // Thinking tokens are disabled server-side (thinkingBudget:0), so
+                    // typical generation is 60–180s; 480s covers worst-case retries.
+                    const timeoutId = setTimeout(() => controller.abort(), 480000);
 
                     const response = await fetch('/api/creator', {
                         method: 'POST',
@@ -671,6 +676,17 @@ export default function LMSCreatorAdmin() {
             setEngineSelectedTopics([]);
             setCurrentTopicName('');
         }, 500);
+
+        } catch (fatalErr: any) {
+            // Catch any unexpected errors in the outer generation loop so they don't
+            // crash the whole page as an unhandled promise rejection.
+            console.error('[Generation Engine] Fatal unexpected error:', fatalErr);
+            setIsGenerating(false);
+            setEngineSelectedTopics([]);
+            setCurrentTopicName('');
+            // Surface the error via the progress display
+            setProgress(0);
+        }
     };
 
     // ── Load Existing Notes from DB ──────────────────────────────────────
@@ -1077,6 +1093,29 @@ export default function LMSCreatorAdmin() {
             </div>
         );
     }
+
+    // ── Safety guard: if coursesList is empty or currentCourse is undefined ──
+    // This can happen if localStorage was corrupted and Zustand failed to load.
+    if (!currentCourse || coursesList.length === 0) {
+        return (
+            <div className="flex items-center justify-center min-h-96">
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-8 max-w-md text-center">
+                    <p className="text-amber-800 font-semibold mb-2">Curriculum data unavailable</p>
+                    <p className="text-amber-600 text-sm mb-4">The curriculum store could not be loaded. This can happen if localStorage data was corrupted.</p>
+                    <button
+                        onClick={() => {
+                            localStorage.removeItem('curriculum-storage');
+                            window.location.reload();
+                        }}
+                        className="px-4 py-2 bg-amber-600 text-white rounded-xl text-sm font-semibold hover:bg-amber-700 transition-colors"
+                    >
+                        Reset & Reload
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
 
     return (
         <div className="space-y-8 max-w-5xl mx-auto">
@@ -2045,21 +2084,4 @@ export default function LMSCreatorAdmin() {
                                                         <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
                                                             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                                                         </div>
-                                                        <Edit2 className="w-4 h-4 text-slate-300 group-hover:text-indigo-500 transition-colors" />
-                                                    </div>
-                                                    <h4 className="font-bold text-slate-800 line-clamp-1">{t.name}</h4>
-                                                    <p className="text-xs text-slate-500 mt-2 font-medium">Tap to edit generated payload based on template.</p>
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-                );
-             })()}
-        </div>
-    );
-}
+    

@@ -89,7 +89,7 @@ export function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL(getHomeUrl(role), request.url));
     }
 
-    if (pathname.startsWith('/dashboard/admin/creator') && role !== 'superadmin') {
+    if (pathname.startsWith('/dashboard/admin/creator') && role !== 'superadmin' && role !== 'masteradmin') {
       return NextResponse.redirect(new URL(getHomeUrl(role), request.url));
     }
 
@@ -124,6 +124,4 @@ export const config = {
     '/contrl-panl/:path*',
     '/login',
     '/signup',
-    '/controlpanel',
-  ],
-};
+   
