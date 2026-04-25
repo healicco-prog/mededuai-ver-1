@@ -12,8 +12,6 @@ steps:
       - '--build-arg'
       - 'NEXT_PUBLIC_SITE_URL=${_NEXT_PUBLIC_SITE_URL}'
       - '--build-arg'
-      - 'NEXT_PUBLIC_ADMIN_SECRET=${_ADMIN_SECRET}'
-      - '--build-arg'
       - 'GOOGLE_CLOUD_PROJECT=$PROJECT_ID'
       - '--build-arg'
       - 'GOOGLE_CLOUD_LOCATION=us-central1'
@@ -52,7 +50,7 @@ steps:
           --set-env-vars="NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL}" \
           --set-env-vars="NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY}" \
           --set-env-vars="NEXT_PUBLIC_SITE_URL=${_NEXT_PUBLIC_SITE_URL}" \
-          --set-env-vars="^@^ALLOWED_ORIGINS=${_ALLOWED_ORIGINS}" \
+          --set-env-vars="^@^ALLOWED_ORIGINS=https://www.mededuai.com,https://mededuai.com,https://mededuai.netlify.app" \
           --set-env-vars="SUPABASE_SERVICE_ROLE_KEY=${_SUPABASE_SERVICE_ROLE_KEY}" \
           --set-env-vars="RESEND_API_KEY=${_RESEND_API_KEY}" \
           --set-env-vars="GEMINI_API_KEY=${_GEMINI_API_KEY}" \

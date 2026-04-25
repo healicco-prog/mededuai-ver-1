@@ -1,27 +1,22 @@
 "use client";
 
 /**
- * Client-component wrapper that loads CreatorManagerClient with ssr:false.
+ * Client-component wrapper for CreatorManagerClient.
  *
- * next/dynamic({ ssr: false }) is only permitted inside Client Components.
- * The page.tsx is a Server Component (uses cookies()), so the dynamic import
- * must live here instead.
+ * Note: next/dynamic({ ssr: false }) is NOT needed in Next.js App Router because
+ * "use client" components are never SSR-rendered by the server in this architecture.
+ * Using React.lazy() / next/dynamic can cause "Element type is invalid" crashes in
+ * Next.js 16 + React 19 + Turbopack when the lazy module resolves to undefined.
+ * Direct import avoids this entirely.
  */
 
-import dynamic from 'next/dynamic';
-
-const CreatorManagerClient = dynamic(() => import('./CreatorManagerClient'), {
-    ssr: false,
-    loading: () => (
-        <div className="flex items-center justify-center min-h-96">
-            <div className="text-center space-y-4">
-                <div className="w-10 h-10 border-2 border-violet-400 border-t-transparent rounded-full animate-spin mx-auto" />
-                <p className="text-sm text-slate-400 font-semibold">Loading Content Creator...</p>
-            </div>
-        </div>
-    ),
-});
+import CreatorManagerClient from './CreatorManagerClient';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export default function CreatorManagerWrapper() {
-    return <CreatorManagerClient />;
+    return (
+        <ErrorBoundary>
+            <CreatorManagerClient />
+        </ErrorBoundary>
+    );
 }

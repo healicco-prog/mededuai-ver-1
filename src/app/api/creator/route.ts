@@ -460,4 +460,9 @@ You are generating notes for BSc Nursing students. Your content must be:
         return NextResponse.json({
             success: false,
             error: isOverload
-  
+                ? 'The AI service is temporarily overloaded. All fallback models were tried. Please retry in a minute.'
+                : (message || 'AI generation failed. Please check your API Key and quota.'),
+            isMock: false
+        });
+    }
+}

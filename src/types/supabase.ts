@@ -598,34 +598,58 @@ export type Database = {
       }
       lms_content: {
         Row: {
-          detailed_notes: string | null
-          flashcards: Json | null
           id: string
-          introduction: string | null
-          last_generated_at: string | null
-          ppt_content: Json | null
-          summary: string | null
           topic_id: string | null
+          course: string | null
+          subject: string | null
+          topic: string | null
+          version: string | null
+          introduction: string | null
+          detailed_notes: string | null
+          summary: string | null
+          marks_10_questions: string | null
+          marks_5_questions: string | null
+          marks_3_reasoning: string | null
+          marks_2_case_mcqs: string | null
+          marks_1_mcqs: string | null
+          flashcards: string | null
+          last_generated_at: string | null
         }
         Insert: {
-          detailed_notes?: string | null
-          flashcards?: Json | null
           id?: string
-          introduction?: string | null
-          last_generated_at?: string | null
-          ppt_content?: Json | null
-          summary?: string | null
           topic_id?: string | null
+          course?: string | null
+          subject?: string | null
+          topic?: string | null
+          version?: string | null
+          introduction?: string | null
+          detailed_notes?: string | null
+          summary?: string | null
+          marks_10_questions?: string | null
+          marks_5_questions?: string | null
+          marks_3_reasoning?: string | null
+          marks_2_case_mcqs?: string | null
+          marks_1_mcqs?: string | null
+          flashcards?: string | null
+          last_generated_at?: string | null
         }
         Update: {
-          detailed_notes?: string | null
-          flashcards?: Json | null
           id?: string
-          introduction?: string | null
-          last_generated_at?: string | null
-          ppt_content?: Json | null
-          summary?: string | null
           topic_id?: string | null
+          course?: string | null
+          subject?: string | null
+          topic?: string | null
+          version?: string | null
+          introduction?: string | null
+          detailed_notes?: string | null
+          summary?: string | null
+          marks_10_questions?: string | null
+          marks_5_questions?: string | null
+          marks_3_reasoning?: string | null
+          marks_2_case_mcqs?: string | null
+          marks_1_mcqs?: string | null
+          flashcards?: string | null
+          last_generated_at?: string | null
         }
         Relationships: [
           {
@@ -1637,33 +1661,3 @@ export type CompositeTypes<
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
-
-export const Constants = {
-  public: {
-    Enums: {
-      dh_assessment_mode: ["theory", "practical", "viva", "clinical", "custom"],
-      dh_assessment_type: ["formative", "internal", "clinical", "summative"],
-      meeting_focus: ["academic", "nonacademic", "both"],
-      meeting_type: ["mentor_meeting", "peer_meeting"],
-      non_scholastic_category: [
-        "research",
-        "sports",
-        "cultural",
-        "leadership",
-        "volunteering",
-        "awards",
-      ],
-      user_role: [
-        "student",
-        "teacher",
-        "admin",
-        "instadmin",
-        "deptadmin",
-        "department_admin",
-        "institution_admin",
-        "master_admin",
-        "super_admin",
-      ],
-    },
-  },
-} as const

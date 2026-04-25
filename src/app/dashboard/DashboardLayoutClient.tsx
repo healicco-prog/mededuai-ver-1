@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import Link from 'next/link';
 import {
     LayoutDashboard, BookOpen, MessageSquare, Mic,
@@ -31,6 +32,8 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
     const [hasControlPanelSession, setHasControlPanelSession] = useState(false);
     const [hasMentorshipAccess, setHasMentorshipAccess] = useState(false);
     const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
+    const [subscriptionLoading, setSubscriptionLoading] = useState(true);
+    const hasFetched = useRef(false);
     const pathname = usePathname();
 
     // Check if user has a Control Panel session
@@ -42,47 +45,66 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
     }, []);
 
     useEffect(() => {
-        const fetchUser = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                if (user.email) setUserEmail(user.email);
-                const { data } = await supabase
-                    .from('users')
-                    .select('full_name')
-                    .eq('id', user.id)
-                    .single();
-                    
-                if (data && data.full_name) {
-                    setUserName(data.full_name);
-                } else if (user.user_metadata?.full_name) {
-                    setUserName(user.user_metadata.full_name);
-                }
+        if (hasFetched.current) return;
+        hasFetched.current = true;
 
-                // Fetch subscription
-                try {
-                    const res = await fetch(`/api/subscription?userId=${user.id}`);
-                    if (res.ok) {
-                        const sub = await res.json();
+        const fetchUser = async () => {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    if (user.email) setUserEmail(user.email);
+                    const { data } = await supabase
+                        .from('users')
+                        .select('full_name')
+                        .eq('id', user.id)
+                        .single();
+
+                    if (data && data.full_name) {
+                        setUserName(data.full_name);
+                    } else if (user.user_metadata?.full_name) {
+                        setUserName(user.user_metadata.full_name);
+                    }
+
+                    // Fetch subscription
+                    try {
+                        const res = await fetch(`/api/subscription?userId=${user.id}`);
+                        if (res.ok) {
+                            const sub = await res.json();
+                            setSubscription({
+                                plan_tier: sub.plan_tier || 'free',
+                                billing_status: sub.billing_status || 'trialing',
+                                trial_end_date: sub.trial_end_date || new Date().toISOString(),
+                                ai_tokens_balance: sub.ai_tokens_balance ?? 10000,
+                                ai_tokens_allotment: sub.ai_tokens_allotment ?? 10000,
+                                bonus_tokens: sub.bonus_tokens ?? 0,
+                            });
+                        } else {
+                            throw new Error('Subscription fetch failed');
+                        }
+                    } catch {
+                        // Fallback — show trial state
                         setSubscription({
-                            plan_tier: sub.plan_tier || 'free',
-                            billing_status: sub.billing_status || 'trialing',
-                            trial_end_date: sub.trial_end_date || new Date().toISOString(),
-                            ai_tokens_balance: sub.ai_tokens_balance ?? 10000,
-                            ai_tokens_allotment: sub.ai_tokens_allotment ?? 10000,
-                            bonus_tokens: sub.bonus_tokens ?? 0,
+                            plan_tier: 'free',
+                            billing_status: 'trialing',
+                            trial_end_date: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+                            ai_tokens_balance: 10000,
+                            ai_tokens_allotment: 10000,
+                            bonus_tokens: 0,
                         });
                     }
-                } catch {
-                    // Fallback — show trial state
-                    setSubscription({
-                        plan_tier: 'free',
-                        billing_status: 'trialing',
-                        trial_end_date: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
-                        ai_tokens_balance: 10000,
-                        ai_tokens_allotment: 10000,
-                        bonus_tokens: 0,
-                    });
                 }
+            } catch {
+                // Auth error — set fallback subscription silently
+                setSubscription({
+                    plan_tier: 'free',
+                    billing_status: 'trialing',
+                    trial_end_date: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+                    ai_tokens_balance: 10000,
+                    ai_tokens_allotment: 10000,
+                    bonus_tokens: 0,
+                });
+            } finally {
+                setSubscriptionLoading(false);
             }
         };
         fetchUser();
@@ -195,34 +217,45 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                     )}
                     <SidebarItem href="/" icon={<Home />} label="Home Page" />
 
-                    {/* Trial Countdown — hide for superadmin/masteradmin (unlimited) */}
-                    {subscription && !isMasterOrSuperAdmin && (
-                        <TrialCountdown
-                            trialEndDate={subscription.trial_end_date}
-                            billingStatus={subscription.billing_status}
-                            planTier={subscription.plan_tier}
-                        />
-                    )}
-
-                    {/* Token Usage Meter — show unlimited badge for admins */}
-                    {subscription && isMasterOrSuperAdmin ? (
-                        <div className="mx-3 mt-2 p-3 rounded-xl border bg-gradient-to-br from-slate-50 to-emerald-50 border-emerald-200">
-                            <div className="flex items-center gap-2 mb-1">
-                                <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-600">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                                </div>
-                                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">AI Tokens</span>
-                            </div>
-                            <div className="text-lg font-extrabold text-emerald-700">∞ Unlimited</div>
-                            <div className="text-[10px] text-slate-400 font-medium mt-0.5">Admin access — no token limits</div>
+                    {/* Trial Countdown / Token Meter — stable skeleton while loading to prevent flicker */}
+                    {subscriptionLoading ? (
+                        <div className="mx-3 mt-2 p-3 rounded-xl border border-slate-100 bg-slate-50 animate-pulse">
+                            <div className="h-2.5 bg-slate-200 rounded-full w-2/3 mb-2" />
+                            <div className="h-2 bg-slate-200 rounded-full w-full mb-1.5" />
+                            <div className="h-2 bg-slate-200 rounded-full w-4/5" />
                         </div>
-                    ) : subscription && (
-                        <TokenUsageMeter
-                            balance={subscription.ai_tokens_balance}
-                            allotment={subscription.ai_tokens_allotment}
-                            bonusTokens={subscription.bonus_tokens}
-                            planTier={subscription.plan_tier}
-                        />
+                    ) : (
+                        <>
+                            {/* Trial Countdown — hide for superadmin/masteradmin (unlimited) */}
+                            {subscription && !isMasterOrSuperAdmin && (
+                                <TrialCountdown
+                                    trialEndDate={subscription.trial_end_date}
+                                    billingStatus={subscription.billing_status}
+                                    planTier={subscription.plan_tier}
+                                />
+                            )}
+
+                            {/* Token Usage Meter — show unlimited badge for admins */}
+                            {subscription && isMasterOrSuperAdmin ? (
+                                <div className="mx-3 mt-2 p-3 rounded-xl border bg-gradient-to-br from-slate-50 to-emerald-50 border-emerald-200">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-600">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                                        </div>
+                                        <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">AI Tokens</span>
+                                    </div>
+                                    <div className="text-lg font-extrabold text-emerald-700">∞ Unlimited</div>
+                                    <div className="text-[10px] text-slate-400 font-medium mt-0.5">Admin access — no token limits</div>
+                                </div>
+                            ) : subscription && (
+                                <TokenUsageMeter
+                                    balance={subscription.ai_tokens_balance}
+                                    allotment={subscription.ai_tokens_allotment}
+                                    bonusTokens={subscription.bonus_tokens}
+                                    planTier={subscription.plan_tier}
+                                />
+                            )}
+                        </>
                     )}
 
                     {isStudent && (
@@ -426,7 +459,9 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                     </div>
                 </header>
                 <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-8 w-full">
-                    {children}
+                    <ErrorBoundary>
+                        {children}
+                    </ErrorBoundary>
                 </div>
             </main>
         </div>

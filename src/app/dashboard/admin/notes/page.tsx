@@ -5,7 +5,7 @@ import { useCurriculumStore } from '../../../../store/curriculumStore';
 import { supabase } from '@/lib/supabase';
 import {
     BrainCircuit, BookOpen, Search, Bell, Download, ChevronRight, ChevronLeft, ChevronDown, CheckCircle2,
-    Sparkles, ArrowLeft, Layers, MessageSquare, Plus, AlignLeft, CheckSquare, Presentation,
+    Sparkles, ArrowLeft, Layers, MessageSquare, Plus, AlignLeft, CheckSquare,
     Image as ImageIcon, RefreshCw, Trophy, Target, Clock, Zap, Menu, X, LogOut, Trash2, AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -22,7 +22,7 @@ const normaliseContent = (raw: any): string => {
     if (Array.isArray(raw)) {
         return raw.map((item: any, i: number) => typeof item === 'string' ? item : JSON.stringify(item)).join('\n\n');
     }
-    // JSONB object with .raw key (flashcards, ppt)
+    // JSONB object with .raw key (e.g. flashcards)
     if (typeof raw === 'object' && raw.raw) {
         return normaliseContent(raw.raw);  // recurse in case raw.raw is itself an array or string
     }
@@ -147,23 +147,44 @@ const parseMCQs = (rawInput: any) => {
 };
 
 // Helper to parse Flashcards
+// Handles formats:
+//   "1. Front: X\n   Back: Y\n2. Front: ..."
+//   "Front: X\nBack: Y\nFront: ..."
 const parseFlashcards = (text: string) => {
     if (!text) return [];
 
-    // Look for Front: and Back: patterns
-    const cards = [];
-    const chunks = text.split(/Front:/i).filter(Boolean);
+    const cards: { front: string; back: string }[] = [];
 
-    for (const chunk of chunks) {
-        if (chunk.toLowerCase().includes('back:')) {
-            const [front, back] = chunk.split(/Back:/i);
-            cards.push({ front: front.trim(), back: back.trim() });
+    // Strategy 1: Use regex to find all Front:/Back: pairs regardless of numbering
+    // This correctly handles numbered lists like "1. Front: X\nBack: Y\n2. Front: ..."
+    const cardPattern = /Front:\s*([\s\S]*?)(?=Back:\s*)/gi;
+    const backPattern = /Back:\s*([\s\S]*?)(?=(?:\d+\.\s*)?Front:|$)/gi;
+
+    const fronts: string[] = [];
+    const backs: string[] = [];
+
+    let fm: RegExpExecArray | null;
+    while ((fm = cardPattern.exec(text)) !== null) {
+        // Strip leading number+dot prefix (e.g. "1. " at the very start)
+        fronts.push(fm[1].replace(/^\s*\d+\.\s*/, '').trim());
+    }
+
+    let bm: RegExpExecArray | null;
+    while ((bm = backPattern.exec(text)) !== null) {
+        // Strip trailing number+dot that bleeds in from next card (e.g. "\n\n2. ")
+        backs.push(bm[1].replace(/\s*\d+\.\s*$/, '').trim());
+    }
+
+    const count = Math.min(fronts.length, backs.length);
+    for (let i = 0; i < count; i++) {
+        if (fronts[i] && backs[i]) {
+            cards.push({ front: fronts[i], back: backs[i] });
         }
     }
 
     // Fallback if parsing fails but we have text
     if (cards.length === 0 && text.length > 10) {
-        cards.push({ front: "Summary Concept", back: text.trim() });
+        cards.push({ front: 'Flashcard', back: text.trim() });
     }
 
     return cards;
@@ -208,141 +229,6 @@ const FlashcardViewer = ({ rawText }: { rawText: any }) => {
                 <span className="text-sm font-bold text-slate-400">{currentIndex + 1} / {cards.length}</span>
                 <button onClick={() => { setCurrentIndex(prev => Math.min(cards.length - 1, prev + 1)); setIsFlipped(false); }} disabled={currentIndex === cards.length - 1} className="p-3 rounded-full hover:bg-slate-100 text-slate-500 disabled:opacity-30 transition">
                     <ChevronRight className="w-6 h-6" />
-                </button>
-            </div>
-        </div>
-    );
-};
-
-const PPTSlideViewer = ({ rawText }: { rawText: any }) => {
-    const text = normaliseContent(rawText);
-    const [currentSlide, setCurrentSlide] = useState(0);
-
-    const slides = React.useMemo(() => {
-        if (!text || text.trim() === '' || text.trim() === 'None requested.') return [];
-
-        // Strategy 1: Split by ---SLIDE--- delimiter
-        if (text.includes('---SLIDE---')) {
-            return text.split('---SLIDE---').map(s => s.trim()).filter(Boolean).map((chunk, i) => {
-                const lines = chunk.split('\n').filter(l => l.trim());
-                const heading = lines[0]?.replace(/^#{1,3}\s*/, '').trim() || `Slide ${i + 1}`;
-                const body = lines.slice(1).join('\n').trim();
-                return { number: i + 1, heading, body };
-            });
-        }
-
-        // Strategy 2: Split by "Slide N:" pattern
-        const slidePattern = /(?=Slide\s+\d+\s*[:\-–])/i;
-        if (slidePattern.test(text)) {
-            return text.split(slidePattern).filter(Boolean).map((chunk, i) => {
-                const lines = chunk.trim().split('\n').filter(l => l.trim());
-                const firstLine = lines[0];
-                const headingMatch = firstLine.match(/Slide\s+\d+\s*[:\-–]\s*(.*)/i);
-                const heading = headingMatch ? headingMatch[1].trim() : firstLine.trim();
-                const body = lines.slice(1).join('\n').trim();
-                return { number: i + 1, heading, body };
-            });
-        }
-
-        // Strategy 3: Split by markdown headings (## Heading)
-        const headingPattern = /(?=^#{1,3}\s)/m;
-        if (headingPattern.test(text)) {
-            return text.split(headingPattern).filter(Boolean).map((chunk, i) => {
-                const lines = chunk.trim().split('\n').filter(l => l.trim());
-                const heading = lines[0]?.replace(/^#{1,3}\s*/, '').trim() || `Slide ${i + 1}`;
-                const body = lines.slice(1).join('\n').trim();
-                return { number: i + 1, heading, body };
-            });
-        }
-
-        // Fallback: one slide with all content
-        return [{ number: 1, heading: 'Presentation', body: text }];
-    }, [text]);
-
-    if (!slides.length) {
-        return <div className="p-6 bg-slate-50 rounded-2xl text-slate-600">No PPT content available.</div>;
-    }
-
-    const slide = slides[currentSlide] || slides[0];
-    const gradients = [
-        'from-indigo-600 via-purple-600 to-violet-700',
-        'from-emerald-600 via-teal-600 to-cyan-700',
-        'from-rose-600 via-pink-600 to-fuchsia-700',
-        'from-amber-600 via-orange-600 to-red-700',
-        'from-blue-600 via-sky-600 to-cyan-700',
-        'from-violet-600 via-purple-600 to-indigo-700',
-        'from-teal-600 via-emerald-600 to-green-700',
-        'from-pink-600 via-rose-600 to-red-700',
-    ];
-    const gradient = gradients[currentSlide % gradients.length];
-
-    return (
-        <div className="space-y-6">
-            {/* Slide Display */}
-            <div className={`relative bg-gradient-to-br ${gradient} rounded-3xl p-8 md:p-10 min-h-[480px] flex flex-col shadow-2xl overflow-hidden`}>
-                {/* Decorative orbs */}
-                <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-                <div className="absolute bottom-0 left-0 w-64 h-64 bg-black/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/3 pointer-events-none" />
-
-                {/* Top bar */}
-                <div className="relative z-10 flex items-center justify-between mb-6">
-                    <span className="bg-white/20 backdrop-blur-sm text-white text-xs font-black uppercase tracking-widest px-4 py-2 rounded-full border border-white/10">
-                        Slide {slide.number} of {slides.length}
-                    </span>
-                    <Presentation className="w-6 h-6 text-white/40" />
-                </div>
-
-                {/* Heading */}
-                <h2 className="relative z-10 text-2xl md:text-3xl lg:text-4xl font-black text-white leading-tight mb-6 drop-shadow-lg">
-                    {slide.heading}
-                </h2>
-
-                {/* Body Content */}
-                <div className="relative z-10 flex-1">
-                    {slide.body ? (
-                        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-                            <div className="prose prose-invert prose-lg max-w-none text-white/90 leading-relaxed font-medium [&_strong]:text-white [&_li]:marker:text-white/60">
-                                <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{slide.body}</ReactMarkdown>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/10 flex items-center justify-center min-h-[200px]">
-                            <p className="text-white/60 text-lg font-medium italic">Title Slide</p>
-                        </div>
-                    )}
-                </div>
-
-                {/* Bottom bar */}
-                <div className="relative z-10 mt-6 flex items-center justify-between">
-                    <span className="text-white/30 text-xs font-bold">MedEduAI Presentation</span>
-                    <div className="flex gap-1">
-                        {slides.map((_, i) => (
-                            <button
-                                key={i}
-                                onClick={() => setCurrentSlide(i)}
-                                className={`h-2 rounded-full transition-all duration-300 ${i === currentSlide ? 'bg-white w-6' : 'bg-white/30 w-2 hover:bg-white/50'}`}
-                            />
-                        ))}
-                    </div>
-                </div>
-            </div>
-
-            {/* Navigation */}
-            <div className="flex items-center justify-center gap-4">
-                <button
-                    onClick={() => setCurrentSlide(prev => Math.max(0, prev - 1))}
-                    disabled={currentSlide === 0}
-                    className="px-6 py-3 rounded-xl bg-slate-900 text-white font-bold text-sm disabled:opacity-30 hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg"
-                >
-                    <ChevronLeft className="w-4 h-4" /> Previous
-                </button>
-                <span className="text-sm font-black text-slate-400 px-4 tabular-nums">{currentSlide + 1} / {slides.length}</span>
-                <button
-                    onClick={() => setCurrentSlide(prev => Math.min(slides.length - 1, prev + 1))}
-                    disabled={currentSlide === slides.length - 1}
-                    className="px-6 py-3 rounded-xl bg-slate-900 text-white font-bold text-sm disabled:opacity-30 hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg"
-                >
-                    Next <ChevronRight className="w-4 h-4" />
                 </button>
             </div>
         </div>
@@ -638,6 +524,15 @@ export default function TeacherLMSNotes() {
     // ── Superadmin delete content state ──
     const [isDeletingContent, setIsDeletingContent] = useState(false);
     const [deleteContentMsg, setDeleteContentMsg] = useState<string | null>(null);
+    const [userRole, setUserRole] = useState<string>('');
+    const isSuperAdmin = userRole === 'superadmin' || userRole === 'masteradmin' ||
+                         userRole === 'super_admin' || userRole === 'master_admin';
+
+    // Read role from cookie (set by server-side login, same source as DashboardLayout)
+    useEffect(() => {
+        const match = document.cookie.split('; ').find(r => r.startsWith('role='));
+        if (match) setUserRole(match.split('=')[1] || '');
+    }, []);
 
     const handleDeleteTopicContent = async () => {
         if (!currentTopic) return;
@@ -882,8 +777,6 @@ export default function TeacherLMSNotes() {
                     if (n.marks_1_mcqs)          mapped['l8'] = n.marks_1_mcqs;
                     if (n.flashcards?.raw)       mapped['l9'] = n.flashcards.raw;
                     else if (typeof n.flashcards === 'string') mapped['l9'] = n.flashcards;
-                    if (n.ppt_content?.raw)      mapped['l10'] = n.ppt_content.raw;
-                    else if (typeof n.ppt_content === 'string') mapped['l10'] = n.ppt_content;
                     setDbNotes(mapped);
                 } else {
                     setDbNotes({});
@@ -918,7 +811,6 @@ export default function TeacherLMSNotes() {
         q2: notes['l7'] ? normaliseContent(notes['l7']) : null,
         q1: notes['l8'] ? normaliseContent(notes['l8']) : null,
         flashcards: notes['l9'] ? normaliseContent(notes['l9']) : null,
-        ppt: notes['l10'] ? normaliseContent(notes['l10']) : null,
     };
 
     const tabsList = [
@@ -931,7 +823,6 @@ export default function TeacherLMSNotes() {
         { id: 'q2', label: 'Case-Based MCQs' },
         { id: 'q1', label: '1 Mark MCQs' },
         { id: 'flashcards', label: 'Flashcards' },
-        { id: 'ppt', label: 'PPT' },
     ].filter(t => contentMap[t.id as keyof typeof contentMap]);
 
     // Auto-correct activeTab: if current tab has no content (e.g. 'introduction' was
@@ -1159,8 +1050,8 @@ export default function TeacherLMSNotes() {
                                             >
                                                 <CheckCircle2 className="w-4 h-4" /> {completedTopics[currentTopic.id] ? 'Completed' : 'Mark Completed'}
                                             </button>
-                                            {/* ── Superadmin: Delete content button ── */}
-                                            {(Object.keys(dbNotes).length > 0 || (currentTopic.id.startsWith('db-') || dbTopicMap[currentTopic.name])) && (
+                                            {/* ── Superadmin only: Delete content button ── */}
+                                            {isSuperAdmin && (Object.keys(dbNotes).length > 0 || (currentTopic.id.startsWith('db-') || dbTopicMap[currentTopic.name])) && (
                                                 <button
                                                     onClick={handleDeleteTopicContent}
                                                     disabled={isDeletingContent}
@@ -1378,13 +1269,6 @@ export default function TeacherLMSNotes() {
                                         {activeTab === 'flashcards' && contentMap.flashcards && (
                                             <div className="py-8">
                                                 <FlashcardViewer rawText={contentMap.flashcards} />
-                                            </div>
-                                        )}
-
-                                        {/* PPT Slide View */}
-                                        {activeTab === 'ppt' && contentMap.ppt && (
-                                            <div className="py-8">
-                                                <PPTSlideViewer rawText={contentMap.ppt} />
                                             </div>
                                         )}
 

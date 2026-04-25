@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { BrainCircuit, Play, CheckCircle2, RotateCcw, AlertTriangle, Plus, Sparkles, BookOpen, Layers, Trash2, Edit2, Upload, X, Check, GripVertical, XCircle } from 'lucide-react';
+import { BrainCircuit, Play, CheckCircle2, RotateCcw, AlertTriangle, Plus, Sparkles, BookOpen, Layers, Trash2, Edit2, Upload, X, Check, GripVertical, XCircle, Minus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 import { useCurriculumStore, type Course, type Subject, type Section, type Topic, type LMSNotesStructureItem, defaultLMSStructure } from '../../../../store/curriculumStore';
@@ -21,10 +21,6 @@ import { useCurriculumStoreHydrated } from '@/hooks/useCurriculumStoreHydrated';
 //  4. All known Supabase localStorage key patterns (scan)
 //
 const MEDEDUAI_PROJECT_REF = 'yrelfdwkjtaidtoulwrj';
-// Comes from NEXT_PUBLIC_ADMIN_SECRET baked into .env.production at build time.
-// Must match ADMIN_SECRET set in Cloud Run environment variables.
-// Hardcoded fallback ensures auth works even when env var is not yet deployed.
-const ADMIN_SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET || 'mededuai-superadmin-2024';
 
 async function getAccessToken(forceRefresh = false): Promise<string | null> {
     try {
@@ -141,7 +137,17 @@ export default function LMSCreatorAdmin() {
 
     const engineCourse = coursesList.find(c => c.id === engineCourseId) || coursesList[0];
     const engineSubject = engineCourse?.subjects.find(s => s.id === engineSubjectId) || engineCourse?.subjects[0];
-    const engineSection = engineSubject?.sections.find(s => s.id === engineSectionId) || engineSubject?.sections[0];
+    const engineSection = engineSectionId === '__all__' ? engineSubject?.sections[0] : (engineSubject?.sections.find(s => s.id === engineSectionId) || engineSubject?.sections[0]);
+    // Effective topics for display & generation (supports "All Sections" mode)
+    const effectiveSections = engineSectionId === '__all__'
+        ? (engineSubject?.sections || [])
+        : (engineSection ? [engineSection] : []);
+    const effectiveTopicsForDisplay = effectiveSections.flatMap(sec =>
+        sec.topics.map(t => ({ ...t, _sectionId: sec.id, _sectionName: sec.name }))
+    );
+    const topicSectionMap = new Map(
+        effectiveTopicsForDisplay.map(t => [t.id, { id: t._sectionId, name: t._sectionName }])
+    );
 
     // Handlers
     const handleAddCourse = () => {
@@ -451,13 +457,10 @@ export default function LMSCreatorAdmin() {
     };
 
     const handleStartGeneration = async () => {
-        // ── Outer try-catch prevents unhandled promise rejections from crashing the page ──
-        // React 19 / Next.js 16 can surface unhandled async errors as "Application error".
-        try {
-        if (!engineCourse || !engineSubject || !engineSection || engineSelectedTopics.length === 0) return;
+        if (!engineCourse || !engineSubject || effectiveTopicsForDisplay.length === 0 || engineSelectedTopics.length === 0) return;
 
         // ── Check if any selected topics are already generated ──
-        const alreadyGenerated = engineSection.topics.filter(t =>
+        const alreadyGenerated = effectiveTopicsForDisplay.filter(t =>
             engineSelectedTopics.includes(t.id) &&
             t.generatedNotes && Object.keys(t.generatedNotes).length > 0
         );
@@ -486,9 +489,6 @@ export default function LMSCreatorAdmin() {
         const fetchAuthHeaders = async (forceRefresh = false): Promise<Record<string, string>> => {
             const h: Record<string, string> = {
                 'Content-Type': 'application/json',
-                // Admin secret: accepted by authMiddleware as Layer 1, before JWT.
-                // Ensures superadmin requests always go through regardless of JWT state.
-                'x-admin-secret': ADMIN_SECRET,
             };
             const token = await getAccessToken(forceRefresh);
             if (token) h['Authorization'] = `Bearer ${token}`;
@@ -501,7 +501,9 @@ export default function LMSCreatorAdmin() {
         // ── Generate a single topic with full retry + auth refresh logic ──
         const generateSingleTopic = async (topicId: string, topicIndex: number): Promise<{ topicId: string; notes: Record<string, string>; success: boolean }> => {
             let pName = 'Topic...';
-            engineSection.topics.forEach(t => { if (t.id === topicId) pName = t.name; });
+            const _topicMeta = effectiveTopicsForDisplay.find(t => t.id === topicId);
+            if (_topicMeta) pName = _topicMeta.name;
+            const _topicSectionName = topicSectionMap.get(topicId)?.name || engineSection?.name || '';
 
             let fetchedNotes: Record<string, string> = {};
             let success = false;
@@ -518,7 +520,7 @@ export default function LMSCreatorAdmin() {
                     // 8-minute timeout per topic — aligns with server maxDuration=300s
                     // plus buffer for chunked generation (text + dedicated sections).
                     // Thinking tokens are disabled server-side (thinkingBudget:0), so
-                    // typical generation is 60–180s; 480s covers worst-case retries.
+                    // typical generation is 60–180s; 480s covers worst-case top-up rounds.
                     const timeoutId = setTimeout(() => controller.abort(), 480000);
 
                     const response = await fetch('/api/creator', {
@@ -528,9 +530,9 @@ export default function LMSCreatorAdmin() {
                         body: JSON.stringify({
                             courseName: engineCourse.name,
                             subjectName: engineSubject.name,
-                            sectionName: engineSection.name,
+                            sectionName: _topicSectionName,
                             topicName: pName,
-                            lmsStructure: engineCourse.lmsNotesStructure
+                            lmsStructure: engineCourse.lmsNotesStructure.filter((s: any) => s.id !== 'l10')
                         })
                     });
 
@@ -569,7 +571,7 @@ export default function LMSCreatorAdmin() {
                                         body: JSON.stringify({
                                             courseName: engineCourse.name,
                                             subjectName: engineSubject.name,
-                                            sectionName: engineSection.name,
+                                            sectionName: _topicSectionName,
                                             topicName: pName,
                                             generatedNotes: fetchedNotes,
                                             version: engineVersion,
@@ -599,7 +601,7 @@ export default function LMSCreatorAdmin() {
                             await cooldown(retryDelay);
                         } else {
                             // All retries exhausted
-                            engineCourse.lmsNotesStructure.forEach(item => {
+                            engineCourse.lmsNotesStructure.filter((item: any) => item.id !== 'l10').forEach(item => {
                                 fetchedNotes[item.id] = `Generation failed after ${maxTopicRetries} attempts: ${errorMsg}`;
                             });
                         }
@@ -612,7 +614,7 @@ export default function LMSCreatorAdmin() {
                         const retryDelay = isAbort ? 5000 : 3000 * Math.pow(2, attempt - 1);
                         await cooldown(retryDelay);
                     } else {
-                        engineCourse.lmsNotesStructure.forEach(item => {
+                        engineCourse.lmsNotesStructure.filter((item: any) => item.id !== 'l10').forEach(item => {
                             fetchedNotes[item.id] = `${isAbort ? 'Timeout' : 'Network error'} after ${maxTopicRetries} attempts: ${err.message || 'Unknown error'}`;
                         });
                     }
@@ -642,7 +644,7 @@ export default function LMSCreatorAdmin() {
                             if (s.id === engineSubject.id) {
                                 return {
                                     ...s, sections: s.sections.map(sec => {
-                                        if (sec.id === engineSection.id) {
+                                        if (sec.id === (topicSectionMap.get(result.topicId)?.id || engineSection?.id)) {
                                             return {
                                                 ...sec, topics: sec.topics.map(t => {
                                                     if (t.id === result.topicId) return { ...t, generatedNotes: result.notes };
@@ -676,17 +678,6 @@ export default function LMSCreatorAdmin() {
             setEngineSelectedTopics([]);
             setCurrentTopicName('');
         }, 500);
-
-        } catch (fatalErr: any) {
-            // Catch any unexpected errors in the outer generation loop so they don't
-            // crash the whole page as an unhandled promise rejection.
-            console.error('[Generation Engine] Fatal unexpected error:', fatalErr);
-            setIsGenerating(false);
-            setEngineSelectedTopics([]);
-            setCurrentTopicName('');
-            // Surface the error via the progress display
-            setProgress(0);
-        }
     };
 
     // ── Load Existing Notes from DB ──────────────────────────────────────
@@ -883,8 +874,6 @@ export default function LMSCreatorAdmin() {
 
                 // Build lms_content payload
                 const notes = t.generatedNotes!;
-                let pptContent = null;
-                try { pptContent = notes.l10 ? JSON.parse(notes.l10) : null; } catch { pptContent = null; }
 
                 const lmsPayload: Record<string, any> = {
                     topic_id: topicId,
@@ -899,14 +888,13 @@ export default function LMSCreatorAdmin() {
                     detailed_notes: notes.l2 || null,
                     summary: notes.l3 || null,
                     flashcards: notes.l9 || null,
-                    ppt_content: pptContent,
                 };
-                // Add marks columns if they're available (safe to omit if schema is old)
+                // Add marks columns (use standardised column names matching lms_content schema)
                 if (notes.l4) lmsPayload['marks_10_questions'] = notes.l4;
                 if (notes.l5) lmsPayload['marks_5_questions'] = notes.l5;
-                if (notes.l6) lmsPayload['marks_3_questions'] = notes.l6;
-                if (notes.l7) lmsPayload['marks_2_questions'] = notes.l7;
-                if (notes.l8) lmsPayload['marks_1_questions'] = notes.l8;
+                if (notes.l6) lmsPayload['marks_3_reasoning'] = notes.l6;
+                if (notes.l7) lmsPayload['marks_2_case_mcqs'] = notes.l7;
+                if (notes.l8) lmsPayload['marks_1_mcqs'] = notes.l8;
 
                 // Check if existing row exists
                 const { data: existingLms } = await supabase
@@ -927,7 +915,6 @@ export default function LMSCreatorAdmin() {
                             detailed_notes: lmsPayload.detailed_notes,
                             summary: lmsPayload.summary,
                             flashcards: lmsPayload.flashcards,
-                            ppt_content: lmsPayload.ppt_content,
                         };
                         const { error: coreErr } = await supabase.from('lms_content').insert(corePayload);
                         saveError = coreErr;
@@ -994,7 +981,6 @@ export default function LMSCreatorAdmin() {
             // Auth headers — include admin secret so delete works even with expired JWT
             const headers: Record<string, string> = {
                 'Content-Type': 'application/json',
-                'x-admin-secret': ADMIN_SECRET,
             };
             const token = await getAccessToken(false);
             if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -1093,29 +1079,6 @@ export default function LMSCreatorAdmin() {
             </div>
         );
     }
-
-    // ── Safety guard: if coursesList is empty or currentCourse is undefined ──
-    // This can happen if localStorage was corrupted and Zustand failed to load.
-    if (!currentCourse || coursesList.length === 0) {
-        return (
-            <div className="flex items-center justify-center min-h-96">
-                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-8 max-w-md text-center">
-                    <p className="text-amber-800 font-semibold mb-2">Curriculum data unavailable</p>
-                    <p className="text-amber-600 text-sm mb-4">The curriculum store could not be loaded. This can happen if localStorage data was corrupted.</p>
-                    <button
-                        onClick={() => {
-                            localStorage.removeItem('curriculum-storage');
-                            window.location.reload();
-                        }}
-                        className="px-4 py-2 bg-amber-600 text-white rounded-xl text-sm font-semibold hover:bg-amber-700 transition-colors"
-                    >
-                        Reset & Reload
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
 
     return (
         <div className="space-y-8 max-w-5xl mx-auto">
@@ -1533,7 +1496,7 @@ export default function LMSCreatorAdmin() {
                     </div>
 
                     <div className="space-y-3 max-w-4xl">
-                        {currentCourse.lmsNotesStructure.map((item, index) => (
+                        {currentCourse.lmsNotesStructure.filter(item => item.id !== 'l10').map((item, index) => (
                             <div
                                 key={item.id}
                                 draggable
@@ -1654,11 +1617,11 @@ export default function LMSCreatorAdmin() {
             )}
 
             {activeTab === 'generation' && (() => {
-                const totalTopicsInSection = engineSection?.topics.length || 0;
-                const createdTopicsInSection = engineSection?.topics.filter(t => t.generatedNotes).length || 0;
+                const totalTopicsInSection = effectiveTopicsForDisplay.length;
+                const createdTopicsInSection = effectiveTopicsForDisplay.filter(t => t.generatedNotes && Object.keys(t.generatedNotes).length > 0).length;
                 const pendingTopicsInSection = totalTopicsInSection - createdTopicsInSection;
                 const progressPercent = totalTopicsInSection > 0 ? Math.round((createdTopicsInSection / totalTopicsInSection) * 100) : 0;
-                const uncreatedTopicIds = engineSection?.topics.filter(t => !t.generatedNotes).map(t => t.id) || [];
+                const uncreatedTopicIds = effectiveTopicsForDisplay.filter(t => !t.generatedNotes || Object.keys(t.generatedNotes).length === 0).map(t => t.id);
 
                 return (
                 <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden flex flex-col md:flex-row gap-6 h-[800px]">
@@ -1737,6 +1700,9 @@ export default function LMSCreatorAdmin() {
                                     disabled={!engineSubject || engineSubject.sections.length === 0}
                                 >
                                     {!engineSubject?.sections.length && <option>No Sections</option>}
+                                    {engineSubject && engineSubject.sections.length > 0 && (
+                                        <option value="__all__">(All sections)</option>
+                                    )}
                                     {engineSubject?.sections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                 </select>
                             </div>
@@ -1779,7 +1745,7 @@ export default function LMSCreatorAdmin() {
                                         </button>
                                     </div>
                                     <div className="space-y-1">
-                                        {engineCourse.lmsNotesStructure.map(item => {
+                                        {engineCourse.lmsNotesStructure.filter(item => item.id !== 'l10').map(item => {
                                             const isText = item.type === 'text';
                                             const wordCount = parseInt(item.wordCount || '0', 10);
                                             const qty = parseInt(item.value, 10);
@@ -1811,7 +1777,7 @@ export default function LMSCreatorAdmin() {
                                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                                         Select Topics to Generate
                                     </label>
-                                    {engineSection && engineSection.topics.length > 0 && (
+                                    {effectiveTopicsForDisplay.length > 0 && (
                                         <div className="flex items-center gap-2">
                                             {uncreatedTopicIds.length > 0 && (
                                                 <button 
@@ -1822,17 +1788,17 @@ export default function LMSCreatorAdmin() {
                                                 </button>
                                             )}
                                             <button onClick={() => {
-                                                if (engineSelectedTopics.length === engineSection.topics.length) setEngineSelectedTopics([]);
-                                                else setEngineSelectedTopics(engineSection.topics.map(t => t.id));
+                                                if (engineSelectedTopics.length === effectiveTopicsForDisplay.length) setEngineSelectedTopics([]);
+                                                else setEngineSelectedTopics(effectiveTopicsForDisplay.map(t => t.id));
                                             }} className="text-[10px] font-bold text-slate-600 hover:text-slate-800 tracking-normal">
-                                                {engineSelectedTopics.length === engineSection.topics.length ? 'select none' : 'select all'}
+                                                {engineSelectedTopics.length === effectiveTopicsForDisplay.length ? 'select none' : 'select all'}
                                             </button>
                                         </div>
                                     )}
                                 </div>
 
                                 {/* ── NOTES PROGRESS CARD ── */}
-                                {engineSection && totalTopicsInSection > 0 && (
+                                {effectiveTopicsForDisplay.length > 0 && totalTopicsInSection > 0 && (
                                     <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-3">
                                         <div className="flex items-center justify-between mb-2">
                                             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Notes Progress</span>
@@ -1865,12 +1831,38 @@ export default function LMSCreatorAdmin() {
                                     </div>
                                 )}
 
-                                <div className="border border-slate-200 rounded-xl bg-white overflow-hidden flex flex-col max-h-48">
+                                <div className="border border-slate-200 rounded-xl bg-white overflow-hidden flex flex-col max-h-64">
+                                    {effectiveTopicsForDisplay.length > 1 && (
+                                        <label
+                                            onClick={() => {
+                                                const allIds = effectiveTopicsForDisplay.map(t => t.id);
+                                                if (engineSelectedTopics.length === effectiveTopicsForDisplay.length) setEngineSelectedTopics([]);
+                                                else setEngineSelectedTopics(allIds);
+                                            }}
+                                            className="flex items-center gap-3 px-3 py-2 bg-slate-50 border-b border-slate-200 cursor-pointer select-none hover:bg-indigo-50 transition-colors group shrink-0"
+                                        >
+                                            <div className={`w-5 h-5 rounded flex items-center justify-center border transition-all ${
+                                                engineSelectedTopics.length === effectiveTopicsForDisplay.length
+                                                    ? 'bg-indigo-500 border-indigo-500 text-white'
+                                                    : engineSelectedTopics.length > 0
+                                                    ? 'bg-indigo-100 border-indigo-400 text-indigo-600'
+                                                    : 'border-slate-300 bg-white group-hover:border-indigo-400'
+                                            }`}>
+                                                {engineSelectedTopics.length === effectiveTopicsForDisplay.length
+                                                    ? <Check className="w-3.5 h-3.5" />
+                                                    : engineSelectedTopics.length > 0
+                                                    ? <Minus className="w-3.5 h-3.5" />
+                                                    : null}
+                                            </div>
+                                            <span className="text-sm font-bold text-slate-600 flex-1">(All topics)</span>
+                                            <span className="text-[10px] font-semibold text-slate-400">{effectiveTopicsForDisplay.length} total</span>
+                                        </label>
+                                    )}
                                     <div className="overflow-y-auto w-full p-2 space-y-1">
-                                        {!engineSection || engineSection.topics.length === 0 ? (
+                                        {effectiveTopicsForDisplay.length === 0 ? (
                                             <p className="text-xs text-center text-slate-400 py-4 font-medium italic">No topics available in this context.</p>
                                         ) : (
-                                            engineSection.topics.map(t => (
+                                            effectiveTopicsForDisplay.map(t => (
                                                 <label
                                                     key={t.id}
                                                     onClick={() => {
@@ -1886,6 +1878,9 @@ export default function LMSCreatorAdmin() {
                                                         {engineSelectedTopics.includes(t.id) && <Check className="w-3.5 h-3.5" />}
                                                     </div>
                                                     <span className="text-sm font-semibold text-slate-700 flex-1">{t.name}</span>
+                                                    {engineSectionId === '__all__' && (
+                                                        <span className="text-[10px] text-slate-400 shrink-0 max-w-[80px] truncate" title={(t as any)._sectionName}>{(t as any)._sectionName}</span>
+                                                    )}
                                                     {t.generatedNotes ? (
                                                         <span title="Already Generated"><CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" /></span>
                                                     ) : (
@@ -1915,7 +1910,7 @@ export default function LMSCreatorAdmin() {
                             )}
 
                             <button
-                                onClick={handleStartGeneration}
+                                onClick={() => handleStartGeneration().catch((err: any) => { console.error('[Generation Engine] Unhandled error:', err); setIsGenerating(false); setCurrentTopicName(''); })}
                                 disabled={isGenerating || isDeleting || isForceSaving || engineSelectedTopics.length === 0}
                                 className="w-full py-3.5 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                             >
@@ -2003,7 +1998,7 @@ export default function LMSCreatorAdmin() {
                         <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
                             {editingGeneratedTopicId ? (
                                 <div className="space-y-6 max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-300 pb-10">
-                                    {engineCourse?.lmsNotesStructure.map((structItem) => {
+                                    {engineCourse?.lmsNotesStructure.filter(s => s.id !== 'l10').map((structItem) => {
                                         const topic = engineSection?.topics.find(t => t.id === editingGeneratedTopicId);
                                         const value = topic?.generatedNotes?.[structItem.id] || '';
 
@@ -2084,4 +2079,21 @@ export default function LMSCreatorAdmin() {
                                                         <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
                                                             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                                                         </div>
-    
+                                                        <Edit2 className="w-4 h-4 text-slate-300 group-hover:text-indigo-500 transition-colors" />
+                                                    </div>
+                                                    <h4 className="font-bold text-slate-800 line-clamp-1">{t.name}</h4>
+                                                    <p className="text-xs text-slate-500 mt-2 font-medium">Tap to edit generated payload based on template.</p>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+                );
+             })()}
+        </div>
+    );
+}

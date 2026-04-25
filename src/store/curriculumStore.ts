@@ -3406,7 +3406,7 @@ export const useCurriculumStore = create<CurriculumState>()(
         }),
         {
             name: 'curriculum-storage', // key in local storage
-            version: 26, // bump to fix lmsNotesStructure default values (l4-l10 were 0)
+            version: 27, // bump to purge l10 (PPT) from all persisted lmsNotesStructure
             migrate: (persistedState: any, version: number) => {
                 if (version === 0 && persistedState.coursesList) {
                     persistedState.coursesList.forEach((course: any) => {
@@ -3598,6 +3598,16 @@ export const useCurriculumStore = create<CurriculumState>()(
                                     item.value = newDefaults[item.id];
                                 }
                             });
+                        }
+                    });
+                }
+                // Version 26 → 27: Remove l10 (PPT) from all persisted lmsNotesStructure
+                if (version < 27 && persistedState.coursesList) {
+                    persistedState.coursesList.forEach((course: any) => {
+                        if (course.lmsNotesStructure) {
+                            course.lmsNotesStructure = course.lmsNotesStructure.filter(
+                                (item: any) => item.id !== 'l10'
+                            );
                         }
                     });
                 }

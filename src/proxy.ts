@@ -41,7 +41,7 @@ function getHomeUrl(role: string): string {
   return map[role] || `/dashboard/${role}`;
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const origin = request.headers.get('origin');
 
@@ -124,4 +124,8 @@ export const config = {
     '/contrl-panl/:path*',
     '/login',
     '/signup',
-   
+  ],
+};
+
+// Backwards-compat alias (middleware.ts still runs in Next.js 16 with deprecation warning)
+export { proxy as middleware };

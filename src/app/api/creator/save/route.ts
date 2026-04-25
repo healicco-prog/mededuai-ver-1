@@ -137,17 +137,14 @@ export async function POST(req: Request) {
         if (generatedNotes['l1']) lmsPayload['introduction'] = generatedNotes['l1'];
         if (generatedNotes['l2']) lmsPayload['detailed_notes'] = generatedNotes['l2'];
         if (generatedNotes['l3']) lmsPayload['summary'] = generatedNotes['l3'];
-        // ── Question columns (standardized names) ──
+        // ── Question columns (standardised names matching lms_content schema) ──
         if (generatedNotes['l4'] && generatedNotes['l4'] !== 'None requested.') lmsPayload['marks_10_questions'] = generatedNotes['l4'];
         if (generatedNotes['l5'] && generatedNotes['l5'] !== 'None requested.') lmsPayload['marks_5_questions'] = generatedNotes['l5'];
-        if (generatedNotes['l6'] && generatedNotes['l6'] !== 'None requested.') lmsPayload['marks_3_questions'] = generatedNotes['l6'];
-        if (generatedNotes['l7'] && generatedNotes['l7'] !== 'None requested.') lmsPayload['marks_2_questions'] = generatedNotes['l7'];
-        if (generatedNotes['l8'] && generatedNotes['l8'] !== 'None requested.') lmsPayload['marks_1_questions'] = generatedNotes['l8'];
+        if (generatedNotes['l6'] && generatedNotes['l6'] !== 'None requested.') lmsPayload['marks_3_reasoning'] = generatedNotes['l6'];
+        if (generatedNotes['l7'] && generatedNotes['l7'] !== 'None requested.') lmsPayload['marks_2_case_mcqs'] = generatedNotes['l7'];
+        if (generatedNotes['l8'] && generatedNotes['l8'] !== 'None requested.') lmsPayload['marks_1_mcqs'] = generatedNotes['l8'];
         if (generatedNotes['l9'] && generatedNotes['l9'] !== 'None requested.') {
-            lmsPayload['flashcards'] = { raw: generatedNotes['l9'] };
-        }
-        if (generatedNotes['l10'] && generatedNotes['l10'] !== 'None requested.') {
-            lmsPayload['ppt_content'] = { raw: generatedNotes['l10'] };
+            lmsPayload['flashcards'] = generatedNotes['l9'];
         }
 
         // Check if lms_content exists for this topic
@@ -179,7 +176,6 @@ export async function POST(req: Request) {
             if (lmsPayload['detailed_notes']) corePayload['detailed_notes'] = lmsPayload['detailed_notes'];
             if (lmsPayload['summary']) corePayload['summary'] = lmsPayload['summary'];
             if (lmsPayload['flashcards']) corePayload['flashcards'] = lmsPayload['flashcards'];
-            if (lmsPayload['ppt_content']) corePayload['ppt_content'] = lmsPayload['ppt_content'];
             const { error: coreErr } = await trySave(corePayload);
             if (coreErr) throw new Error(`lms_content save failed: ${coreErr.message}`);
             saveErr = null; // Core save succeeded

@@ -4,7 +4,7 @@ import { getSupabaseAdmin } from '../../../../lib/supabaseAdmin';
 
 // GET — Fetch ALL users from Supabase Auth, merged with public.users data
 export async function GET(req: NextRequest) {
-  const sec = await checkSecurity(req);
+  const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin'] });
   if (!sec.authorized) return sec.response;
   try {
     const supabaseAdmin = getSupabaseAdmin();
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
 
 // PATCH — Update user role
 export async function PATCH(req: NextRequest) {
-  const sec = await checkSecurity(req);
+  const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin'] });
   if (!sec.authorized) return sec.response;
   try {
     const supabaseAdmin = getSupabaseAdmin();
@@ -76,6 +76,8 @@ export async function PATCH(req: NextRequest) {
 
 // PUT — Set user password + save reference in public.users
 export async function PUT(req: NextRequest) {
+  const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin'] });
+  if (!sec.authorized) return sec.response;
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const { userId, newPassword } = await req.json();
@@ -107,7 +109,7 @@ export async function PUT(req: NextRequest) {
 
 // POST — Send password reset email to a user
 export async function POST(req: NextRequest) {
-    const sec = await checkSecurity(req);
+    const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin'] });
     if (!sec.authorized) return sec.response;
 
   try {
