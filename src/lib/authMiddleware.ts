@@ -83,17 +83,7 @@ export async function verifyAuth(req: Request) {
         }
     }
 
-    // ── 3. Role-cookie bypass (last resort for same-origin requests) ──────────
-    // When the JWT is expired and cannot be refreshed (common in local dev after
-    // 1 hour), fall back to the role cookie that was set during login (7-day TTL).
-    // Only trusted for privileged roles — student/teacher always need a valid JWT.
-    const roleFromCookie = cookies['role'];
-    if (roleFromCookie === 'superadmin' || roleFromCookie === 'masteradmin') {
-        console.log('[AuthMiddleware] JWT expired/missing — accepted via role cookie fallback (role:', roleFromCookie, ')');
-        return syntheticAdmin('cookie-auth-superadmin', 'admin@mededuai.com', roleFromCookie);
-    }
-
-    console.warn('[AuthMiddleware] All auth methods failed. token present:', !!token, '| role cookie:', roleFromCookie || 'none');
+    console.warn('[AuthMiddleware] All auth methods failed. token present:', !!token);
     return null;
 }
 
