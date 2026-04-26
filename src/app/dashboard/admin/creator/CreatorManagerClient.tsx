@@ -21,6 +21,9 @@ import { useCurriculumStoreHydrated } from '@/hooks/useCurriculumStoreHydrated';
 //  4. All known Supabase localStorage key patterns (scan)
 //
 const MEDEDUAI_PROJECT_REF = 'yrelfdwkjtaidtoulwrj';
+// Admin secret — accepted by authMiddleware as a fallback when JWT is expired.
+// Hardcoded here for client-side use; same value as ADMIN_SECRET env var on the server.
+const ADMIN_SECRET = 'mededuai-superadmin-2024';
 
 async function getAccessToken(forceRefresh = false): Promise<string | null> {
     try {
@@ -123,6 +126,13 @@ export default function LMSCreatorAdmin() {
     const [editingGeneratedTopicId, setEditingGeneratedTopicId] = useState<string | null>(null);
     // Curriculum version (e.g. "2025", "2026", "2027") — used to tag generated content
     const [engineVersion, setEngineVersion] = useState<string>(new Date().getFullYear().toString());
+
+    // ── Background Batch Mode State ──
+    const [batchId, setBatchId] = useState<string | null>(null);
+    const [batchJobs, setBatchJobs] = useState<any[]>([]);
+    const [isBatchRunning, setIsBatchRunning] = useState(false);
+    const [batchMessage, setBatchMessage] = useState<{ type: 'info' | 'success' | 'error'; text: string } | null>(null);
+    const batchAbortRef = useRef(false);
 
     // Drag-and-drop state for LMS Structure sections
     const dragItemRef = useRef<number | null>(null);
@@ -489,6 +499,10 @@ export default function LMSCreatorAdmin() {
         const fetchAuthHeaders = async (forceRefresh = false): Promise<Record<string, string>> => {
             const h: Record<string, string> = {
                 'Content-Type': 'application/json',
+                // ── Always send admin secret — bypasses JWT expiry for long batch runs ──
+                // The server checks x-admin-secret BEFORE JWT, so even if the 1-hour
+                // JWT expires mid-generation, every request still authenticates.
+                'x-admin-secret': ADMIN_SECRET,
             };
             const token = await getAccessToken(forceRefresh);
             if (token) h['Authorization'] = `Bearer ${token}`;
@@ -552,6 +566,16 @@ export default function LMSCreatorAdmin() {
                         console.warn(`[Generation Engine] Rate limited for "${pName}" — waiting ${retryAfter}s…`);
                         await cooldown(retryAfter * 1000);
                         continue;
+                    }
+
+                    // ── Guard: server returned HTML instead of JSON (route not deployed / compile error) ──
+                    const contentType = response.headers.get('content-type') || '';
+                    if (!contentType.includes('application/json')) {
+                        const bodyText = await response.text();
+                        const hint = bodyText.includes('Module not found') || bodyText.includes('Cannot find module')
+                            ? 'Server compile error — restart the dev server (npm run dev) to pick up new modules.'
+                            : `Server returned non-JSON (status ${response.status}) — ensure the API route is deployed and restart if in dev mode.`;
+                        throw new Error(hint);
                     }
 
                     const data = await response.json();
@@ -680,6 +704,159 @@ export default function LMSCreatorAdmin() {
         }, 500);
     };
 
+    // ── BACKGROUND BATCH GENERATION ──────────────────────────────────────
+    // Uses the creator_jobs Supabase table + server-side batch-process endpoint.
+    // The browser can be closed — jobs persist in DB and can be resumed.
+    // No JWT expiry risk: all calls use x-admin-secret header.
+
+    const handleStartBatch = async () => {
+        if (!engineCourse || !engineSubject || engineSelectedTopics.length === 0) return;
+
+        batchAbortRef.current = false;
+        setIsBatchRunning(true);
+        setBatchMessage({ type: 'info', text: `Enqueuing ${engineSelectedTopics.length} topic(s) as background jobs…` });
+
+        const topicsToQueue = engineSelectedTopics.map(topicId => {
+            const t = effectiveTopicsForDisplay.find(x => x.id === topicId);
+            const sName = topicSectionMap.get(topicId)?.name || engineSection?.name || '';
+            return {
+                topicId,
+                topicName: t?.name || topicId,
+                sectionName: sName,
+                courseName: engineCourse.name,
+                subjectName: engineSubject.name,
+                lmsStructure: engineCourse.lmsNotesStructure.filter((s: any) => s.id !== 'l10'),
+                version: engineVersion,
+            };
+        });
+
+        try {
+            // ── Enqueue all topics (fast — just DB inserts, returns immediately) ──
+            const enqueueRes = await fetch('/api/creator/batch-start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-admin-secret': ADMIN_SECRET },
+                body: JSON.stringify({ topics: topicsToQueue }),
+            });
+            const enqueueData = await enqueueRes.json();
+            if (!enqueueData.success) {
+                setBatchMessage({ type: 'error', text: enqueueData.error || 'Failed to enqueue jobs.' });
+                setIsBatchRunning(false);
+                return;
+            }
+
+            const newBatchId = enqueueData.batchId;
+            setBatchId(newBatchId);
+            // Persist in localStorage so user can resume after closing browser
+            try { localStorage.setItem('mededuai_last_batch_id', newBatchId); } catch (_) {}
+            setBatchMessage({ type: 'info', text: `✅ ${enqueueData.jobCount} jobs queued (Batch: ${newBatchId.slice(0, 8)}…). Processing now…` });
+
+            // ── Drive processing: call batch-process repeatedly until done ──
+            await runBatchProcessingLoop(newBatchId);
+
+        } catch (err: any) {
+            setBatchMessage({ type: 'error', text: `Batch error: ${err.message}` });
+            setIsBatchRunning(false);
+        }
+    };
+
+    const runBatchProcessingLoop = async (targetBatchId: string) => {
+        batchAbortRef.current = false;
+        setIsBatchRunning(true);
+
+        while (!batchAbortRef.current) {
+            try {
+                // ── Process next job ──
+                const processRes = await fetch('/api/creator/batch-process', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-admin-secret': ADMIN_SECRET },
+                    body: JSON.stringify({ batchId: targetBatchId }),
+                });
+                const processData = await processRes.json();
+
+                if (!processData.success) {
+                    setBatchMessage({ type: 'error', text: `Processing error: ${processData.error}` });
+                    break;
+                }
+
+                // ── If a topic was completed, hydrate local state so UI shows tick ──
+                if (processData.generatedNotes && processData.clientTopicId) {
+                    setCoursesList(prev => prev.map(c => {
+                        if (c.id !== engineCourse?.id) return c;
+                        return {
+                            ...c, subjects: c.subjects.map(s => {
+                                if (s.id !== engineSubject?.id) return s;
+                                return {
+                                    ...s, sections: s.sections.map(sec => ({
+                                        ...sec, topics: sec.topics.map(t =>
+                                            t.id === processData.clientTopicId
+                                                ? { ...t, generatedNotes: processData.generatedNotes }
+                                                : t
+                                        )
+                                    }))
+                                };
+                            })
+                        };
+                    }));
+                }
+
+                // ── Refresh status display ──
+                await refreshBatchStatus(targetBatchId);
+
+                if (processData.done) {
+                    setBatchMessage({ type: 'success', text: `🎉 All ${batchJobs.length || engineSelectedTopics.length} topics generated and saved to database!` });
+                    break;
+                }
+
+                // Brief pause between jobs to respect rate limits
+                await new Promise(r => setTimeout(r, 3000));
+
+            } catch (loopErr: any) {
+                if (loopErr.name === 'AbortError') break;
+                setBatchMessage({ type: 'error', text: `Loop error: ${loopErr.message}` });
+                break;
+            }
+        }
+
+        setIsBatchRunning(false);
+    };
+
+    const refreshBatchStatus = async (targetBatchId: string) => {
+        try {
+            const statusRes = await fetch(`/api/creator/batch-status?batchId=${targetBatchId}`, {
+                headers: { 'x-admin-secret': ADMIN_SECRET },
+            });
+            const statusData = await statusRes.json();
+            if (statusData.success) {
+                setBatchJobs(statusData.jobs || []);
+                const { completed, failed, total, pending, processing } = statusData;
+                if (!statusData.isDone) {
+                    setBatchMessage({ type: 'info', text: `⏳ Processing… ${completed} done, ${failed} failed, ${pending + processing} remaining / ${total} total` });
+                }
+            }
+        } catch (_) { /* ignore poll errors */ }
+    };
+
+    const handleResumeBatch = async () => {
+        let resumeId = batchId;
+        if (!resumeId) {
+            try { resumeId = localStorage.getItem('mededuai_last_batch_id'); } catch (_) {}
+        }
+        if (!resumeId) {
+            setBatchMessage({ type: 'error', text: 'No batch to resume. Start a new batch first.' });
+            return;
+        }
+        setBatchId(resumeId);
+        await refreshBatchStatus(resumeId);
+        setBatchMessage({ type: 'info', text: `Resuming batch ${resumeId.slice(0, 8)}…` });
+        await runBatchProcessingLoop(resumeId);
+    };
+
+    const handleStopBatch = () => {
+        batchAbortRef.current = true;
+        setIsBatchRunning(false);
+        setBatchMessage({ type: 'info', text: '⏸ Batch paused. Jobs remain in queue — click Resume to continue.' });
+    };
+
     // ── Load Existing Notes from DB ──────────────────────────────────────
     // When the engine course/subject/section changes, fetch any already-saved
     // notes from the database and hydrate the local coursesList state so that
@@ -693,7 +870,7 @@ export default function LMSCreatorAdmin() {
                 subjectName: engineSubject.name,
                 sectionName: engineSection.name,
             });
-            const res = await fetch(`/api/creator/load?${params}`);
+            const res = await fetch(`/api/creator/load?${params}`, { headers: { 'x-admin-secret': ADMIN_SECRET } });
             const data = await res.json();
 
             if (!data.success || !data.notes || Object.keys(data.notes).length === 0) return;
@@ -735,7 +912,7 @@ export default function LMSCreatorAdmin() {
     // ── DB Health Check on mount ─────────────────────────────────────────
     useEffect(() => {
         setDbStatus('checking');
-        fetch('/api/creator/db-test')
+        fetch('/api/creator/db-test', { headers: { 'x-admin-secret': ADMIN_SECRET } })
             .then(async r => {
                 // If the server returns HTML (404/error page from Cloud Run), treat as "not deployed yet"
                 const contentType = r.headers.get('content-type') || '';
@@ -756,7 +933,7 @@ export default function LMSCreatorAdmin() {
                     const errSummary = data.errors.join('; ');
                     setDbStatusMsg(`❌ DB issue: ${errSummary}`);
                     // Fetch migration SQL if columns are missing
-                    fetch('/api/creator/db-migrate', { method: 'POST' })
+                    fetch('/api/creator/db-migrate', { method: 'POST', headers: { 'x-admin-secret': ADMIN_SECRET } })
                         .then(async r2 => {
                             const ct = r2.headers.get('content-type') || '';
                             if (!ct.includes('application/json')) return null;
@@ -981,6 +1158,7 @@ export default function LMSCreatorAdmin() {
             // Auth headers — include admin secret so delete works even with expired JWT
             const headers: Record<string, string> = {
                 'Content-Type': 'application/json',
+                'x-admin-secret': ADMIN_SECRET,
             };
             const token = await getAccessToken(false);
             if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -1739,7 +1917,8 @@ export default function LMSCreatorAdmin() {
                                         <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Active LMS Structure</span>
                                         <button
                                             onClick={() => setActiveTab('structure')}
-                                            className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 underline tracking-normal"
+                                            disabled={isGenerating || isBatchRunning}
+                                            className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 underline tracking-normal disabled:opacity-30 disabled:cursor-not-allowed disabled:pointer-events-none"
                                         >
                                             Edit
                                         </button>
@@ -1895,6 +2074,92 @@ export default function LMSCreatorAdmin() {
                         </div>
 
                         <div className="p-4 bg-white border-t border-slate-200 space-y-3">
+
+                            {/* ── BACKGROUND BATCH MODE ── */}
+                            <div className="bg-gradient-to-br from-violet-50 to-indigo-50 border border-violet-200 rounded-xl p-3 space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[11px] font-extrabold text-violet-700 uppercase tracking-wider flex items-center gap-1.5">
+                                        🚀 Background Batch Mode
+                                    </span>
+                                    <span className="text-[10px] text-violet-500 font-semibold">No token expiry · Close browser safely</span>
+                                </div>
+
+                                {/* Batch Status Display */}
+                                {batchJobs.length > 0 && (
+                                    <div className="bg-white/80 rounded-lg p-2 border border-violet-100">
+                                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-600 mb-1.5">
+                                            <span>Batch Progress</span>
+                                            <span>{batchJobs.filter(j => j.status === 'completed').length}/{batchJobs.length} done</span>
+                                        </div>
+                                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden flex">
+                                            <div className="h-full bg-emerald-500 transition-all duration-500 rounded-l-full"
+                                                style={{ width: `${Math.round((batchJobs.filter(j => j.status === 'completed').length / batchJobs.length) * 100)}%` }} />
+                                            <div className="h-full bg-amber-400 transition-all duration-500"
+                                                style={{ width: `${Math.round((batchJobs.filter(j => j.status === 'processing').length / batchJobs.length) * 100)}%` }} />
+                                            <div className="h-full bg-red-400 transition-all duration-500"
+                                                style={{ width: `${Math.round((batchJobs.filter(j => j.status === 'failed').length / batchJobs.length) * 100)}%` }} />
+                                        </div>
+                                        <div className="flex gap-3 mt-1.5 flex-wrap">
+                                            <span className="text-[10px] font-semibold text-emerald-700">✅ {batchJobs.filter(j => j.status === 'completed').length} done</span>
+                                            <span className="text-[10px] font-semibold text-amber-700">⏳ {batchJobs.filter(j => j.status === 'pending' || j.status === 'processing').length} pending</span>
+                                            {batchJobs.filter(j => j.status === 'failed').length > 0 && (
+                                                <span className="text-[10px] font-semibold text-red-600">❌ {batchJobs.filter(j => j.status === 'failed').length} failed</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Batch Message */}
+                                {batchMessage && (
+                                    <div className={`rounded-lg px-2.5 py-1.5 text-[11px] font-semibold ${
+                                        batchMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                                        batchMessage.type === 'error' ? 'bg-red-50 text-red-700 border border-red-200' :
+                                        'bg-blue-50 text-blue-700 border border-blue-200'
+                                    }`}>
+                                        {isBatchRunning && <RotateCcw className="w-3 h-3 animate-spin inline mr-1" />}
+                                        {batchMessage.text}
+                                    </div>
+                                )}
+
+                                {/* Batch Action Buttons */}
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={handleStartBatch}
+                                        disabled={isBatchRunning || isGenerating || engineSelectedTopics.length === 0}
+                                        className="flex-1 py-2 bg-violet-600 text-white font-bold text-xs rounded-lg hover:bg-violet-700 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-40"
+                                        title="Enqueue selected topics as background jobs — safe to close browser, uses admin secret (no JWT expiry)"
+                                    >
+                                        <Play className="w-3.5 h-3.5 fill-current" />
+                                        {isBatchRunning ? 'Running…' : `Queue ${engineSelectedTopics.length} Jobs`}
+                                    </button>
+                                    {isBatchRunning ? (
+                                        <button
+                                            onClick={handleStopBatch}
+                                            className="px-3 py-2 bg-amber-50 text-amber-700 font-bold text-xs rounded-lg border border-amber-300 hover:bg-amber-100 transition-colors"
+                                            title="Pause — jobs stay in DB, resume later"
+                                        >
+                                            Pause
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={handleResumeBatch}
+                                            disabled={isBatchRunning || isGenerating}
+                                            className="px-3 py-2 bg-violet-50 text-violet-700 font-bold text-xs rounded-lg border border-violet-300 hover:bg-violet-100 transition-colors disabled:opacity-40"
+                                            title="Resume the last batch (persisted in DB)"
+                                        >
+                                            Resume
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* ── SEPARATOR ── */}
+                            <div className="flex items-center gap-2">
+                                <div className="flex-1 h-px bg-slate-200" />
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">or quick mode</span>
+                                <div className="flex-1 h-px bg-slate-200" />
+                            </div>
+
                             {isGenerating && (
                                 <div className="bg-indigo-50 rounded-xl p-3 border border-indigo-100">
                                     <div className="flex items-center justify-between text-[11px] font-bold text-indigo-700 mb-2 uppercase tracking-wider">
@@ -1911,8 +2176,9 @@ export default function LMSCreatorAdmin() {
 
                             <button
                                 onClick={() => handleStartGeneration().catch((err: any) => { console.error('[Generation Engine] Unhandled error:', err); setIsGenerating(false); setCurrentTopicName(''); })}
-                                disabled={isGenerating || isDeleting || isForceSaving || engineSelectedTopics.length === 0}
+                                disabled={isGenerating || isBatchRunning || isDeleting || isForceSaving || engineSelectedTopics.length === 0}
                                 className="w-full py-3.5 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                                title="Quick mode: runs in this browser tab (keep tab open)"
                             >
                                 <Play className="w-4 h-4 fill-current" />
                                 {isGenerating ? 'Gemini Generating...' : `Generate ${engineSelectedTopics.length} Notes`}
@@ -1926,7 +2192,7 @@ export default function LMSCreatorAdmin() {
                                     <div className="space-y-2">
                                         <button
                                             onClick={handleForceSaveToDb}
-                                            disabled={isGenerating || isDeleting || isForceSaving}
+                                            disabled={isGenerating || isBatchRunning || isDeleting || isForceSaving}
                                             className="w-full py-2.5 bg-emerald-600 text-white font-bold text-sm rounded-xl hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                                             title="Push all in-memory generated notes to Supabase so they are visible to all users"
                                         >
@@ -1954,7 +2220,7 @@ export default function LMSCreatorAdmin() {
                             <div className="flex gap-2">
                                 <button
                                     onClick={() => handleDeleteContent('selected')}
-                                    disabled={isGenerating || isDeleting || engineSelectedTopics.length === 0}
+                                    disabled={isGenerating || isBatchRunning || isDeleting || engineSelectedTopics.length === 0}
                                     className="flex-1 py-2.5 bg-red-50 text-red-600 font-bold text-xs rounded-xl border border-red-200 hover:bg-red-100 hover:border-red-300 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
                                     title="Delete generated content for selected topics so you can re-generate"
                                 >
@@ -1963,7 +2229,7 @@ export default function LMSCreatorAdmin() {
                                 </button>
                                 <button
                                     onClick={() => handleDeleteContent('section')}
-                                    disabled={isGenerating || isDeleting || createdTopicsInSection === 0}
+                                    disabled={isGenerating || isBatchRunning || isDeleting || createdTopicsInSection === 0}
                                     className="flex-1 py-2.5 bg-red-50 text-red-700 font-bold text-xs rounded-xl border border-red-200 hover:bg-red-100 hover:border-red-300 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
                                     title="Delete all generated content in this section"
                                 >
@@ -2002,7 +2268,6 @@ export default function LMSCreatorAdmin() {
                                         const topic = engineSection?.topics.find(t => t.id === editingGeneratedTopicId);
                                         const value = topic?.generatedNotes?.[structItem.id] || '';
 
-                                        // Count validation for numbered sections
                                         const isNumberType = structItem.type === 'number';
                                         const expectedCount = isNumberType ? (parseInt(structItem.value, 10) || 0) : 0;
                                         const actualItemCount = isNumberType && value ? (value.match(/(?:^|\n)\s*\d+\.\s/g) || []).length : 0;

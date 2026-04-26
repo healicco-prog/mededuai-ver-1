@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { checkSecurity } from '@/lib/apiSecurity';
 
 // Lazily initialize the Supabase admin client at runtime
 // (not at module-load time, to ensure env vars are available on Netlify)
@@ -11,6 +12,9 @@ function getSupabaseAdmin() {
 }
 
 export async function GET(req: NextRequest) {
+  const sec = await checkSecurity(req);
+  if (!sec.authorized) return sec.response;
+
   try {
     const userId = req.nextUrl.searchParams.get('userId');
     if (!userId) {

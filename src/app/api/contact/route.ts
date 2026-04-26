@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '../../../lib/supabaseAdmin';
 import { Resend } from 'resend';
+import { checkSecurity } from '@/lib/apiSecurity';
 
 export async function POST(request: Request) {
+  const sec = await checkSecurity(request, { requireAuth: false, rateLimitCount: 5 });
+  if (!sec.authorized) return sec.response;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const resend = new Resend(process.env.RESEND_API_KEY);

@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { checkSecurity } from '@/lib/apiSecurity';
 
 /**
  * GET /api/creator/db-test
  * Diagnostic endpoint: checks DB connectivity and what tables/columns exist.
  * Returns a full status report.
  */
-export async function GET() {
+export async function GET(req: Request) {
+    const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin'] });
+    if (!sec.authorized) return sec.response;
+
     const report: Record<string, any> = {
         supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || 'NOT SET',
         hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,

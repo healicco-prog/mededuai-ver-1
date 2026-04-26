@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
-import { verifyAuthAndRole } from '@/lib/authMiddleware';
+import { checkSecurity } from '@/lib/apiSecurity';
 
 /**
  * POST /api/creator/delete
@@ -14,17 +14,8 @@ import { verifyAuthAndRole } from '@/lib/authMiddleware';
  *   3. Delete all content for a subject → body: { courseName, subjectName, deleteAll: true }
  */
 export async function POST(req: Request) {
-    const { user, role } = await verifyAuthAndRole(req);
-
-    if (!user) {
-        return NextResponse.json({ success: false, error: 'Unauthorized.' }, { status: 401 });
-    }
-
-    const isAdmin = role === 'superadmin' || role === 'masteradmin' || user.id === 'system-admin';
-    if (!isAdmin) {
-        console.warn(`[Creator Delete] Forbidden for role="${role}", user=${user.id}`);
-        return NextResponse.json({ success: false, error: 'Forbidden. Only superadmin can delete generated content.' }, { status: 403 });
-    }
+    const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin'] });
+    if (!sec.authorized) return sec.response;
 
     try {
         const body = await req.json();

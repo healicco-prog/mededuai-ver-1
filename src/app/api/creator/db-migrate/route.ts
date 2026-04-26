@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { checkSecurity } from '@/lib/apiSecurity';
 
 /**
  * POST /api/creator/db-migrate
@@ -7,7 +8,10 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
  * Supabase SQL Editor if any columns need to be added, renamed, or removed.
  * Safe to call repeatedly — only reports what is genuinely missing/wrong.
  */
-export async function POST() {
+export async function POST(req: Request) {
+    const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin'] });
+    if (!sec.authorized) return sec.response;
+
     try {
         const supabase = getSupabaseAdmin();
 

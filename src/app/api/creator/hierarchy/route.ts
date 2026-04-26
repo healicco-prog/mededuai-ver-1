@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { checkSecurity } from '@/lib/apiSecurity';
 
 /**
  * GET /api/creator/hierarchy
  * Returns the full course → subject → topic tree from the database,
  * including a `hasNotes` flag on each topic.
  */
-export async function GET() {
+export async function GET(req: Request) {
+    const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin'] });
+    if (!sec.authorized) return sec.response;
+
     try {
         const supabase = getSupabaseAdmin();
 

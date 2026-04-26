@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { checkSecurity } from '@/lib/apiSecurity';
 
 /**
  * GET /api/creator/topic-notes?topicId=<uuid>
  * Returns the lms_content row for a specific topic.
  */
 export async function GET(req: Request) {
+    const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin'] });
+    if (!sec.authorized) return sec.response;
+
     try {
         const { searchParams } = new URL(req.url);
         const topicId = searchParams.get('topicId');

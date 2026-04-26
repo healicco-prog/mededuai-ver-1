@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
-import { verifyAuthAndRole } from '@/lib/authMiddleware';
+import { checkSecurity } from '@/lib/apiSecurity';
 
 interface SavePayload {
     courseName: string;
@@ -55,15 +55,8 @@ function parseQuestions(rawText: string): string[] {
 }
 
 export async function POST(req: Request) {
-    const { user, role } = await verifyAuthAndRole(req);
-
-    if (!user) {
-        return NextResponse.json({ success: false, error: 'Unauthorized.' }, { status: 401 });
-    }
-
-    if (role === 'student') {
-        return NextResponse.json({ success: false, error: 'Forbidden. Students cannot overwrite curriculum data.' }, { status: 403 });
-    }
+    const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin'] });
+    if (!sec.authorized) return sec.response;
 
     try {
         const body: SavePayload = await req.json();
