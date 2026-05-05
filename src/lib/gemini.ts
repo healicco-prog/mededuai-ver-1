@@ -83,7 +83,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
  *     Never import or call from client components.
  */
 export async function generateWithFallback(
-    prompt: string,
+    prompt: string | any[],
     options?: {
         jsonMode?: boolean;
         preferredModels?: string[];
@@ -120,7 +120,7 @@ export async function generateWithFallback(
                 console.log(`[MedEduAI AI] Trying model=${model} attempt=${attempt}/${maxRetries}`);
                 const response = await getAI().models.generateContent({
                     model,
-                    contents: prompt,
+                    contents: Array.isArray(prompt) ? prompt : [{ role: 'user', parts: [{ text: prompt }] }],
                     ...(config ? { config } : {}),
                 });
                 const text = response.text || (options?.jsonMode ? '{}' : '');
@@ -302,6 +302,41 @@ export async function generateJSON<T = any>(
     } catch (e3) {
         console.error('[MedEduAI AI] All 3 layers of JSON parsing failed. Raw text snippet:', text.substring(0, 500));
         throw new Error(`JSON parsing failed after all recovery attempts: ${(e3 as Error).message}`);
+    }
+}
+
+/**
+ * Generate structured JSON from multimodal input (Text + Images)
+ */
+export async function generateVisionJSON<T = any>(
+    promptParts: any[],
+    preferredModels?: string[]
+): Promise<T> {
+    const text = await generateWithFallback(
+        [{ role: 'user', parts: promptParts }],
+        {
+            jsonMode: true,
+            preferredModels: preferredModels || [MODELS.primary, MODELS.secondary],
+        }
+    );
+
+    // Strip markdown formatting like ```json ... ```
+    let cleanText = text.trim();
+    if (cleanText.startsWith('```')) {
+        const lines = cleanText.split('\n');
+        if (lines[0].startsWith('```')) lines.shift();
+        if (lines[lines.length - 1].startsWith('```')) lines.pop();
+        cleanText = lines.join('\n').trim();
+    }
+
+    try {
+        return JSON.parse(cleanText);
+    } catch (e) {
+        try {
+            return JSON.parse(repairJSON(cleanText));
+        } catch (inner) {
+            throw new Error(`Vision JSON parsing failed: ${(inner as Error).message}`);
+        }
     }
 }
 

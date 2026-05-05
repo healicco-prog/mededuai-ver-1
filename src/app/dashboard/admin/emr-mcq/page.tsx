@@ -42,10 +42,10 @@ export default function EmrMcqsPortal() {
     const [manualReg, setManualReg] = useState('');
     const [manualName, setManualName] = useState('');
 
-    // Scanning Workflow
     const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
     const [isScanning, setIsScanning] = useState(false);
     const [uploadedOmr, setUploadedOmr] = useState<string | null>(null);
+    const [uploadedFile, setUploadedFile] = useState<File | null>(null);
     const [simulatedScore, setSimulatedScore] = useState<number | null>(null);
 
     // Results Review 
@@ -168,35 +168,70 @@ export default function EmrMcqsPortal() {
 
     const isAnswerKeyComplete = questionsListForKey.length > 0 && questionsListForKey.every(q => answerKey[q.id]);
 
-    const handleSimulateScan = () => {
-        if (!uploadedOmr) return alert("Please upload an OMR sheet to scan.");
+    const handleExecuteScan = async () => {
+        if (!uploadedOmr || !uploadedFile) return alert("Please upload an OMR sheet to scan.");
         setIsScanning(true);
-        setTimeout(() => {
-            setIsScanning(false);
-            
-            // Generate mock marks based on the answer key, randomizing some wrong answers
-            let total = 0;
-            const bd: any = {};
-            
-            questionsListForKey.forEach(q => {
-                const isCorrect = Math.random() > 0.2; // 80% chance of getting it right
-                if (isCorrect) {
-                    bd[q.id] = q.marks;
-                    total += q.marks;
-                } else {
-                    bd[q.id] = 0;
-                }
+        
+        try {
+            // Convert file to base64
+            const reader = new FileReader();
+            const base64Promise = new Promise<string>((resolve) => {
+                reader.onload = () => resolve(reader.result as string);
+                reader.readAsDataURL(uploadedFile);
+            });
+            const base64Image = await base64Promise;
+
+            const response = await fetch('/api/emr-mcq/scan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    image: base64Image,
+                    questions: questionsListForKey.map(q => q.label)
+                })
             });
 
-            setStudents(prev => prev.map(s => 
-                s.id === selectedStudentId 
-                ? { ...s, status: 'evaluated', marks: total, breakdown: bd, omrImageUrl: uploadedOmr } 
-                : s
-            ));
-            
-            setSelectedStudentId(null);
-            setUploadedOmr(null);
-        }, 3000);
+            const data = await response.json();
+            if (data.success) {
+                const aiResults = data.results; // e.g. {"26(I)": "A", "26(II)": "B"}
+                
+                let total = 0;
+                const bd: any = {};
+                
+                questionsListForKey.forEach(q => {
+                    // Normalize label for matching (remove spaces, lowercase)
+                    const normalize = (l: string) => l.replace(/\s+/g, '').toLowerCase();
+                    const aiLabel = Object.keys(aiResults).find(k => normalize(k) === normalize(q.label));
+                    
+                    const studentAnswer = aiLabel ? aiResults[aiLabel] : null;
+                    const correctAnswer = answerKey[q.id];
+
+                    if (studentAnswer === correctAnswer) {
+                        bd[q.id] = q.marks;
+                        total += q.marks;
+                    } else {
+                        bd[q.id] = 0;
+                    }
+                });
+
+                setStudents(prev => prev.map(s => 
+                    s.id === selectedStudentId 
+                    ? { ...s, status: 'evaluated', marks: total, breakdown: bd, omrImageUrl: uploadedOmr } 
+                    : s
+                ));
+                
+                setSelectedStudentId(null);
+                setUploadedOmr(null);
+                setUploadedFile(null);
+            } else {
+                alert("Scanning failed: " + (data.error || "Unknown error"));
+            }
+        } catch (err: any) {
+            console.error(err);
+            alert("An error occurred during scanning.");
+        } finally {
+            setIsScanning(true); // Wait, this should be false!
+            setIsScanning(false);
+        }
     };
 
     const handleExportResults = () => {
@@ -666,7 +701,10 @@ export default function EmrMcqsPortal() {
                                                                 <div className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
                                                                     <input type="file" accept="image/*" className="w-full h-full cursor-pointer" onChange={(e) => {
                                                                         const file = e.target.files?.[0];
-                                                                        if (file) setUploadedOmr(URL.createObjectURL(file));
+                                                                        if (file) {
+                                                                            setUploadedFile(file);
+                                                                            setUploadedOmr(URL.createObjectURL(file));
+                                                                        }
                                                                     }} />
                                                                 </div>
                                                                 <Camera className="w-12 h-12 text-emerald-500 mb-4 opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all" />
@@ -691,7 +729,7 @@ export default function EmrMcqsPortal() {
 
                                                         <button 
                                                             disabled={!uploadedOmr}
-                                                            onClick={handleSimulateScan}
+                                                            onClick={handleExecuteScan}
                                                             className="w-full py-4 mt-4 bg-emerald-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm hover:bg-emerald-700 disabled:opacity-50 transition-all"
                                                         >
                                                             <Target className="w-5 h-5" /> Execute Scan Analysis
