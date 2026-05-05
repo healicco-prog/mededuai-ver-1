@@ -8,7 +8,7 @@ import { checkSecurity } from '@/lib/apiSecurity';
  * including a `hasNotes` flag on each topic.
  */
 export async function GET(req: Request) {
-    const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin'] });
+    const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin', 'deptadmin', 'instadmin', 'teacher'] });
     if (!sec.authorized) return sec.response;
 
     try {

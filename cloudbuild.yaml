@@ -54,6 +54,7 @@ steps:
           --set-env-vars="SUPABASE_SERVICE_ROLE_KEY=${_SUPABASE_SERVICE_ROLE_KEY}" \
           --set-env-vars="RESEND_API_KEY=${_RESEND_API_KEY}" \
           --set-env-vars="GEMINI_API_KEY=${_GEMINI_API_KEY}" \
+          --set-env-vars="CRON_SECRET=${_CRON_SECRET}" \
           --set-env-vars="ADMIN_SECRET=${_ADMIN_SECRET}"
 
 images:

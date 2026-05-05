@@ -51,12 +51,17 @@ interface QuestionFrame {
 
 export default function QuestionPaperDeveloper() {
   const store = useQPaperStore();
+
+  useEffect(() => {
+    store.fetchData();
+  }, []);
+
   const [view, setView] = useState<'dashboard' | 'setup' | 'generate' | 'view_paper'>('dashboard');
   const [editFormatId, setEditFormatId] = useState<string | null>(null);
   const [generateFormatId, setGenerateFormatId] = useState<string | null>(null);
   const [viewPaperId, setViewPaperId] = useState<string | null>(null);
 
-  if (store.formats.length === 0 && view === 'dashboard') {
+  if (!store.isLoading && store.formats.length === 0 && view === 'dashboard') {
     setView('setup');
   }
 
@@ -111,12 +116,24 @@ function DashboardView({ onNavigate, formats, onEdit }: { onNavigate: (v: any, i
             <h2 className="text-3xl font-extrabold text-white tracking-tight">Question Paper Developer</h2>
             <p className="text-blue-200/80 mt-1.5 font-medium">Create standard university question papers with AI-assisted question picking and PDF export.</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <button onClick={() => onNavigate('setup')} className="bg-white/10 backdrop-blur-sm text-white font-bold h-12 px-6 rounded-xl hover:bg-white/20 transition-all flex items-center justify-center gap-2 border border-white/20">
               <Settings className="w-5 h-5" /> Setup Format
             </button>
             <button onClick={() => onNavigate('generate')} className="bg-white text-blue-900 font-bold h-12 px-6 rounded-xl hover:bg-blue-50 transition-all flex items-center justify-center gap-2 shadow-lg">
               <PenTool className="w-5 h-5" /> Generate Paper
+            </button>
+            <button 
+              onClick={() => {
+                if (confirm("This will upload all your locally saved question papers to the cloud database. Continue?")) {
+                  store.migrateLocalToSupabase();
+                }
+              }} 
+              className="bg-indigo-500 text-white font-bold h-12 px-6 rounded-xl hover:bg-indigo-600 transition-all flex items-center justify-center gap-2 shadow-lg"
+              disabled={store.isLoading}
+            >
+              <RefreshCw className={`w-5 h-5 ${store.isLoading ? 'animate-spin' : ''}`} /> 
+              {store.isLoading ? 'Syncing...' : 'Sync Local Data'}
             </button>
           </div>
         </div>

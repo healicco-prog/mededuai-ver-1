@@ -7,7 +7,7 @@ import { checkSecurity } from '@/lib/apiSecurity';
  * Returns the lms_content row for a specific topic.
  */
 export async function GET(req: Request) {
-    const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin'] });
+    const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin', 'deptadmin', 'instadmin', 'teacher'] });
     if (!sec.authorized) return sec.response;
 
     try {

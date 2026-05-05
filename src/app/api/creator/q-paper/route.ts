@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { generateJSON } from '@/lib/gemini';
 
 export async function POST(req: Request) {
-    const sec = await checkSecurity(req);
+    const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin', 'deptadmin', 'instadmin', 'teacher'] });
     if (!sec.authorized) return sec.response;
 
     let requestBody: any = { frames: [], topics: 'Unknown' };

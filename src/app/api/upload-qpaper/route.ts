@@ -6,7 +6,7 @@ import { generateJSON } from '@/lib/gemini';
 export const maxDuration = 60; // allow up to 60s for AI parsing
 
 export async function POST(req: NextRequest) {
-    const sec = await checkSecurity(req);
+    const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin', 'deptadmin', 'instadmin', 'teacher'] });
     if (!sec.authorized) return sec.response;
 
     try {

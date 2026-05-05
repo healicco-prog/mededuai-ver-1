@@ -9,7 +9,7 @@ import { checkSecurity } from '@/lib/apiSecurity';
  * mapped to the generatedNotes format expected by CreatorManagerClient (l1→introduction, l2→detailed_notes, etc.)
  */
 export async function GET(req: Request) {
-    const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin'] });
+    const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin', 'deptadmin', 'instadmin', 'teacher'] });
     if (!sec.authorized) return sec.response;
 
     try {

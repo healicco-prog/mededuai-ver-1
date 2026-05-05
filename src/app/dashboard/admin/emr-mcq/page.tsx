@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ClipboardType, Sparkles, UploadCloud, Users, CheckCircle2, FileSearch, HelpCircle, Camera, Settings, Trash2, ChevronLeft, ChevronRight, X, FolderOpen, Save, Target, Edit2 } from 'lucide-react';
 import { useQPaperStore } from '@/store/qPaperStore';
 import { useEmrStore, EvaluatedStudent } from '@/store/emrStore';
@@ -14,6 +14,10 @@ import * as XLSX from 'xlsx';
 export default function EmrMcqsPortal() {
     const store = useQPaperStore();
     const emrStore = useEmrStore();
+
+    useEffect(() => {
+        store.fetchData();
+    }, []);
 
     const [step, setStep] = useState(0);
 
