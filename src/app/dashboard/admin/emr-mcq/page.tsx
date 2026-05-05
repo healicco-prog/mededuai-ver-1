@@ -48,6 +48,11 @@ export default function EmrMcqsPortal() {
     const [uploadedFile, setUploadedFile] = useState<File | null>(null);
     const [simulatedScore, setSimulatedScore] = useState<number | null>(null);
 
+    // Camera States
+    const [isCameraActive, setIsCameraActive] = useState(false);
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const [stream, setStream] = useState<MediaStream | null>(null);
+
     // Results Review 
     const [editingStudentId, setEditingStudentId] = useState<number | null>(null);
     const [manualOverrideScore, setManualOverrideScore] = useState<{ [qIdx: string]: number }>({});
@@ -229,9 +234,63 @@ export default function EmrMcqsPortal() {
             console.error(err);
             alert("An error occurred during scanning.");
         } finally {
-            setIsScanning(true); // Wait, this should be false!
             setIsScanning(false);
         }
+    };
+
+    const startCamera = async () => {
+        try {
+            const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            setStream(s);
+            if (videoRef.current) {
+                videoRef.current.srcObject = s;
+            }
+            setIsCameraActive(true);
+        } catch (err) {
+            console.error("Error accessing camera:", err);
+            alert("Could not access camera. Please check permissions.");
+        }
+    };
+
+    const stopCamera = () => {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            setStream(null);
+        }
+        setIsCameraActive(false);
+    };
+
+    const capturePhoto = () => {
+        if (videoRef.current) {
+            const canvas = document.createElement('canvas');
+            canvas.width = videoRef.current.videoWidth;
+            canvas.height = videoRef.current.videoHeight;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.drawImage(videoRef.current, 0, 0);
+                const dataUrl = canvas.toDataURL('image/png');
+                setUploadedOmr(dataUrl);
+                
+                // Convert dataUrl to File object for the API
+                const blob = dataURLtoBlob(dataUrl);
+                const file = new File([blob], `capture_${Date.now()}.png`, { type: 'image/png' });
+                setUploadedFile(file);
+                
+                stopCamera();
+            }
+        }
+    };
+
+    const dataURLtoBlob = (dataurl: string) => {
+        const arr = dataurl.split(',');
+        const mime = arr[0].match(/:(.*?);/)?.[1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new Blob([u8arr], { type: mime });
     };
 
     const handleExportResults = () => {
@@ -688,28 +747,64 @@ export default function EmrMcqsPortal() {
                                                 </div>
                                             ) : (
                                                 <div className="flex-1 flex flex-col lg:flex-row gap-6">
-                                                    <div className={`flex-1 min-h-[300px] lg:min-h-0 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center relative overflow-hidden bg-slate-50 transition-colors group ${uploadedOmr ? 'border-solid border-slate-200 p-0' : 'border-emerald-300 hover:border-emerald-500 hover:bg-emerald-50 cursor-pointer'}`}>
-                                                        {uploadedOmr ? (
+                                                    <div className={`flex-1 min-h-[300px] lg:min-h-0 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center relative overflow-hidden bg-slate-50 transition-colors group ${uploadedOmr || isCameraActive ? 'border-solid border-slate-200 p-0' : 'border-emerald-300 hover:border-emerald-500 hover:bg-emerald-50'}`}>
+                                                        {isCameraActive ? (
+                                                            <div className="w-full h-full relative bg-black">
+                                                                <video 
+                                                                    ref={videoRef} 
+                                                                    autoPlay 
+                                                                    playsInline 
+                                                                    className="w-full h-full object-cover"
+                                                                />
+                                                                <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-4 px-6">
+                                                                    <button 
+                                                                        onClick={stopCamera}
+                                                                        className="flex-1 bg-white/20 backdrop-blur-md text-white font-bold py-3 rounded-xl border border-white/30 hover:bg-white/30 transition"
+                                                                    >
+                                                                        Cancel
+                                                                    </button>
+                                                                    <button 
+                                                                        onClick={capturePhoto}
+                                                                        className="flex-[2] bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-700 flex items-center justify-center gap-2"
+                                                                    >
+                                                                        <Camera className="w-5 h-5" /> Capture Photo
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ) : uploadedOmr ? (
                                                             <>
                                                                 <img src={uploadedOmr} alt="Scanned OMR" className="w-full h-full object-contain" />
                                                                 <div className="absolute inset-0 bg-slate-900/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                                    <button onClick={() => setUploadedOmr(null)} className="bg-white text-slate-900 font-bold px-6 py-2 rounded-xl flex items-center gap-2"><Trash2 className="w-4 h-4"/> Remove Image</button>
+                                                                    <button onClick={() => { setUploadedOmr(null); setUploadedFile(null); }} className="bg-white text-slate-900 font-bold px-6 py-2 rounded-xl flex items-center gap-2"><Trash2 className="w-4 h-4"/> Remove Image</button>
                                                                 </div>
                                                             </>
                                                         ) : (
                                                             <>
-                                                                <div className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
-                                                                    <input type="file" accept="image/*" className="w-full h-full cursor-pointer" onChange={(e) => {
-                                                                        const file = e.target.files?.[0];
-                                                                        if (file) {
-                                                                            setUploadedFile(file);
-                                                                            setUploadedOmr(URL.createObjectURL(file));
-                                                                        }
-                                                                    }} />
+                                                                <div className="flex gap-4 mb-6">
+                                                                    <div className="relative group/upload">
+                                                                        <input type="file" accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onChange={(e) => {
+                                                                            const file = e.target.files?.[0];
+                                                                            if (file) {
+                                                                                setUploadedFile(file);
+                                                                                setUploadedOmr(URL.createObjectURL(file));
+                                                                            }
+                                                                        }} />
+                                                                        <div className="bg-white border-2 border-slate-200 p-6 rounded-2xl flex flex-col items-center justify-center gap-2 group-hover/upload:border-emerald-500 transition-colors">
+                                                                            <UploadCloud className="w-8 h-8 text-slate-400 group-hover/upload:text-emerald-500 transition-colors" />
+                                                                            <span className="text-xs font-bold text-slate-600">Upload File</span>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <button 
+                                                                        onClick={startCamera}
+                                                                        className="bg-white border-2 border-slate-200 p-6 rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-emerald-500 group transition-colors"
+                                                                    >
+                                                                        <Camera className="w-8 h-8 text-slate-400 group-hover:text-emerald-500 transition-colors" />
+                                                                        <span className="text-xs font-bold text-slate-600">Open Camera</span>
+                                                                    </button>
                                                                 </div>
-                                                                <Camera className="w-12 h-12 text-emerald-500 mb-4 opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all" />
-                                                                <h4 className="font-bold text-slate-700">Upload OMR Image</h4>
-                                                                <p className="text-sm font-medium text-slate-500">Click or drag image here.</p>
+                                                                <h4 className="font-bold text-slate-700">Scan Student OMR Sheet</h4>
+                                                                <p className="text-sm font-medium text-slate-500">Snap a photo or upload an existing image.</p>
                                                             </>
                                                         )}
                                                     </div>
