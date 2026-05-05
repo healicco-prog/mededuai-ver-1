@@ -137,7 +137,9 @@ export default function EmrMcqsPortal() {
     paperQuestions.forEach((q, i) => {
         let displayQNo = String(q.questionNo || (i + 1));
         if (q.text) {
-            const qMatch = q.text.match(/^(?:\*\*|\s*)?Q?(\d+)[.)]?(?:\*\*|\s*)/i);
+            // More robust extraction: look for the first number that looks like a question number
+            // Matches: "26 )", "**Q26.**", "26.", "Q 26)", "26i)"
+            const qMatch = q.text.match(/(?:^|[\s\n*])Q?\s*(\d+)\s*[.)]/i);
             if (qMatch) {
                 displayQNo = qMatch[1];
             }

@@ -238,11 +238,12 @@ export function GenerateView({ onBack, formats, initialFormatId, onSaveComplete 
       if (f.type.toLowerCase().includes('mcq')) {
         const content = f.generatedContent || '';
         
-        // More robustly extract the question number (e.g. "**Q27.**", "Q27.", "27.", "27 i)")
-        let displayQNo = String(f.questionNo);
-        const qMatch = content.match(/^(?:\*\*|\s*)?Q?(\d+)[.)]?(?:\*\*|\s*)/i);
-        if (qMatch) {
-            displayQNo = qMatch[1];
+        if (content) {
+            // More robust extraction: look for the first number that looks like a question number
+            const qMatch = content.match(/(?:^|[\s\n*])Q?\s*(\d+)\s*[.)]/i);
+            if (qMatch) {
+                displayQNo = qMatch[1];
+            }
         }
 
         // Count how many "A)" or "A." or "(A)" options exist. Each MCQ subquestion typically has one "A)" option.
