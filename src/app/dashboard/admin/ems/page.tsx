@@ -79,9 +79,32 @@ export default function EvaluationManagementSystem() {
     }, []);
 
     useEffect(() => {
-        localStorage.setItem('ems_evaluated_students', JSON.stringify(evaluatedStudents));
-        localStorage.setItem('ems_background_queue', JSON.stringify(backgroundQueue));
-        localStorage.setItem('ems_current_step', step.toString());
+        try {
+            // Strip large image data from evaluatedStudents to avoid quota issues
+            const studentsToSave = evaluatedStudents.map(s => {
+                const { uploads, ...rest } = s;
+                return rest;
+            });
+            
+            // Strip large image data from backgroundQueue metadata, 
+            // but note that processing will fail after refresh if images are gone.
+            // We accept this trade-off to prevent the crash, as localStorage cannot hold many photos.
+            const queueToSave = backgroundQueue.map(s => {
+                const { uploads, ...rest } = s;
+                return rest;
+            });
+
+            localStorage.setItem('ems_evaluated_students', JSON.stringify(studentsToSave));
+            localStorage.setItem('ems_background_queue', JSON.stringify(queueToSave));
+            localStorage.setItem('ems_current_step', step.toString());
+        } catch (e) {
+            console.error("Failed to save to localStorage:", e);
+            // If quota still exceeded, try clearing old data or just ignore
+            if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+                localStorage.removeItem('ems_evaluated_students');
+                localStorage.removeItem('ems_background_queue');
+            }
+        }
     }, [evaluatedStudents, backgroundQueue, step]);
 
     const handleWordUpload = async (file: File) => {
