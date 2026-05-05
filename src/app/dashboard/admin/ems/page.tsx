@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from 'react';
-import { ClipboardCheck, Sparkles, UploadCloud, Users, CheckCircle2, FileSearch, HelpCircle, Camera, Settings, Trash2, ChevronLeft, ChevronRight, X, Crop as CropIcon, FolderOpen, Save, FileText, Upload, AlertCircle, CheckCircle } from 'lucide-react';
+import { ClipboardCheck, Sparkles, UploadCloud, Users, CheckCircle2, FileSearch, HelpCircle, Camera, Settings, Trash2, ChevronLeft, ChevronRight, X, Crop as CropIcon, FolderOpen, Save, FileText, Upload, AlertCircle, CheckCircle, Plus, Loader2 } from 'lucide-react';
 import { useQPaperStore } from '@/store/qPaperStore';
 import { useEmsStore } from '@/store/emsStore';
 import ReactCrop, { type Crop } from 'react-image-crop';
@@ -64,6 +64,8 @@ export default function EvaluationManagementSystem() {
     ]);
 
     const [evaluatedStudents, setEvaluatedStudents] = useState<any[]>([]);
+    const [backgroundQueue, setBackgroundQueue] = useState<any[]>([]);
+    const [isProcessingQueue, setIsProcessingQueue] = useState(false);
 
     const handleWordUpload = async (file: File) => {
         setUploadedFile(file);
@@ -107,34 +109,115 @@ export default function EvaluationManagementSystem() {
         }
     };
 
-    const handleEvaluateAll = () => {
-        setEvaluating(true);
-        setTimeout(() => {
-            const initialBreakdown1: any = {};
-            const initialBreakdown2: any = {};
-            mockQuestions.forEach((_, i) => {
-                initialBreakdown1[i] = Math.max(0, 10 - Math.floor(Math.random() * 4));
-                initialBreakdown2[i] = Math.max(0, 10 - Math.floor(Math.random() * 6));
-            });
-
-            setEvaluatedStudents([
-                { id: 1, name: studentName || 'Student 1', roll: studentRoll || 'MBBS01', marks: Object.values(initialBreakdown1).reduce((a: any, b: any) => a + b, 0), breakdown: initialBreakdown1, status: 'evaluated' },
-                { id: 2, name: 'Student 2', roll: 'MBBS02', marks: Object.values(initialBreakdown2).reduce((a: any, b: any) => a + b, 0), breakdown: initialBreakdown2, status: 'evaluated' },
-            ]);
-            setEvaluating(false);
-            setStep(4);
-        }, 3000);
+    const handleEvaluateStudent = async (studentData: any) => {
+        // Add to background queue
+        const newStudent = {
+            ...studentData,
+            id: Date.now(),
+            status: 'evaluating',
+            progress: 0,
+            marks: null,
+            breakdown: {}
+        };
+        
+        setEvaluatedStudents(prev => [newStudent, ...prev]);
+        setBackgroundQueue(prev => [...prev, newStudent]);
+        
+        // Reset form for next student
+        setStudentRoll('');
+        setStudentReg('');
+        setStudentName('');
+        setUploads({});
+        setCurrentQIndex(0);
+        setStep(4); // Move to dashboard to see progress
     };
 
-    const handleImageUpload = (e: any) => {
-        // mock image upload for a question
-        const files = Array.from(e.target.files);
-        if (files.length > 0) {
-            setUploads(prev => ({
-                ...prev,
-                [currentQIndex]: [...(prev[currentQIndex] || []), URL.createObjectURL(files[0] as Blob)]
-            }));
-        }
+    // Queue Processor
+    useEffect(() => {
+        const processQueue = async () => {
+            if (isProcessingQueue || backgroundQueue.length === 0) return;
+            
+            setIsProcessingQueue(true);
+            const student = backgroundQueue[0];
+            
+            try {
+                const results: any = {};
+                let totalMarks = 0;
+                
+                // Process each question one by one to avoid huge payloads
+                const qIndices = Object.keys(student.uploads).map(Number);
+                
+                for (let i = 0; i < qIndices.length; i++) {
+                    const qIdx = qIndices[i];
+                    const images = student.uploads[qIdx];
+                    
+                    if (!images || images.length === 0) continue;
+
+                    // Real API call
+                    const res = await fetch('/api/dig-eval-assist/evaluate-script', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            rubrics: 'Standard evaluation based on accuracy, structure and depth.', // Default or from store
+                            question: mockQuestions[qIdx],
+                            marksAllotted: 10, // Default or parsed
+                            answerImages: images,
+                            rollNumber: student.roll,
+                            studentName: student.name,
+                            course: course || 'Medical',
+                            subject: department || 'General'
+                        })
+                    });
+                    
+                    const data = await res.json();
+                    if (data.success) {
+                        results[qIdx] = data.marksObtained;
+                        totalMarks += data.marksObtained;
+                    }
+                    
+                    // Update progress in UI
+                    setEvaluatedStudents(prev => prev.map(s => s.id === student.id ? { 
+                        ...s, 
+                        progress: Math.round(((i + 1) / qIndices.length) * 100) 
+                    } : s));
+                }
+                
+                setEvaluatedStudents(prev => prev.map(s => s.id === student.id ? { 
+                    ...s, 
+                    status: 'evaluated', 
+                    marks: totalMarks, 
+                    breakdown: results,
+                    progress: 100
+                } : s));
+                
+            } catch (err) {
+                console.error("Evaluation error:", err);
+                setEvaluatedStudents(prev => prev.map(s => s.id === student.id ? { ...s, status: 'error' } : s));
+            } finally {
+                setBackgroundQueue(prev => prev.slice(1));
+                setIsProcessingQueue(false);
+            }
+        };
+
+        processQueue();
+    }, [backgroundQueue, isProcessingQueue]);
+
+    const handleImageUpload = async (e: any) => {
+        const files = Array.from(e.target.files as FileList);
+        if (files.length === 0) return;
+
+        const base64Files = await Promise.all(
+            files.map(file => new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.readAsDataURL(file);
+            }))
+        );
+
+        setUploads(prev => ({
+            ...prev,
+            [currentQIndex]: [...(prev[currentQIndex] || []), ...base64Files]
+        }));
     };
 
     const handleCropComplete = () => {
@@ -807,12 +890,16 @@ export default function EvaluationManagementSystem() {
                                         <button
                                             onClick={() => {
                                                 if (!studentRoll || !studentName) return alert("Please enter Student Roll and Name.");
-                                                setScriptsUploaded(true);
-                                                handleEvaluateAll();
+                                                handleEvaluateStudent({
+                                                    roll: studentRoll,
+                                                    reg: studentReg,
+                                                    name: studentName,
+                                                    uploads: uploads
+                                                });
                                             }}
                                             className="flex-1 py-3 bg-indigo-600 text-white font-bold justify-center rounded-xl hover:bg-indigo-700 flex items-center gap-2 shadow-sm"
                                         >
-                                            Submit Script for Evaluation <CheckCircle2 className="w-4 h-4" />
+                                            Submit for Background Valuation <CheckCircle2 className="w-4 h-4" />
                                         </button>
                                     )}
                                 </div>
@@ -824,19 +911,81 @@ export default function EvaluationManagementSystem() {
                 {/* Step 4: Final Dashboard */}
                 {step === 4 && (
                     <div className="w-full h-full flex flex-col animate-in fade-in duration-500">
-                        {evaluating ? (
-                            <div className="flex-1 flex flex-col items-center justify-center gap-6">
-                                <div className="relative">
-                                    <div className="w-24 h-24 border-4 border-indigo-100 rounded-full"></div>
-                                    <div className="absolute top-0 left-0 w-24 h-24 border-4 border-indigo-600 rounded-full border-t-transparent animate-spin"></div>
-                                    <FileSearch className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 text-indigo-600" />
+                        {!reviewingStudentId ? (
+                            <div className="flex-1 flex flex-col h-full space-y-4">
+                                <div className="flex justify-between items-center bg-white p-6 rounded-3xl border border-slate-200 shadow-sm shrink-0">
+                                    <div>
+                                        <h3 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
+                                            Evaluation Dashboard
+                                            {isProcessingQueue && <div className="flex items-center gap-2 bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-xs animate-pulse border border-indigo-100"><Loader2 className="w-3 h-3 animate-spin" /> AI Processing Queue</div>}
+                                        </h3>
+                                        <p className="text-slate-500 text-sm">Real-time status of scripts being processed by AI.</p>
+                                    </div>
+                                    <button onClick={() => setStep(3)} className="bg-indigo-600 text-white font-bold px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-md active:scale-95">
+                                        <Plus className="w-5 h-5" /> Evaluate Next Student
+                                    </button>
                                 </div>
-                                <div className="text-center">
-                                    <h3 className="text-xl font-bold text-slate-900">Gemini is Evaluating Scripts...</h3>
-                                    <p className="text-slate-500 text-sm mt-2">Checking handwriting, mapping to rubric, and allocating marks.</p>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto pb-8">
+                                    {evaluatedStudents.length === 0 ? (
+                                        <div className="col-span-full py-20 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+                                            <HelpCircle className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                                            <p className="text-slate-500 font-bold">No students evaluated yet.</p>
+                                        </div>
+                                    ) : (
+                                        evaluatedStudents.map(student => (
+                                            <div key={student.id} className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <div>
+                                                        <h4 className="font-bold text-slate-900 truncate max-w-[150px]">{student.name}</h4>
+                                                        <p className="text-xs font-bold text-slate-400">{student.roll}</p>
+                                                    </div>
+                                                    {student.status === 'evaluated' ? (
+                                                        <div className="text-right">
+                                                            <span className="text-2xl font-black text-indigo-600">{student.marks}</span>
+                                                            <span className="text-xs text-slate-400 font-bold block">Total Marks</span>
+                                                        </div>
+                                                    ) : student.status === 'evaluating' ? (
+                                                        <div className="flex flex-col items-end">
+                                                            <Loader2 className="w-5 h-5 text-indigo-500 animate-spin mb-1" />
+                                                            <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">{student.progress}%</span>
+                                                        </div>
+                                                    ) : (
+                                                        <AlertCircle className="w-5 h-5 text-red-500" />
+                                                    )}
+                                                </div>
+
+                                                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-4">
+                                                    <div 
+                                                        className={`h-full transition-all duration-500 ${student.status === 'evaluated' ? 'bg-green-500' : 'bg-indigo-500'}`} 
+                                                        style={{ width: `${student.progress}%` }}
+                                                    />
+                                                </div>
+
+                                                <div className="flex gap-2">
+                                                    <button 
+                                                        onClick={() => {
+                                                            setReviewingStudentId(student.id);
+                                                            setEditingMarks(student.breakdown || {});
+                                                        }}
+                                                        disabled={student.status !== 'evaluated'}
+                                                        className="flex-1 py-2 bg-slate-50 text-slate-600 text-xs font-bold rounded-lg border border-slate-200 hover:bg-white transition-all disabled:opacity-50"
+                                                    >
+                                                        Review Paper
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => setEvaluatedStudents(prev => prev.filter(s => s.id !== student.id))}
+                                                        className="p-2 bg-slate-50 text-slate-400 rounded-lg border border-slate-200 hover:text-red-500 hover:bg-red-50 transition-all"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
                                 </div>
                             </div>
-                        ) : reviewingStudentId ? (
+                        ) : (
                             <div className="space-y-6 flex flex-col h-full relative">
                                 <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm shrink-0">
                                     <button onClick={() => setReviewingStudentId(null)} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 font-bold px-4 py-2 hover:bg-slate-50 rounded-lg transition-colors"><ChevronLeft className="w-5 h-5" /> Back to Dashboard</button>
