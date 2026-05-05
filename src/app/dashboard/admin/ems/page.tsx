@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ClipboardCheck, Sparkles, UploadCloud, Users, CheckCircle2, FileSearch, HelpCircle, Camera, Settings, Trash2, ChevronLeft, ChevronRight, X, Crop as CropIcon, FolderOpen, Save, FileText, Upload, AlertCircle, CheckCircle, Plus, Loader2 } from 'lucide-react';
 import { useQPaperStore } from '@/store/qPaperStore';
 import { useEmsStore } from '@/store/emsStore';
@@ -66,6 +66,23 @@ export default function EvaluationManagementSystem() {
     const [evaluatedStudents, setEvaluatedStudents] = useState<any[]>([]);
     const [backgroundQueue, setBackgroundQueue] = useState<any[]>([]);
     const [isProcessingQueue, setIsProcessingQueue] = useState(false);
+
+    // Persistence for mobile refreshes
+    useEffect(() => {
+        const savedStudents = localStorage.getItem('ems_evaluated_students');
+        const savedQueue = localStorage.getItem('ems_background_queue');
+        const savedStep = localStorage.getItem('ems_current_step');
+        
+        if (savedStudents) setEvaluatedStudents(JSON.parse(savedStudents));
+        if (savedQueue) setBackgroundQueue(JSON.parse(savedQueue));
+        if (savedStep) setStep(parseInt(savedStep));
+    }, []);
+
+    useEffect(() => {
+        localStorage.setItem('ems_evaluated_students', JSON.stringify(evaluatedStudents));
+        localStorage.setItem('ems_background_queue', JSON.stringify(backgroundQueue));
+        localStorage.setItem('ems_current_step', step.toString());
+    }, [evaluatedStudents, backgroundQueue, step]);
 
     const handleWordUpload = async (file: File) => {
         setUploadedFile(file);
