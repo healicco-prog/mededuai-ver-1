@@ -691,7 +691,7 @@ export default function EmrMcqsPortal() {
                                                         ) : (
                                                             <>
                                                                 <div className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
-                                                                    <input type="file" accept="image/*" className="w-full h-full cursor-pointer" onChange={(e) => {
+                                                                    <input type="file" accept="image/*" capture="environment" className="w-full h-full cursor-pointer" onChange={(e) => {
                                                                         const file = e.target.files?.[0];
                                                                         if (file) {
                                                                             setUploadedOmr(URL.createObjectURL(file));

@@ -22,9 +22,6 @@ export async function POST(req: NextRequest) {
         const buffer = Buffer.from(await imageFile.arrayBuffer());
         const base64Image = buffer.toString('base64');
 
-        const ai = getAI();
-        const model = ai.getGenerativeModel({ model: MODELS.primary });
-
         const prompt = `
 Analyze the attached OMR (Optical Mark Recognition) answer sheet. 
 Extract the marked answers for each question label.
@@ -47,17 +44,21 @@ Return format:
 }
 `;
 
-        const result = await model.generateContent([
-            prompt,
-            {
-                inlineData: {
-                    data: base64Image,
-                    mimeType: imageFile.type
+        const ai = getAI();
+        const result = await ai.models.generateContent({
+            model: MODELS.primary,
+            contents: [
+                prompt,
+                {
+                    inlineData: {
+                        data: base64Image,
+                        mimeType: imageFile.type
+                    }
                 }
-            }
-        ]);
+            ]
+        });
 
-        const response = result.response;
+        const response = result;
         let text = response.text().trim();
         
         // Clean up markdown code blocks if present
