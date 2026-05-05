@@ -42,12 +42,43 @@ export default function DigEvalAssistPage() {
     useEffect(() => { supabase.auth.getUser().then(({ data }) => { if (data.user) setUserId(data.user.id); }); }, []);
 
     const [phase, setPhase] = useState<Phase>('setup');
+
+    // Persistence for mobile refreshes
+    useEffect(() => {
+        const savedPhase = localStorage.getItem('dig_eval_phase');
+        if (savedPhase) setPhase(savedPhase as Phase);
+    }, []);
+
+    useEffect(() => {
+        localStorage.setItem('dig_eval_phase', phase);
+    }, [phase]);
+
     const [course, setCourse] = useState('');
     const [subject, setSubject] = useState('');
     const [customSubject, setCustomSubject] = useState('');
     const [question, setQuestion] = useState('');
     const [questionImage, setQuestionImage] = useState<string | null>(null);
     const [marks, setMarks] = useState(10);
+
+    useEffect(() => {
+        const savedCourse = localStorage.getItem('dig_eval_course');
+        const savedSubject = localStorage.getItem('dig_eval_subject');
+        const savedQuestion = localStorage.getItem('dig_eval_question');
+        const savedMarks = localStorage.getItem('dig_eval_marks');
+        
+        if (savedCourse) setCourse(savedCourse);
+        if (savedSubject) setSubject(savedSubject);
+        if (savedQuestion) setQuestion(savedQuestion);
+        if (savedMarks) setMarks(parseInt(savedMarks));
+    }, []);
+
+    useEffect(() => {
+        localStorage.setItem('dig_eval_course', course);
+        localStorage.setItem('dig_eval_subject', subject);
+        localStorage.setItem('dig_eval_question', question);
+        localStorage.setItem('dig_eval_marks', marks.toString());
+    }, [course, subject, question, marks]);
+
 
     // Rubrics (internal — never shown to user)
     const [rubrics, setRubrics] = useState('');
