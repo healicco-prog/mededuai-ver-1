@@ -21,6 +21,9 @@
   NETLIFY = "true"
   NODE_ENV = "production"
   NPM_FLAGS = "--include=dev"
+  # Disable Turbopack for production build to avoid edge function bundling issues
+  NEXT_TURBOPACK = "0"
+  NEXT_PRIVATE_TURBOPACK = "0"
   # ── These are the ONLY safe/public vars needed at build time ──
   # Set their actual values in Netlify UI: Site > Environment variables
   # NEXT_PUBLIC_SUPABASE_URL    = (set in Netlify UI)

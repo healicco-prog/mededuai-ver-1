@@ -1,11 +1,8 @@
 import { getSupabaseAdmin, getSupabaseForAuth } from './supabaseAdmin';
 
-// ── Hardcoded fallback admin secret (DEV ONLY) ───────────────────────────────
-// Only active when NODE_ENV=development. In production ADMIN_SECRET env var
-// must be set in Cloud Run; this fallback is intentionally disabled.
-const ADMIN_SECRET_HARDCODED = process.env.NODE_ENV === 'development'
-    ? 'mededuai-superadmin-2024'
-    : null;
+// ── Admin secret must be set via ADMIN_SECRET env var ──────────────────────────
+// NOTE: No hardcoded fallback. In development, set ADMIN_SECRET in .env.local.
+const ADMIN_SECRET_HARDCODED = null; // Never set to a hardcoded value
 
 /** Parse a raw Cookie header string into a key→value map. */
 function parseCookies(cookieHeader: string | null): Record<string, string> {
@@ -35,14 +32,10 @@ export async function verifyAuth(req: Request) {
     const cookies = parseCookies(req.headers.get('cookie'));
 
     // ── 1. Admin Secret header (Internal / Bulk Ops) ─────────────────────────
-    // Accepts either the ADMIN_SECRET env var OR the hardcoded fallback so that
-    // local dev works without configuring the env var.
+    // Requires ADMIN_SECRET env var to be set in .env.local (dev) or Secret Manager (prod).
     const adminSecret = req.headers.get('x-admin-secret');
     const envSecret = process.env.ADMIN_SECRET;
-    if (adminSecret && (
-        (envSecret && adminSecret === envSecret) ||
-        (ADMIN_SECRET_HARDCODED && adminSecret === ADMIN_SECRET_HARDCODED)
-    )) {
+    if (adminSecret && envSecret && adminSecret === envSecret) {
         console.log('[AuthMiddleware] Authenticated via admin secret ✓');
         return syntheticAdmin('system-admin', 'admin@mededuai.com', 'superadmin');
     }

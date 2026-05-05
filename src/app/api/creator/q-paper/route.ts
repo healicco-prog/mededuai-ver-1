@@ -11,8 +11,12 @@ export async function POST(req: Request) {
         requestBody = await req.json();
         const { course, department, topics, frames, totalMarks } = requestBody;
 
+        if (!Array.isArray(frames) || frames.length === 0) {
+            return NextResponse.json({ success: false, error: 'Missing or invalid "frames" array. Provide at least one frame with id, type, marks, mainOrSub, and subdivided fields.' }, { status: 400 });
+        }
+
         let promptInstructions = `You are an expert medical university examiner. You need to create a question paper blueprint based on the National Medical Commission (NMC) guidelines, standard textbooks (like Gray's Anatomy, Guyton, Robbins, KD Tripathi, etc.), and standard clinical resources.\n\n`;
-        promptInstructions += `Context:\n- Course: ${course}\n- Department: ${department}\n- Topics/Systems to be assessed: ${topics}\n- Total Marks: ${totalMarks}\n\n`;
+        promptInstructions += `Context:\n- Course: ${course || 'N/A'}\n- Department: ${department || 'N/A'}\n- Topics/Systems to be assessed: ${topics || 'N/A'}\n- Total Marks: ${totalMarks || 'N/A'}\n\n`;
         promptInstructions += `You strictly must follow the requested JSON format below. Return a valid JSON object where the keys are the frame IDs, and the values are the generated question text as strings.\n`;
         promptInstructions += `Generate highly accurate, academically rigorous, and relevant questions for the following requirements:\n\n`;
 

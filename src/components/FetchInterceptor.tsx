@@ -6,9 +6,20 @@ import { supabase } from '@/lib/supabase';
 export default function FetchInterceptor() {
   useEffect(() => {
     const originalFetch = window.fetch;
-    const CLOUD_RUN_URL = 'https://mededuai-backend-945029424967.us-central1.run.app';
+    // Use env var for Cloud Run URL to avoid hardcoding
+    const CLOUD_RUN_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://mededuai-backend-945029424967.us-central1.run.app';
 
-    window.fetch = async (...args) => {
+    // ── Production Console Silencer ──
+    // Prevents leaking debug info, object dumps, or sensitive internal state to browser logs.
+    if (process.env.NODE_ENV === 'production') {
+      const noop = () => {};
+      (console as any).log = noop;
+      (console as any).debug = noop;
+      (console as any).info = noop;
+      // Keep console.warn and console.error for critical observability
+    }
+
+    window.fetch = async function(...args) {
       let [resource, config] = args;
 
       // Check if it is an API request to our backend
@@ -83,7 +94,7 @@ export default function FetchInterceptor() {
       }
 
       // ── Auto-retry on 401 (token expired) — refresh session and retry once ──
-      const response = await originalFetch(...args);
+      const response = await originalFetch.apply(window, args);
       if (response.status === 401 && typeof resource === 'string' && resource.includes('/api/') && !resource.includes('/api/auth/')) {
         try {
           console.warn('[FetchInterceptor] 401 detected — attempting session refresh and retry…');
@@ -93,7 +104,7 @@ export default function FetchInterceptor() {
             const retryHeaders = new Headers(retryConfig?.headers || {});
             retryHeaders.set('Authorization', `Bearer ${session.access_token}`);
             retryConfig.headers = retryHeaders;
-            return originalFetch(resource, retryConfig);
+            return originalFetch.apply(window, [resource, retryConfig]);
           }
         } catch (refreshErr) {
           console.error('[FetchInterceptor] Session refresh failed:', refreshErr);

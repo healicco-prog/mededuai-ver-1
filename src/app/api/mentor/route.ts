@@ -22,9 +22,11 @@ export async function POST(req: Request) {
         
         // Return a helpful mock response when API keys fail instead of an error message
         return NextResponse.json({ 
-            success: true, 
+            success: false,
+            error: 'AI service temporarily unavailable. Please try again later.',
             response: "**AI Mentor (Mock Mode):** I am currently running in fallback mode because my connection to the Gemini knowledge base was interrupted (API Key quota/error).\n\nHowever, I am still tracking your progress. What else would you like to discuss?",
             isMock: true
         });
     }
 }
+

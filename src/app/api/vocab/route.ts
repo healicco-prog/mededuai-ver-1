@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     } catch (error: any) {
         console.warn('Vocab API Error:', error.message);
         return NextResponse.json({
-            success: true,
+            success: false,
             terms: [
                 { term: 'Mock Etiology', meaning: 'The cause of a disease.', example: 'The mock etiology is unknown.', regional: 'कारण (Hindi)' },
                 { term: 'Mock Pathogenesis', meaning: 'Development of a disease.', example: 'Mock pathogenesis works.', regional: 'रोगजनन (Hindi)' }

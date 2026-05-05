@@ -8,7 +8,7 @@ import ReactCrop, { type Crop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { GenerateView } from '../q-paper/page';
+import { GenerateView } from '../q-paper/GenerateView';
 
 export default function EvaluationManagementSystem() {
     const store = useQPaperStore();
@@ -32,7 +32,7 @@ export default function EvaluationManagementSystem() {
     const [uploadedFile, setUploadedFile] = useState<File | null>(null);
     const [isParsingWord, setIsParsingWord] = useState(false);
     const [parseError, setParseError] = useState('');
-    const [parsedQuestions, setParsedQuestions] = useState<{ text: string; marks: number }[]>([]);
+    const [parsedQuestions, setParsedQuestions] = useState<{ text: string; marks: number; qNum?: string }[]>([]);
     const [parsedTotalMarks, setParsedTotalMarks] = useState(0);
     const [isDragOver, setIsDragOver] = useState(false);
     const wordFileRef = useRef<HTMLInputElement>(null);
@@ -89,13 +89,14 @@ export default function EvaluationManagementSystem() {
             if (data.department) setDepartment(data.department);
             if (data.paperTitle) setExamName(data.paperTitle);
 
-            setParsedQuestions(data.questions);
+            const newQuestions = data.questions.map((q: any, i: number) => ({ ...q, qNum: `Q${i + 1}` }));
+            setParsedQuestions(newQuestions);
             setParsedTotalMarks(data.totalMarks || 0);
 
             // Build the question paper text (questions separated by ---)
-            const paperText = data.questions
-                .map((q: { text: string; marks: number }, i: number) =>
-                    `**Q${i + 1}. [${q.marks} Marks]**\n\n${q.text}`
+            const paperText = newQuestions
+                .map((q: { text: string; marks: number; qNum?: string }) =>
+                    `**${q.qNum}. [${q.marks} Marks]**\n\n${q.text}`
                 )
                 .join('\n\n---\n\n');
             setQuestionPaperText(paperText);
@@ -510,12 +511,59 @@ export default function EvaluationManagementSystem() {
                                                         <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Extracted Questions</span>
                                                         <span className="text-xs font-bold bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full">{parsedTotalMarks} Total Marks</span>
                                                     </div>
-                                                    <div className="divide-y divide-slate-100 max-h-64 overflow-y-auto">
+                                                    <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
                                                         {parsedQuestions.map((q, idx) => (
                                                             <div key={idx} className="flex items-start gap-4 px-5 py-3.5 hover:bg-slate-50 transition-colors">
-                                                                <div className="w-7 h-7 bg-indigo-100 rounded-full flex items-center justify-center font-bold text-indigo-700 text-xs shrink-0 mt-0.5">Q{idx + 1}</div>
-                                                                <p className="flex-1 text-sm text-slate-700 font-medium line-clamp-2">{q.text}</p>
-                                                                <span className="shrink-0 text-xs font-bold text-white bg-indigo-500 px-2.5 py-1 rounded-full">{q.marks}M</span>
+                                                                <input 
+                                                                    value={q.qNum || `Q${idx + 1}`} 
+                                                                    onChange={(e) => {
+                                                                        const newQ = [...parsedQuestions];
+                                                                        newQ[idx].qNum = e.target.value;
+                                                                        setParsedQuestions(newQ);
+                                                                        const paperText = newQ.map((qItem) => `**${qItem.qNum || 'Q'}. [${qItem.marks} Marks]**\n\n${qItem.text}`).join('\n\n---\n\n');
+                                                                        setQuestionPaperText(paperText);
+                                                                    }}
+                                                                    className="w-12 h-8 bg-indigo-100 rounded-lg text-center font-bold text-indigo-700 text-xs shrink-0 mt-0.5 outline-none focus:ring-2 focus:ring-indigo-400" 
+                                                                />
+                                                                <textarea 
+                                                                    value={q.text} 
+                                                                    onChange={(e) => {
+                                                                        const newQ = [...parsedQuestions];
+                                                                        newQ[idx].text = e.target.value;
+                                                                        setParsedQuestions(newQ);
+                                                                        const paperText = newQ.map((qItem) => `**${qItem.qNum || 'Q'}. [${qItem.marks} Marks]**\n\n${qItem.text}`).join('\n\n---\n\n');
+                                                                        setQuestionPaperText(paperText);
+                                                                    }}
+                                                                    className="flex-1 text-sm text-slate-700 font-medium bg-transparent outline-none focus:ring-2 focus:ring-indigo-400 rounded p-1 resize-y min-h-[3rem]"
+                                                                />
+                                                                <div className="flex items-center gap-1 shrink-0 bg-indigo-500 rounded-full px-3 py-1">
+                                                                    <input 
+                                                                        type="text" 
+                                                                        value={q.marks} 
+                                                                        onChange={(e) => {
+                                                                            const newQ = [...parsedQuestions];
+                                                                            newQ[idx].marks = Number(e.target.value.replace(/[^0-9]/g, '')) || 0;
+                                                                            setParsedQuestions(newQ);
+                                                                            setParsedTotalMarks(newQ.reduce((sum, item) => sum + (Number(item.marks) || 0), 0));
+                                                                            const paperText = newQ.map((qItem) => `**${qItem.qNum || 'Q'}. [${qItem.marks} Marks]**\n\n${qItem.text}`).join('\n\n---\n\n');
+                                                                            setQuestionPaperText(paperText);
+                                                                        }}
+                                                                        className="w-10 text-sm font-bold text-white bg-transparent outline-none text-right placeholder-indigo-200"
+                                                                    />
+                                                                    <span className="text-sm font-bold text-white">M</span>
+                                                                </div>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        const newQ = parsedQuestions.filter((_, i) => i !== idx);
+                                                                        setParsedQuestions(newQ);
+                                                                        setParsedTotalMarks(newQ.reduce((sum, item) => sum + (Number(item.marks) || 0), 0));
+                                                                        const paperText = newQ.map((qItem) => `**${qItem.qNum || 'Q'}. [${qItem.marks} Marks]**\n\n${qItem.text}`).join('\n\n---\n\n');
+                                                                        setQuestionPaperText(paperText);
+                                                                    }}
+                                                                    className="shrink-0 text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors mt-0.5"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
                                                             </div>
                                                         ))}
                                                     </div>

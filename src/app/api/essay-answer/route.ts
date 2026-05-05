@@ -73,7 +73,7 @@ FORMAT INSTRUCTIONS:
     } catch (error: any) {
         console.warn('Essay Answer Gen API Error:', error.message);
         return NextResponse.json({
-            success: true,
+            success: false,
             answer: `# Model Answers
 
 ## Question 1

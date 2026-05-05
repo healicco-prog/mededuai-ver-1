@@ -26,7 +26,7 @@ Just return a plain array like:
     } catch (error: any) {
         console.warn('Essay Generator API Error:', error.message);
         return NextResponse.json({
-            success: true,
+            success: false,
             questions: [
                 "Mock Essay Q 1: Describe the pathophysiology of...",
                 "Mock Essay Q 2: Enumerate the clinical features and lines of management for..."

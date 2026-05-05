@@ -55,7 +55,7 @@ Example format:
     } catch (error: any) {
         console.warn('Essay Questions API Error:', error.message);
         return NextResponse.json({
-            success: true,
+            success: false,
             questions: Array.from({ length: 5 }, (_, i) => ({
                 id: i + 1,
                 question: `Sample question ${i + 1} on the topic. This is a placeholder - connect your API key for real questions.`,

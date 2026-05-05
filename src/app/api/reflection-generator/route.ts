@@ -43,7 +43,7 @@ Guidelines for the sections:
     } catch (error: any) {
         console.warn('Reflection API Error:', error.message);
         return NextResponse.json({
-            success: true,
+            success: false,
             reflection: {
                 description: 'Mock Description: During my clinical posting...',
                 feelings: 'Mock Feelings: Initially, I felt uncertain...',

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '../../../lib/supabaseAdmin';
+import { checkSecurity } from '@/lib/apiSecurity';
 import crypto from 'crypto';
 
 // Razorpay credentials
@@ -20,9 +21,13 @@ const PLAN_TOKENS: Record<string, number> = {
 
 // ── POST: Create Razorpay Order ────────────────────────────
 export async function POST(req: NextRequest) {
+  const sec = await checkSecurity(req);
+  if (!sec.authorized) return sec.response;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const { userId, planTier } = await req.json();
+    const { planTier } = await req.json();
+    const userId = sec.user.id;
 
     if (!userId || !planTier || !PLAN_PRICES[planTier]) {
       return NextResponse.json({ error: 'Invalid plan or user' }, { status: 400 });
@@ -85,9 +90,13 @@ export async function POST(req: NextRequest) {
 
 // ── PUT: Verify Payment & Activate Subscription ────────────
 export async function PUT(req: NextRequest) {
+  const sec = await checkSecurity(req);
+  if (!sec.authorized) return sec.response;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, userId, planTier } = await req.json();
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, planTier } = await req.json();
+    const userId = sec.user.id;
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return NextResponse.json({ error: 'Missing payment verification data' }, { status: 400 });

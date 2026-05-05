@@ -10,7 +10,7 @@ import {
     AlertCircle, ClipboardList, ClipboardType, CalendarDays,
     LogOut, Lock, Eye, EyeOff, Shield, ChevronRight, ExternalLink,
     Menu, X, Home, Activity, Cpu, BarChart3, Server, UserPlus, Clock,
-    FileEdit, PenTool
+    FileEdit, PenTool, Building2
 } from "lucide-react";
 import MededuLogo from "@/components/MededuLogo";
 
@@ -48,6 +48,7 @@ const ALL_SECTIONS: Section[] = [
             { label: "Blog Publications", href: "/dashboard/admin/blog", icon: <FileText className="w-5 h-5" /> },
             { label: "User Management", href: "/dashboard/admin/users", icon: <Users className="w-5 h-5" /> },
             { label: "Token Economy", href: "/dashboard/admin/tokens", icon: <BrainCircuit className="w-5 h-5" /> },
+            { label: "Create Institution", href: "/dashboard/admin/create-institution", icon: <Building2 className="w-5 h-5" /> },
         ],
     },
     {

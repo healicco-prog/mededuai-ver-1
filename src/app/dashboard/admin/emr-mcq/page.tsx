@@ -131,12 +131,31 @@ export default function EmrMcqsPortal() {
     const questionsListForKey: { id: string, label: string, marks: number }[] = [];
     
     paperQuestions.forEach((q, i) => {
-        if (q.subdivided) {
-            questionsListForKey.push({ id: `${i}_i`, label: `Q${i+1} (i)`, marks: q.marks / 2 });
-            questionsListForKey.push({ id: `${i}_ii`, label: `Q${i+1} (ii)`, marks: q.marks / 2 });
+        let displayQNo = String(q.questionNo || (i + 1));
+        if (q.text) {
+            const qMatch = q.text.match(/^(?:\*\*|\s*)?Q?(\d+)[.)]?(?:\*\*|\s*)/i);
+            if (qMatch) {
+                displayQNo = qMatch[1];
+            }
+        }
+
+        const optionAMatches = q.text ? q.text.match(/(?:^|[\s\n])(?:\*\*)?(?:[Aa][.)]|\([Aa]\))(?:\*\*)?\s*/g) : null;
+        const mcqCount = optionAMatches ? optionAMatches.length : 0;
+
+        if (mcqCount > 1) {
+            const romanNumerals = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+            const marksPerSub = q.marks / mcqCount;
+            for (let j = 0; j < mcqCount; j++) {
+                const subLabel = romanNumerals[j] || (j + 1).toString();
+                questionsListForKey.push({ id: `${i}_${j}`, label: `${displayQNo}(${subLabel})`, marks: marksPerSub });
+            }
+            totalMaxMarks += q.marks;
+        } else if (q.subdivided) {
+            questionsListForKey.push({ id: `${i}_0`, label: `${displayQNo}(I)`, marks: q.marks / 2 });
+            questionsListForKey.push({ id: `${i}_1`, label: `${displayQNo}(II)`, marks: q.marks / 2 });
             totalMaxMarks += q.marks;
         } else {
-            questionsListForKey.push({ id: `${i}`, label: `Q${i+1}`, marks: q.marks });
+            questionsListForKey.push({ id: `${i}`, label: `${displayQNo}`, marks: q.marks });
             totalMaxMarks += q.marks;
         }
     });
@@ -329,8 +348,9 @@ export default function EmrMcqsPortal() {
                                         
                                         // Parse out questions to build the key
                                         const parsedQs = paper.questions.map(q => {
-                                            const isMcq2M = q.type.includes('2 Marks') || q.type.includes('2 sub questions');
+                                            const isMcq2M = q.type.includes('2 Marks') || q.type.includes('2 sub questions') || (q as any).subdivided;
                                             return {
+                                                questionNo: q.questionNo,
                                                 text: q.generatedContent,
                                                 type: q.type,
                                                 marks: q.marks,

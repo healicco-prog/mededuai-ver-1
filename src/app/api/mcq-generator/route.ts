@@ -29,7 +29,9 @@ export async function POST(req: Request) {
     } catch (error: any) {
         console.warn('MCQ API Error:', error.message);
         return NextResponse.json({
-            success: true,
+            success: false,
+            error: 'AI generation failed. Please try again or contact support.',
+            isMock: true,
             mcqs: [
                 {
                     question: 'Mock Question 1: What is the cause of mock disease?',
@@ -43,8 +45,8 @@ export async function POST(req: Request) {
                     correctAnswer: 'Liver',
                     explanation: 'The liver is primarily affected in this mock scenario.'
                 }
-            ],
-            isMock: true
+            ]
         });
     }
 }
+

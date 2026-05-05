@@ -20,7 +20,6 @@ export default function Step7Logbook({ store, instId }: { store: any; instId: st
     // Analytics state
     const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
-    if (!instId) return <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-amber-700 font-bold">⚠️ Please complete Institution Onboarding first.</div>;
     const institution = store.institutions.find((i: any) => i.id === instId);
     const instName = institution?.name || 'Institution';
     const instAddress = institution?.address || '';

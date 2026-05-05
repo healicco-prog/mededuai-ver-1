@@ -57,8 +57,8 @@ const FIXES = [
 export async function POST(req: NextRequest) {
     // Simple secret check — set ADMIN_FIX_SECRET in your .env
     const secret = req.headers.get('x-fix-secret');
-    const expected = process.env.ADMIN_FIX_SECRET || 'mededuai-fix-2024';
-    if (secret !== expected) {
+    const expected = process.env.ADMIN_FIX_SECRET;
+    if (!expected || secret !== expected) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -167,8 +167,8 @@ export async function POST(req: NextRequest) {
 // Also allow GET for easy browser testing (same secret via query param)
 export async function GET(req: NextRequest) {
     const secret = req.nextUrl.searchParams.get('secret');
-    const expected = process.env.ADMIN_FIX_SECRET || 'mededuai-fix-2024';
-    if (secret !== expected) {
+    const expected = process.env.ADMIN_FIX_SECRET;
+    if (!expected || secret !== expected) {
         return NextResponse.json({ error: 'Pass ?secret=<ADMIN_FIX_SECRET>' }, { status: 401 });
     }
     // Delegate to POST handler

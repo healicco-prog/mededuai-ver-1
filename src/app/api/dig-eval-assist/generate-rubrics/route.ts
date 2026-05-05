@@ -73,7 +73,7 @@ STRICT RULES:
 
         const rubricsContent = await generateWithFallback(prompt, {
             jsonMode: true,
-            preferredModels: ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.5-flash'],
+            preferredModels: ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'],
         });
 
         let parsedRubrics;

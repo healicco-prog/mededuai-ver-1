@@ -1,0 +1,11 @@
+ ⚠ You are using a non-standard "NODE_ENV" value in your environment. This creates inconsistencies in the project and is strongly advised against. Read more: https://nextjs.org/docs/messages/non-standard-node-env
+ ⨯ Failed to start server
+Error: listen EADDRINUSE: address already in use :::54112
+    at <unknown> (Error: listen EADDRINUSE: address already in use :::54112)
+    at new Promise (<anonymous>) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 54112
+}

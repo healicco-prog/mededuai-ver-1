@@ -25,7 +25,6 @@ export default function Step8Analytics({ store, instId }: { store: any; instId: 
     const totalTeachingSessions = sessions.length;
     const totalReflections = reflections.length;
 
-    if (!instId) return <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-amber-700 font-bold">⚠️ Please complete Institution Onboarding first.</div>;
 
     const cards = [
         { label: 'Total Electives', value: totalElectives, icon: BookOpen, color: 'emerald' },

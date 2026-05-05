@@ -34,7 +34,7 @@ Escape all strings properly. Ensure rigorous quality for medical education techn
     } catch (error: any) {
         console.warn('Blog Gen API Error:', error.message);
         return NextResponse.json({
-            success: true,
+            success: false,
             blog: {
                 title: "Mock AI Generated Blog: " + (body.topic || 'Demo'),
                 slug: "mock-ai-generated-blog",

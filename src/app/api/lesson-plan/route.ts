@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     } catch (error: any) {
         console.warn('Lesson Plan API Error:', error.message);
         return NextResponse.json({
-            success: true,
+            success: false,
             plan: {
                 learningObjectives: ["Define the topic", "Understand the mechanisms", "Apply to clinical scenarios", "Identify key structures"],
                 priorKnowledge: ["Basic anatomy", "Basic physiology", "General terminology"],

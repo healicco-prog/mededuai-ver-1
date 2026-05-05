@@ -48,7 +48,7 @@ Return ONLY a raw valid JSON object. Do not return markdown blocks or backticks.
     } catch (error: any) {
         console.warn('Rubrics API Error:', error.message);
         return NextResponse.json({
-            success: true,
+            success: false,
             rubric: [
                 { criteria: 'Clinical Knowledge', excellent: 'Exceptional depth', good: 'Solid understanding', average: 'Basic concepts only', poor: 'Significant gaps', marks: 4 },
                 { criteria: 'Communication', excellent: 'Clear, empathetic', good: 'Adequate', average: 'Needs prompting', poor: 'Poor interaction', marks: 3 },

@@ -6,9 +6,11 @@ export async function POST(req: Request) {
     const sec = await checkSecurity(req);
     if (!sec.authorized) return sec.response;
 
+    let action = '';
     try {
         const body = await req.json();
-        const { course, subject, topic, instruction, history, action } = body;
+        const { course, subject, topic, instruction, history = [] } = body;
+        action = body.action || '';
 
         let promptText = "";
 
@@ -22,9 +24,9 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true, response: text || (action === 'analyze' ? 'Good performance. Keep studying.' : 'Can you elaborate on that?') });
     } catch (error: any) {
         console.warn('Viva API Error:', error.message);
-        const isAnalyze = false; // Safe fallback
+        const isAnalyze = action === 'analyze'; // Safe fallback
         return NextResponse.json({
-            success: true,
+            success: false,
             response: isAnalyze
                 ? '**Analysis (Mock):** \nYou did well structurally but need more focus on exact terminology. Review the standard Pathology Robbins sections.'
                 : 'That is interesting. What else do you know about this topic?',

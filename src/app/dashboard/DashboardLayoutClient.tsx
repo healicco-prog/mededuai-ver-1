@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
     LayoutDashboard, BookOpen, MessageSquare, Mic,
     Settings, LogOut, Users, FileText,
-    GraduationCap, ClipboardCheck, AlertCircle, Home, ClipboardList, Menu, X, ClipboardType, CalendarDays, Lock, ArrowLeft, Shield, FileEdit, ScanLine, Zap
+    GraduationCap, ClipboardCheck, AlertCircle, Home, ClipboardList, Menu, X, ClipboardType, CalendarDays, Lock, ArrowLeft, Shield, FileEdit, ScanLine, Zap, Building2
 } from 'lucide-react';
 import MededuLogo from '@/components/MededuLogo';
 import TrialCountdown from '@/components/TrialCountdown';
@@ -395,6 +395,7 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                             <SidebarItem href={`/dashboard/admin/blog`} icon={<FileText />} label="Blog Publications" />
                             <SidebarItem href={`/dashboard/admin/users`} icon={<Users />} label="User Management" />
                             <SidebarItem href={`/dashboard/admin/tokens`} icon={<Settings />} label="Token Economy" />
+                            <SidebarItem href={`/dashboard/admin/create-institution`} icon={<Building2 />} label="Create Institution" />
                         </>
                     )}
                 </nav>

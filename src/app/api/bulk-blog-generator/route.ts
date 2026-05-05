@@ -52,7 +52,7 @@ Example structure:
     } catch (error: any) {
         console.warn('Bulk Blog API Error:', error.message);
         return NextResponse.json({
-            success: true,
+            success: false,
             data: {
                 blogs: [
                     {

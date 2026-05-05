@@ -12,21 +12,9 @@ export type ApprovedEmailEntry = {
     name: string;
 };
 
-// Default approved emails — auto-seeds on first access so all roles work immediately
-const DEFAULT_APPROVED_EMAILS: ApprovedEmailEntry[] = [
-    // Department Heads
-    { email: 'drnarayanabjp@gmail.com', role: 'dept_head', name: 'Dr. Narayana BJP' },
-    { email: 'bjpdoddaballapura@gmail.com', role: 'dept_head', name: 'Dr. Doddaballapura' },
-    { email: 'bjpkarnatakadoctorscell@gmail.com', role: 'dept_head', name: 'Dr. Karnataka Doctors Cell' },
-    // Mentors
-    { email: 'drnarayanabjp@gmail.com', role: 'mentor', name: 'Dr. Narayana BJP' },
-    { email: 'bjpdoddaballapura@gmail.com', role: 'mentor', name: 'Dr. Doddaballapura' },
-    // Mentees
-    { email: 'narayanakdr@yahoo.co.in', role: 'mentee', name: 'Narayana K' },
-    { email: 'aimsrcpharmac@gmail.com', role: 'mentee', name: 'AIMS RC Pharmacy' },
-    // Peer Mentees
-    { email: 'bjpdoddaballapura@gmail.com', role: 'peer_mentee', name: 'Dr. Doddaballapura' },
-];
+// Default approved emails — start empty for production. 
+// Institution Admin can add emails via the Mentoring Management interface.
+const DEFAULT_APPROVED_EMAILS: ApprovedEmailEntry[] = [];
 
 /** Get all approved email entries — auto-seeds defaults if localStorage is empty */
 export function getApprovedEmails(): ApprovedEmailEntry[] {

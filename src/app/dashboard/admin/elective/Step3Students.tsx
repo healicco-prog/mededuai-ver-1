@@ -58,7 +58,6 @@ export default function Step3Students({ store, instId }: { store: any; instId: s
         if (mode === 'none') store.setStudentGroups('none');
     };
 
-    if (!instId) return <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-amber-700 font-bold">⚠️ Please complete Institution Onboarding first.</div>;
 
     return (
         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 space-y-6">

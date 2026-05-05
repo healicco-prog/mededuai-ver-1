@@ -68,7 +68,7 @@ Make the notes medically accurate, well-structured, and suitable for ${course} s
     } catch (error: any) {
         console.warn('Notes Creator API Error:', error.message);
         return NextResponse.json({
-            success: true,
+            success: false,
             notes: `# Study Notes
 
 ## Introduction

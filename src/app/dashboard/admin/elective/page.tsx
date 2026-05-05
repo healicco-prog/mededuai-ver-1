@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { BookOpen, Building2, Users, CalendarDays, Shuffle, KeyRound, ClipboardList, BarChart3, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
+import { BookOpen, Users, Shuffle, ClipboardList, BarChart3, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
 import { useElectiveStore } from '@/store/electiveStore';
-import Step1Institution from './Step1Institution';
 import Step2Electives from './Step2Electives';
 import Step3Students from './Step3Students';
 import Step4Dates from './Step4Dates';
@@ -14,7 +13,6 @@ import Step8Analytics from './Step8Analytics';
 import Step_StudentPreferences from './Step_StudentPreferences';
 
 const STEPS = [
-    { key: 'institution', label: 'Institution Onboarding', icon: Building2, color: 'from-violet-500 to-purple-600', bgLight: 'bg-violet-50', textColor: 'text-violet-700', borderColor: 'border-violet-200', ringColor: 'ring-violet-400', badgeBg: 'bg-violet-100', iconBg: 'bg-violet-500' },
     { key: 'upload_data', label: 'Upload Electives MS Data', icon: BookOpen, color: 'from-blue-500 to-cyan-500', bgLight: 'bg-blue-50', textColor: 'text-blue-700', borderColor: 'border-blue-200', ringColor: 'ring-blue-400', badgeBg: 'bg-blue-100', iconBg: 'bg-blue-500' },
     { key: 'preferences', label: 'Students Preferences', icon: Users, color: 'from-teal-500 to-emerald-500', bgLight: 'bg-teal-50', textColor: 'text-teal-700', borderColor: 'border-teal-200', ringColor: 'ring-teal-400', badgeBg: 'bg-teal-100', iconBg: 'bg-teal-500' },
     { key: 'allotment', label: 'Allotment', icon: Shuffle, color: 'from-rose-500 to-pink-500', bgLight: 'bg-rose-50', textColor: 'text-rose-700', borderColor: 'border-rose-200', ringColor: 'ring-rose-400', badgeBg: 'bg-rose-100', iconBg: 'bg-rose-500' },
@@ -25,7 +23,7 @@ const STEPS = [
 type StepKey = typeof STEPS[number]['key'];
 
 export default function ElectiveMSPage() {
-    const [activeStep, setActiveStep] = useState<StepKey>('institution');
+    const [activeStep, setActiveStep] = useState<StepKey>('upload_data');
     const store = useElectiveStore();
     const instId = store.institutions[0]?.id || '';
 
@@ -92,7 +90,6 @@ export default function ElectiveMSPage() {
 
     const renderStep = () => {
         switch (activeStep) {
-            case 'institution': return <Step1Institution store={store} />;
             case 'upload_data': return (
                 <div className="space-y-12">
                     <Step2Electives store={store} instId={instId} />
@@ -156,7 +153,7 @@ export default function ElectiveMSPage() {
             </div>
 
             {/* ── Palette Step Cards ── */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
                 {STEPS.map((step, i) => {
                     const Icon = step.icon;
                     const isActive = activeStep === step.key;

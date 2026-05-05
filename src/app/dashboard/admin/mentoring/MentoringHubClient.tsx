@@ -1,15 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Building2, Users, UserPlus, FileSpreadsheet, Send, BarChart3, ChevronRight, ChevronLeft, Sparkles, Heart } from 'lucide-react';
-import InstitutionSetup from './InstitutionSetup';
 import DepartmentManager from './DepartmentManager';
 import MentorManager from './MentorManager';
 import MenteeManager from './MenteeManager';
 import MentorshipAllocation from './MentorshipAllocation';
 import BulkMessaging from './BulkMessaging';
-
-const ONBOARDING_KEY = 'mededuai_mentoring_institution';
 
 const STEPS = [
     { key: 'departments', label: 'Department Management', icon: Building2, color: 'from-blue-500 to-cyan-500', bgLight: 'bg-blue-50', textColor: 'text-blue-700', borderColor: 'border-blue-200', ringColor: 'ring-blue-400', badgeBg: 'bg-blue-100', iconBg: 'bg-blue-500' },
@@ -23,48 +20,7 @@ const STEPS = [
 type StepKey = typeof STEPS[number]['key'];
 
 export default function MentoringHubClient() {
-    const [hasOnboarded, setHasOnboarded] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
     const [activeStep, setActiveStep] = useState<StepKey>('departments');
-    const [institutionData, setInstitutionData] = useState<{ name: string; course: string; logoUrl: string | null } | null>(null);
-
-    useEffect(() => {
-        try {
-            const saved = localStorage.getItem(ONBOARDING_KEY);
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                setInstitutionData(parsed);
-                setHasOnboarded(true);
-            }
-        } catch {}
-        setIsLoading(false);
-    }, []);
-
-    const handleOnboardingComplete = (data: { name: string; course: string; logoUrl: string | null }) => {
-        try {
-            const saveData = {
-                name: data.name,
-                course: data.course,
-                logoUrl: data.logoUrl,
-                createdAt: new Date().toISOString()
-            };
-            localStorage.setItem(ONBOARDING_KEY, JSON.stringify(saveData));
-            setInstitutionData(saveData);
-        } catch {}
-        setHasOnboarded(true);
-    };
-
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center py-20">
-                <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-            </div>
-        );
-    }
-
-    if (!hasOnboarded) {
-        return <InstitutionSetup onComplete={handleOnboardingComplete} />;
-    }
 
     const activeIndex = STEPS.findIndex(s => s.key === activeStep);
     const activeConfig = STEPS[activeIndex];

@@ -40,7 +40,7 @@ Format the output in clean, readable markdown with proper headers and bullet poi
     } catch (error: any) {
         console.warn('Case Trainer API Error:', error.message);
         return NextResponse.json({
-            success: true,
+            success: false,
             analysis: `## Structured Case Presentation
 
 ### Chief Complaint

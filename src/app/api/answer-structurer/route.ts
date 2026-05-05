@@ -45,7 +45,7 @@ Format the output in clean, readable markdown with proper headers, bold text, bu
     } catch (error: any) {
         console.warn('Answer Structurer API Error:', error.message);
         return NextResponse.json({
-            success: true,
+            success: false,
             structured: `## Structured Medical Answer
 
 ### Definition

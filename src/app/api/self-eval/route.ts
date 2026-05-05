@@ -53,7 +53,7 @@ Make the answer medically accurate and aligned with standard university examinat
     } catch (error: any) {
         console.warn('Self-Eval API Error:', error.message);
         return NextResponse.json({
-            success: true,
+            success: false,
             answer: `## Model Answer Structure
 
 ### Definition

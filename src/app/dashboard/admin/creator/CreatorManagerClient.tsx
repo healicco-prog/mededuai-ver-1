@@ -21,9 +21,6 @@ import { useCurriculumStoreHydrated } from '@/hooks/useCurriculumStoreHydrated';
 //  4. All known Supabase localStorage key patterns (scan)
 //
 const MEDEDUAI_PROJECT_REF = 'yrelfdwkjtaidtoulwrj';
-// Admin secret — accepted by authMiddleware as a fallback when JWT is expired.
-// Hardcoded here for client-side use; same value as ADMIN_SECRET env var on the server.
-const ADMIN_SECRET = 'mededuai-superadmin-2024';
 
 async function getAccessToken(forceRefresh = false): Promise<string | null> {
     try {
@@ -139,6 +136,16 @@ export default function LMSCreatorAdmin() {
     const dragOverItemRef = useRef<number | null>(null);
     const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
     const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+
+    // ── ROBUST Auth header helper ──
+    const fetchAuthHeaders = useCallback(async (forceRefresh = false): Promise<Record<string, string>> => {
+        const h: Record<string, string> = {
+            'Content-Type': 'application/json',
+        };
+        const token = await getAccessToken(forceRefresh);
+        if (token) h['Authorization'] = `Bearer ${token}`;
+        return h;
+    }, []);
 
     // Derived Selection Data
     const currentCourse = coursesList.find(c => c.id === selectedCourseId) || coursesList[0];
@@ -491,23 +498,6 @@ export default function LMSCreatorAdmin() {
         // Helper to pause between sequential API calls to avoid 429 rate-limiting
         const cooldown = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-        // ── ROBUST Auth header helper ──
-        // Delegates to the module-level getAccessToken() which has a multi-layer
-        // fallback including direct localStorage reads for the MedEduAI-1 project ref.
-        // Also sends x-admin-secret so the server can authenticate even when the JWT
-        // is expired — all three are accepted independently by authMiddleware.ts.
-        const fetchAuthHeaders = async (forceRefresh = false): Promise<Record<string, string>> => {
-            const h: Record<string, string> = {
-                'Content-Type': 'application/json',
-                // ── Always send admin secret — bypasses JWT expiry for long batch runs ──
-                // The server checks x-admin-secret BEFORE JWT, so even if the 1-hour
-                // JWT expires mid-generation, every request still authenticates.
-                'x-admin-secret': ADMIN_SECRET,
-            };
-            const token = await getAccessToken(forceRefresh);
-            if (token) h['Authorization'] = `Bearer ${token}`;
-            return h;
-        };
 
         // ── Proactively refresh session ONCE before the entire batch starts ──
         await fetchAuthHeaders(true);
@@ -731,10 +721,9 @@ export default function LMSCreatorAdmin() {
         });
 
         try {
-            // ── Enqueue all topics (fast — just DB inserts, returns immediately) ──
             const enqueueRes = await fetch('/api/creator/batch-start', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-admin-secret': ADMIN_SECRET },
+                headers: await fetchAuthHeaders(true),
                 body: JSON.stringify({ topics: topicsToQueue }),
             });
             const enqueueData = await enqueueRes.json();
@@ -765,10 +754,9 @@ export default function LMSCreatorAdmin() {
 
         while (!batchAbortRef.current) {
             try {
-                // ── Process next job ──
                 const processRes = await fetch('/api/creator/batch-process', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'x-admin-secret': ADMIN_SECRET },
+                    headers: await fetchAuthHeaders(),
                     body: JSON.stringify({ batchId: targetBatchId }),
                 });
                 const processData = await processRes.json();
@@ -823,7 +811,7 @@ export default function LMSCreatorAdmin() {
     const refreshBatchStatus = async (targetBatchId: string) => {
         try {
             const statusRes = await fetch(`/api/creator/batch-status?batchId=${targetBatchId}`, {
-                headers: { 'x-admin-secret': ADMIN_SECRET },
+                headers: await fetchAuthHeaders(),
             });
             const statusData = await statusRes.json();
             if (statusData.success) {
@@ -870,7 +858,7 @@ export default function LMSCreatorAdmin() {
                 subjectName: engineSubject.name,
                 sectionName: engineSection.name,
             });
-            const res = await fetch(`/api/creator/load?${params}`, { headers: { 'x-admin-secret': ADMIN_SECRET } });
+            const res = await fetch(`/api/creator/load?${params}`, { headers: await fetchAuthHeaders() });
             const data = await res.json();
 
             if (!data.success || !data.notes || Object.keys(data.notes).length === 0) return;
@@ -911,20 +899,17 @@ export default function LMSCreatorAdmin() {
 
     // ── DB Health Check on mount ─────────────────────────────────────────
     useEffect(() => {
-        setDbStatus('checking');
-        fetch('/api/creator/db-test', { headers: { 'x-admin-secret': ADMIN_SECRET } })
-            .then(async r => {
+        const checkDb = async () => {
+            setDbStatus('checking');
+            try {
+                const r = await fetch('/api/creator/db-test', { headers: await fetchAuthHeaders() });
                 // If the server returns HTML (404/error page from Cloud Run), treat as "not deployed yet"
                 const contentType = r.headers.get('content-type') || '';
                 if (!contentType.includes('application/json') || !r.ok) {
-                    // Route not deployed yet — don't show an error, just hide the banner
                     setDbStatus('unknown');
-                    return null;
+                    return;
                 }
-                return r.json();
-            })
-            .then(data => {
-                if (!data) return; // Route not available yet
+                const data = await r.json();
                 if (data.status === 'ALL_OK') {
                     setDbStatus('ok');
                     setDbStatusMsg(`✅ DB connected: ${data.supabaseUrl?.replace('https://', '').replace('.supabase.co', '')} | lms_content rows: ${data.lmsContentRowCount}`);
@@ -933,28 +918,26 @@ export default function LMSCreatorAdmin() {
                     const errSummary = data.errors.join('; ');
                     setDbStatusMsg(`❌ DB issue: ${errSummary}`);
                     // Fetch migration SQL if columns are missing
-                    fetch('/api/creator/db-migrate', { method: 'POST', headers: { 'x-admin-secret': ADMIN_SECRET } })
-                        .then(async r2 => {
-                            const ct = r2.headers.get('content-type') || '';
-                            if (!ct.includes('application/json')) return null;
-                            return r2.json();
-                        })
-                        .then(m => {
+                    try {
+                        const r2 = await fetch('/api/creator/db-migrate', { method: 'POST', headers: await fetchAuthHeaders() });
+                        const ct = r2.headers.get('content-type') || '';
+                        if (ct.includes('application/json')) {
+                            const m = await r2.json();
                             if (m?.status === 'MIGRATION_REQUIRED') {
                                 setDbMigrationSql(m.sqlToRun);
                                 setDbStatusMsg(`❌ Missing DB columns: ${m.missingColumns?.join(', ')}. Run the SQL below in Supabase SQL Editor.`);
                             }
-                        })
-                        .catch(() => {});
+                        }
+                    } catch (_) {}
                 } else {
                     setDbStatus('ok');
                     setDbStatusMsg(`✅ DB OK | URL: ${data.supabaseUrl}`);
                 }
-            })
-            .catch(() => {
-                // Network error or JSON parse failure — silently hide the banner
+            } catch (_) {
                 setDbStatus('unknown');
-            });
+            }
+        };
+        checkDb();
     }, []);
 
     // ── Force Save Generated Content to Supabase ────────────────────────
@@ -1155,17 +1138,9 @@ export default function LMSCreatorAdmin() {
         setDeleteMessage(null);
 
         try {
-            // Auth headers — include admin secret so delete works even with expired JWT
-            const headers: Record<string, string> = {
-                'Content-Type': 'application/json',
-                'x-admin-secret': ADMIN_SECRET,
-            };
-            const token = await getAccessToken(false);
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
             const res = await fetch('/api/creator/delete', {
                 method: 'POST',
-                headers,
+                headers: await fetchAuthHeaders(),
                 body: JSON.stringify({
                     courseName: engineCourse.name,
                     subjectName: engineSubject.name,

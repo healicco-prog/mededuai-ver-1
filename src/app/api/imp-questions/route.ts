@@ -49,7 +49,7 @@ Make the questions realistic, commonly asked, and aligned with ${uni} exam patte
     } catch (error: any) {
         console.warn('Important Questions API Error:', error.message);
         return NextResponse.json({
-            success: true,
+            success: false,
             paper: {
                 mockPaperTitle: 'Model Examination Paper',
                 q10: [

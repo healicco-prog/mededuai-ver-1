@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     } catch (error: any) {
         console.warn('MCQ API Error:', error.message);
         return NextResponse.json({
-            success: true,
+            success: false,
             mcqs: [
                 {
                     question: 'Mock Question 1: What is the cause of mock disease?',
