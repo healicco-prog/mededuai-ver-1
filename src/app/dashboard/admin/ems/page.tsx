@@ -758,14 +758,32 @@ export default function EvaluationManagementSystem() {
                                         </div>
                                     ))}
 
-                                    <div className="aspect-[3/4] rounded-2xl border-2 border-dashed border-indigo-300 hover:border-indigo-500 hover:bg-indigo-50 transition-all flex flex-col items-center justify-center gap-2 relative cursor-pointer group">
-                                        <div className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
-                                            <input type="file" multiple accept="image/*" className="w-full h-full cursor-pointer" onChange={handleImageUpload} />
+                                    <div className="aspect-[3/4] rounded-2xl border-2 border-dashed border-indigo-300 bg-slate-50 transition-all flex flex-col items-center justify-center gap-4 relative group">
+                                        <div className="flex flex-col gap-3 w-full px-6">
+                                            <button className="flex items-center justify-center gap-2 bg-indigo-600 text-white font-bold py-3 px-4 rounded-xl shadow-md hover:bg-indigo-700 transition-all relative overflow-hidden">
+                                                <Camera className="w-5 h-5" />
+                                                Open Camera
+                                                <input 
+                                                    type="file" 
+                                                    accept="image/*" 
+                                                    capture="environment" 
+                                                    className="absolute inset-0 opacity-0 cursor-pointer" 
+                                                    onChange={handleImageUpload} 
+                                                />
+                                            </button>
+                                            
+                                            <button className="flex items-center justify-center gap-2 bg-white border-2 border-indigo-100 text-indigo-600 font-bold py-3 px-4 rounded-xl hover:bg-indigo-50 transition-all relative overflow-hidden">
+                                                <Upload className="w-5 h-5" />
+                                                Upload from Gallery
+                                                <input 
+                                                    type="file" 
+                                                    multiple 
+                                                    accept="image/*" 
+                                                    className="absolute inset-0 opacity-0 cursor-pointer" 
+                                                    onChange={handleImageUpload} 
+                                                />
+                                            </button>
                                         </div>
-                                        <div className="bg-indigo-100 p-3 rounded-full text-indigo-600 group-hover:scale-110 transition-transform">
-                                            <Camera className="w-6 h-6" />
-                                        </div>
-                                        <span className="text-sm font-bold text-indigo-600 text-center px-4">Take Photo or Upload Image</span>
                                     </div>
                                 </div>
 

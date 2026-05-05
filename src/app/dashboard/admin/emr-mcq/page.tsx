@@ -689,20 +689,45 @@ export default function EmrMcqsPortal() {
                                                                 </div>
                                                             </>
                                                         ) : (
-                                                            <>
-                                                                <div className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
-                                                                    <input type="file" accept="image/*" capture="environment" className="w-full h-full cursor-pointer" onChange={(e) => {
-                                                                        const file = e.target.files?.[0];
-                                                                        if (file) {
-                                                                            setUploadedOmr(URL.createObjectURL(file));
-                                                                            setOmrFile(file);
-                                                                        }
-                                                                    }} />
+                                                            <div className="flex flex-col items-center justify-center gap-6 w-full p-8">
+                                                                <div className="flex flex-col gap-4 w-full max-w-xs">
+                                                                    <button className="flex items-center justify-center gap-3 bg-emerald-600 text-white font-bold py-4 px-6 rounded-2xl shadow-lg hover:bg-emerald-700 transition-all relative overflow-hidden active:scale-95">
+                                                                        <Camera className="w-6 h-6" />
+                                                                        Open Camera
+                                                                        <input 
+                                                                            type="file" 
+                                                                            accept="image/*" 
+                                                                            capture="environment" 
+                                                                            className="absolute inset-0 opacity-0 cursor-pointer" 
+                                                                            onChange={(e) => {
+                                                                                const file = e.target.files?.[0];
+                                                                                if (file) {
+                                                                                    setUploadedOmr(URL.createObjectURL(file));
+                                                                                    setOmrFile(file);
+                                                                                }
+                                                                            }} 
+                                                                        />
+                                                                    </button>
+
+                                                                    <button className="flex items-center justify-center gap-3 bg-white border-2 border-emerald-100 text-emerald-600 font-bold py-4 px-6 rounded-2xl hover:bg-emerald-50 transition-all relative overflow-hidden active:scale-95">
+                                                                        <Upload className="w-6 h-6" />
+                                                                        Upload Gallery
+                                                                        <input 
+                                                                            type="file" 
+                                                                            accept="image/*" 
+                                                                            className="absolute inset-0 opacity-0 cursor-pointer" 
+                                                                            onChange={(e) => {
+                                                                                const file = e.target.files?.[0];
+                                                                                if (file) {
+                                                                                    setUploadedOmr(URL.createObjectURL(file));
+                                                                                    setOmrFile(file);
+                                                                                }
+                                                                            }} 
+                                                                        />
+                                                                    </button>
                                                                 </div>
-                                                                <Camera className="w-12 h-12 text-emerald-500 mb-4 opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all" />
-                                                                <h4 className="font-bold text-slate-700">Upload OMR Image</h4>
-                                                                <p className="text-sm font-medium text-slate-500">Click or drag image here.</p>
-                                                            </>
+                                                                <p className="text-sm font-medium text-slate-400">Supported formats: JPG, PNG, HEIC</p>
+                                                            </div>
                                                         )}
                                                     </div>
                                                     
