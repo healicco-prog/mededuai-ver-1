@@ -348,66 +348,73 @@ export default function DigEvalAssistPage() {
                             </div>
 
                             {/* Question */}
-                            <div>
+                            <div className="space-y-3">
                                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Question (Type or Upload Image)</label>
                                 <textarea value={question} onChange={e => setQuestion(e.target.value)}
                                     placeholder="Type the exam question here... e.g., 'Describe the pathogenesis and management of Rheumatic Heart Disease'"
                                     className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-300 text-sm font-medium min-h-[100px] transition-all resize-y" />
-                                <div className="mt-3 flex items-center gap-3">
-                                    <button className="text-sm font-bold text-teal-600 hover:text-teal-700 flex items-center gap-1.5 bg-teal-50 px-4 py-2 rounded-xl border border-teal-200 hover:bg-teal-100 transition-all relative overflow-hidden">
-                                        <Camera className="w-4 h-4" /> Open Camera
-                                        <input 
-                                            type="file" 
-                                            accept="image/*" 
-                                            capture="environment" 
-                                            className="absolute inset-0 opacity-0 cursor-pointer" 
-                                            onChange={handleQuestionImageUpload} 
-                                        />
-                                    </button>
-                                    
-                                    <button className="text-sm font-bold text-slate-600 hover:text-slate-700 flex items-center gap-1.5 bg-slate-50 px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 transition-all relative overflow-hidden">
-                                        <Upload className="w-4 h-4" /> Upload Image
-                                        <input 
-                                            type="file" 
-                                            accept="image/*" 
-                                            className="absolute inset-0 opacity-0 cursor-pointer" 
-                                            onChange={handleQuestionImageUpload} 
-                                        />
-                                    </button>
-                                </div>
+                                
+                                <div className="flex flex-col sm:flex-row items-center gap-3">
+                                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                                        <button className="flex-1 sm:flex-none text-sm font-bold text-teal-600 hover:text-teal-700 flex items-center justify-center gap-2 bg-teal-50 px-4 py-2.5 rounded-xl border border-teal-200 hover:bg-teal-100 transition-all relative overflow-hidden">
+                                            <Camera className="w-4 h-4" /> Open Camera
+                                            <input 
+                                                type="file" 
+                                                accept="image/*" 
+                                                capture="environment" 
+                                                className="absolute inset-0 opacity-0 cursor-pointer" 
+                                                onChange={handleQuestionImageUpload} 
+                                            />
+                                        </button>
+                                        
+                                        <button className="flex-1 sm:flex-none text-sm font-bold text-slate-600 hover:text-slate-700 flex items-center justify-center gap-2 bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 transition-all relative overflow-hidden">
+                                            <Upload className="w-4 h-4" /> Upload Image
+                                            <input 
+                                                type="file" 
+                                                accept="image/*" 
+                                                className="absolute inset-0 opacity-0 cursor-pointer" 
+                                                onChange={handleQuestionImageUpload} 
+                                            />
+                                        </button>
+                                    </div>
+
                                     {questionImage && (
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xs font-bold text-emerald-600 flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5" /> Image uploaded</span>
-                                            <button onClick={() => setQuestionImage(null)} className="text-red-400 hover:text-red-600"><X className="w-4 h-4" /></button>
+                                        <div className="flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
+                                            <span className="text-xs font-bold text-emerald-600 flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5" /> Image Attached</span>
+                                            <button onClick={() => setQuestionImage(null)} className="text-red-400 hover:text-red-600 p-1"><X className="w-4 h-4" /></button>
                                         </div>
                                     )}
                                 </div>
+
                                 {questionImage && (
-                                    <div className="mt-3 rounded-xl overflow-hidden border border-slate-200 max-w-xs">
-                                        <img src={questionImage} alt="Question" className="w-full object-contain max-h-48" />
+                                    <div className="mt-2 rounded-xl overflow-hidden border border-slate-200 max-w-xs shadow-sm bg-slate-50 p-2">
+                                        <img src={questionImage} alt="Question Reference" className="w-full object-contain max-h-48 rounded-lg" />
                                     </div>
                                 )}
                             </div>
 
                             {/* Marks */}
-                            <div>
-                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Marks Allotted</label>
+                            <div className="pt-4 border-t border-slate-100">
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Marks Allotted</label>
                                 <div className="flex gap-2 flex-wrap">
                                     {[2, 3, 5, 10, 15, 20].map(m => (
                                         <button key={m} onClick={() => setMarks(m)}
                                             className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all border ${marks === m ? 'bg-teal-600 text-white border-teal-600 shadow-md shadow-teal-500/20' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-teal-200'}`}>
-                                            {m} Marks
+                                            {m}
                                         </button>
                                     ))}
-                                    <input type="number" value={marks} onChange={e => setMarks(parseInt(e.target.value) || 1)} min={1} max={100}
-                                        className="w-24 px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-teal-500 text-sm font-bold text-center" />
+                                    <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 ml-2">
+                                        <span className="text-xs font-bold text-slate-400 mr-2">Custom:</span>
+                                        <input type="number" value={marks} onChange={e => setMarks(parseInt(e.target.value) || 1)} min={1} max={100}
+                                            className="w-16 py-2 bg-transparent outline-none text-sm font-bold text-slate-700" />
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="flex justify-end pt-4 border-t border-slate-100">
+                            <div className="flex justify-end pt-6 border-t border-slate-100">
                                 <button onClick={handleGenerateRubrics}
                                     disabled={!course || !(effectiveSubject && effectiveSubject !== '__custom') || (!question.trim() && !questionImage)}
-                                    className="bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold h-12 px-8 rounded-xl hover:shadow-lg hover:shadow-teal-500/25 transition-all disabled:opacity-50 flex items-center gap-2 hover:scale-[1.01] active:scale-[0.99]">
+                                    className="bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold h-12 px-8 rounded-xl hover:shadow-lg hover:shadow-teal-500/25 transition-all disabled:opacity-50 flex items-center gap-2 hover:scale-[1.01] active:scale-[0.99] shadow-md">
                                     <Sparkles className="w-5 h-5" /> Prepare Rubrics & Continue
                                     <ChevronRight className="w-5 h-5" />
                                 </button>
