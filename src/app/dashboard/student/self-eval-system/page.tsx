@@ -354,12 +354,31 @@ export default function SelfEvalSystemPage() {
                             </div>
                             <div className="p-6 space-y-5">
                                 {/* Upload Area */}
-                                <div onClick={() => fileInputRef.current?.click()}
-                                    className="border-2 border-dashed border-violet-200 rounded-2xl p-8 text-center cursor-pointer hover:border-violet-400 hover:bg-violet-50/50 transition-all group">
-                                    <Upload className="w-10 h-10 text-violet-300 mx-auto mb-3 group-hover:text-violet-500 transition-colors" />
-                                    <p className="text-sm font-bold text-slate-600 mb-1">Click to upload answer script images</p>
+                                <div className="border-2 border-dashed border-violet-200 rounded-2xl p-8 flex flex-col items-center justify-center gap-4 bg-slate-50/50">
+                                    <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
+                                        <button className="flex-1 flex items-center justify-center gap-2 bg-violet-600 text-white font-bold py-3 px-4 rounded-xl shadow-md hover:bg-violet-700 transition-all relative overflow-hidden">
+                                            <Camera className="w-5 h-5" /> Open Camera
+                                            <input 
+                                                type="file" 
+                                                accept="image/*" 
+                                                capture="environment" 
+                                                className="absolute inset-0 opacity-0 cursor-pointer" 
+                                                onChange={handleImageUpload} 
+                                            />
+                                        </button>
+                                        
+                                        <button className="flex-1 flex items-center justify-center gap-2 bg-white border-2 border-violet-100 text-violet-600 font-bold py-3 px-4 rounded-xl hover:bg-violet-50 transition-all relative overflow-hidden">
+                                            <Upload className="w-5 h-5" /> Upload Gallery
+                                            <input 
+                                                type="file" 
+                                                multiple 
+                                                accept="image/*" 
+                                                className="absolute inset-0 opacity-0 cursor-pointer" 
+                                                onChange={handleImageUpload} 
+                                            />
+                                        </button>
+                                    </div>
                                     <p className="text-xs text-slate-400">Supports JPG, PNG, WEBP • Multiple images allowed</p>
-                                    <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
                                 </div>
 
                                 {/* Uploaded Images */}

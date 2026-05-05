@@ -354,11 +354,27 @@ export default function DigEvalAssistPage() {
                                     placeholder="Type the exam question here... e.g., 'Describe the pathogenesis and management of Rheumatic Heart Disease'"
                                     className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-300 text-sm font-medium min-h-[100px] transition-all resize-y" />
                                 <div className="mt-3 flex items-center gap-3">
-                                    <button onClick={() => questionFileRef.current?.click()}
-                                        className="text-sm font-bold text-teal-600 hover:text-teal-700 flex items-center gap-1.5 bg-teal-50 px-4 py-2 rounded-xl border border-teal-200 hover:bg-teal-100 transition-all">
-                                        <Upload className="w-4 h-4" /> Upload Question Image
+                                    <button className="text-sm font-bold text-teal-600 hover:text-teal-700 flex items-center gap-1.5 bg-teal-50 px-4 py-2 rounded-xl border border-teal-200 hover:bg-teal-100 transition-all relative overflow-hidden">
+                                        <Camera className="w-4 h-4" /> Open Camera
+                                        <input 
+                                            type="file" 
+                                            accept="image/*" 
+                                            capture="environment" 
+                                            className="absolute inset-0 opacity-0 cursor-pointer" 
+                                            onChange={handleQuestionImageUpload} 
+                                        />
                                     </button>
-                                    <input ref={questionFileRef} type="file" accept="image/*" onChange={handleQuestionImageUpload} className="hidden" />
+                                    
+                                    <button className="text-sm font-bold text-slate-600 hover:text-slate-700 flex items-center gap-1.5 bg-slate-50 px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 transition-all relative overflow-hidden">
+                                        <Upload className="w-4 h-4" /> Upload Image
+                                        <input 
+                                            type="file" 
+                                            accept="image/*" 
+                                            className="absolute inset-0 opacity-0 cursor-pointer" 
+                                            onChange={handleQuestionImageUpload} 
+                                        />
+                                    </button>
+                                </div>
                                     {questionImage && (
                                         <div className="flex items-center gap-2">
                                             <span className="text-xs font-bold text-emerald-600 flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5" /> Image uploaded</span>
@@ -558,12 +574,31 @@ export default function DigEvalAssistPage() {
                                         <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                                             <Upload className="w-3.5 h-3.5" /> Answer Script Images
                                         </label>
-                                        <div onClick={() => fileInputRef.current?.click()}
-                                            className="border-2 border-dashed border-teal-200 rounded-2xl p-8 text-center cursor-pointer hover:border-teal-400 hover:bg-teal-50/50 transition-all group">
-                                            <Upload className="w-10 h-10 text-teal-300 mx-auto mb-3 group-hover:text-teal-500 transition-colors" />
-                                            <p className="text-sm font-bold text-slate-600 mb-1">Click to upload answer script images</p>
+                                        <div className="border-2 border-dashed border-teal-200 rounded-2xl p-8 flex flex-col items-center justify-center gap-4 bg-slate-50/50">
+                                            <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
+                                                <button className="flex-1 flex items-center justify-center gap-2 bg-teal-600 text-white font-bold py-3 px-4 rounded-xl shadow-md hover:bg-teal-700 transition-all relative overflow-hidden">
+                                                    <Camera className="w-5 h-5" /> Open Camera
+                                                    <input 
+                                                        type="file" 
+                                                        accept="image/*" 
+                                                        capture="environment" 
+                                                        className="absolute inset-0 opacity-0 cursor-pointer" 
+                                                        onChange={handleImageUpload} 
+                                                    />
+                                                </button>
+                                                
+                                                <button className="flex-1 flex items-center justify-center gap-2 bg-white border-2 border-teal-100 text-teal-600 font-bold py-3 px-4 rounded-xl hover:bg-teal-50 transition-all relative overflow-hidden">
+                                                    <Upload className="w-5 h-5" /> Upload Gallery
+                                                    <input 
+                                                        type="file" 
+                                                        multiple 
+                                                        accept="image/*" 
+                                                        className="absolute inset-0 opacity-0 cursor-pointer" 
+                                                        onChange={handleImageUpload} 
+                                                    />
+                                                </button>
+                                            </div>
                                             <p className="text-xs text-slate-400">Supports JPG, PNG, WEBP • Multiple images allowed • Crop from all sides</p>
-                                            <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
                                         </div>
                                     </div>
 
