@@ -1,50 +1,80 @@
-import { checkSecurity } from '@/lib/apiSecurity';
-import { NextResponse } from 'next/server';
-import { generateVisionJSON } from '@/lib/gemini';
+import { NextRequest, NextResponse } from 'next/server';
+import { getAI, MODELS } from '@/lib/gemini';
 
-export async function POST(req: Request) {
-    const sec = await checkSecurity(req);
-    if (!sec.authorized) return sec.response;
+export const runtime = 'nodejs'; // Use nodejs for larger image processing
+export const maxDuration = 60; // 60 seconds
 
+export async function POST(req: NextRequest) {
     try {
-        const body = await req.json();
-        const { image, questions } = body; // image is base64 string, questions is array of labels
+        const formData = await req.formData();
+        const imageFile = formData.get('image') as File;
+        const answerKeyJson = formData.get('answerKey') as string;
+        const questionsJson = formData.get('questions') as string;
 
-        if (!image) {
-            return NextResponse.json({ success: false, error: 'No image provided' }, { status: 400 });
+        if (!imageFile) {
+            return NextResponse.json({ success: false, error: 'No image uploaded' }, { status: 400 });
         }
 
-        // Clean base64 string (remove data:image/png;base64, if present)
-        const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
+        const answerKey = JSON.parse(answerKeyJson || '{}');
+        const questionsList = JSON.parse(questionsJson || '[]');
 
-        const prompt = `You are a high-precision OMR (Optical Mark Recognition) scanner for medical examinations.
-        Your task is to identify the bubbled answers (A, B, C, or D) for the given question labels on the provided OMR sheet image.
-        
-        The question labels you should look for are: ${questions.join(', ')}.
-        
-        Note:
-        1. Some questions might have sub-parts like "18(i)", "18(ii)".
-        2. If a bubble is not clearly marked, return null for that question.
-        3. If you see multiple bubbles for one question, return "INVALID".
-        4. Match the labels EXACTLY as provided in the list above.
-        
-        Return ONLY a JSON object mapping each provided question label to its identified answer ("A", "B", "C", "D", "INVALID", or null).
-        Example: {"18(i)": "A", "18(ii)": "C", "19": "B"}
-        `;
+        // Convert file to base64
+        const buffer = Buffer.from(await imageFile.arrayBuffer());
+        const base64Image = buffer.toString('base64');
 
-        const result = await generateVisionJSON([
-            { text: prompt },
+        const ai = getAI();
+        const model = ai.getGenerativeModel({ model: MODELS.primary });
+
+        const prompt = `
+Analyze the attached OMR (Optical Mark Recognition) answer sheet. 
+Extract the marked answers for each question label.
+
+IMPORTANT LABELS TO LOOK FOR:
+${questionsList.map((q: any) => q.label).join(', ')}
+
+DIRECTIONS:
+1. Identify the filled bubble (A, B, C, or D) for each question label listed above.
+2. If a bubble is partially filled, use your best judgment.
+3. If no bubble is filled, return null for that question.
+4. If multiple bubbles are filled, return "MULTIPLE".
+5. Return the results EXCLUSIVELY as a JSON object where the keys are the question labels and the values are the detected marks ("A", "B", "C", "D", "MULTIPLE", or null).
+
+Return format:
+{
+  "26(I)": "A",
+  "26(II)": "C",
+  ...
+}
+`;
+
+        const result = await model.generateContent([
+            prompt,
             {
                 inlineData: {
-                    data: base64Data,
-                    mimeType: "image/png"
+                    data: base64Image,
+                    mimeType: imageFile.type
                 }
             }
         ]);
 
-        return NextResponse.json({ success: true, results: result });
+        const response = result.response;
+        let text = response.text().trim();
+        
+        // Clean up markdown code blocks if present
+        if (text.startsWith('```')) {
+            text = text.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+        }
+
+        try {
+            const extractedAnswers = JSON.parse(text);
+            return NextResponse.json({ success: true, extractedAnswers });
+        } catch (e) {
+            console.error('Failed to parse AI response:', text);
+            return NextResponse.json({ success: false, error: 'AI failed to produce valid JSON', raw: text }, { status: 500 });
+        }
+
     } catch (error: any) {
-        console.error('EMR Scan Error:', error);
+        console.error('OMR Scan Error:', error);
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
