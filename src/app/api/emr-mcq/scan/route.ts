@@ -59,7 +59,7 @@ Return format:
         });
 
         const response = result;
-        let text = response.text().trim();
+        let text = (response.text || "").trim();
         
         // Clean up markdown code blocks if present
         if (text.startsWith('```')) {
