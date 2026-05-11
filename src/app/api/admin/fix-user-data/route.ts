@@ -2,13 +2,14 @@
  * ONE-TIME DATA FIX  —  /api/admin/fix-user-data
  *
  * Corrects role and plan mismatches for the five known MedEduAI test accounts.
- * Protected by the ADMIN_FIX_SECRET header.
+ * Protected by checkSecurity (requires superadmin or masteradmin).
  *
  * DELETE or disable this route after running once in production.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '../../../../lib/supabaseAdmin';
+import { checkSecurity } from '@/lib/apiSecurity';
 
 // ── Correct data for each account ─────────────────────────────────────────
 const FIXES = [
@@ -55,12 +56,8 @@ const FIXES = [
 ] as const;
 
 export async function POST(req: NextRequest) {
-    // Simple secret check — set ADMIN_FIX_SECRET in your .env
-    const secret = req.headers.get('x-fix-secret');
-    const expected = process.env.ADMIN_FIX_SECRET;
-    if (!expected || secret !== expected) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin'] });
+    if (!sec.authorized) return sec.response;
 
     const supabase = getSupabaseAdmin();
     const results: { email: string; status: string; detail?: string }[] = [];
@@ -164,17 +161,7 @@ export async function POST(req: NextRequest) {
     });
 }
 
-// Also allow GET for easy browser testing (same secret via query param)
+// GET method is no longer allowed with checkSecurity for modifying operations.
 export async function GET(req: NextRequest) {
-    const secret = req.nextUrl.searchParams.get('secret');
-    const expected = process.env.ADMIN_FIX_SECRET;
-    if (!expected || secret !== expected) {
-        return NextResponse.json({ error: 'Pass ?secret=<ADMIN_FIX_SECRET>' }, { status: 401 });
-    }
-    // Delegate to POST handler
-    const fakeReq = new NextRequest(req.url, {
-        method: 'POST',
-        headers: { 'x-fix-secret': secret },
-    });
-    return POST(fakeReq);
+    return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
 }

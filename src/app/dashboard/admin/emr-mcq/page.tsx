@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { ClipboardType, Sparkles, UploadCloud, Upload, Users, CheckCircle2, FileSearch, HelpCircle, Camera, Settings, Trash2, ChevronLeft, ChevronRight, X, FolderOpen, Save, Target, Edit2 } from 'lucide-react';
+import { ClipboardType, Sparkles, UploadCloud, Upload, Users, CheckCircle2, FileSearch, HelpCircle, Camera, Settings, Trash2, ChevronLeft, ChevronRight, X, FolderOpen, Save, Target, Edit2, FileText, AlertCircle, CheckCircle } from 'lucide-react';
 import { useQPaperStore } from '@/store/qPaperStore';
 import { useEmrStore, EvaluatedStudent } from '@/store/emrStore';
 import ReactCrop, { type Crop } from 'react-image-crop';
@@ -56,6 +56,59 @@ export default function EmrMcqsPortal() {
     // Inline row editing in Step 2
     const [inlineEditId, setInlineEditId] = useState<number | null>(null);
     const [inlineEditData, setInlineEditData] = useState({ roll: '', reg: '', name: '' });
+
+    // Upload Word Paper State
+    const [paperSource, setPaperSource] = useState<'qpaper' | 'upload'>('qpaper');
+    const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+    const [isParsingWord, setIsParsingWord] = useState(false);
+    const [parseError, setParseError] = useState('');
+    const [isDragOver, setIsDragOver] = useState(false);
+    const wordFileRef = useRef<HTMLInputElement>(null);
+    const [parsedTotalMarks, setParsedTotalMarks] = useState(0);
+
+    const handleWordUpload = async (file: File) => {
+        setUploadedFile(file);
+        setIsParsingWord(true);
+        setParseError('');
+        setPaperQuestions([]);
+        setAnswerKey({});
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await fetch('/api/upload-qpaper', { method: 'POST', body: formData });
+            const data = await res.json();
+
+            if (!res.ok || !data.success) {
+                setParseError(data.error || 'Failed to parse the document.');
+                setIsParsingWord(false);
+                return;
+            }
+
+            if (data.institution) setInstituteName(data.institution);
+            if (data.course) setCourse(data.course);
+            if (data.department) setDepartment(data.department);
+            if (data.paperTitle) setExamName(data.paperTitle);
+
+            const newQuestions = data.questions.map((q: any, i: number) => {
+                const isMcq2M = q.type?.includes('2 Marks') || q.type?.includes('2 sub questions') || q.subdivided;
+                return {
+                    questionNo: `Q${i + 1}`,
+                    text: q.text,
+                    type: q.type || 'MCQ',
+                    marks: q.marks || 1,
+                    subdivided: isMcq2M,
+                };
+            });
+            setPaperQuestions(newQuestions);
+            setParsedTotalMarks(data.totalMarks || 0);
+
+        } catch (err: any) {
+            setParseError('Network error: ' + err.message);
+        } finally {
+            setIsParsingWord(false);
+        }
+    };
 
     // Parse CSV or Excel
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -139,7 +192,6 @@ export default function EmrMcqsPortal() {
         let displayQNo = String(q.questionNo || (i + 1));
         if (q.text) {
             // More robust extraction: look for the first number that looks like a question number
-            // Matches: "26 )", "**Q26.**", "26.", "Q 26)", "26i)"
             const qMatch = q.text.match(/(?:^|[\s\n*])Q?\s*(\d+)\s*[.)]/i);
             if (qMatch) {
                 displayQNo = qMatch[1];
@@ -147,19 +199,30 @@ export default function EmrMcqsPortal() {
         }
 
         const optionAMatches = q.text ? q.text.match(/(?:^|[\s\n])(?:\*\*)?(?:[Aa][.)]|\([Aa]\))(?:\*\*)?\s*/g) : null;
-        const mcqCount = optionAMatches ? optionAMatches.length : 0;
+        let detectedCount = optionAMatches ? optionAMatches.length : 0;
+        
+        if (detectedCount <= 1 && q.text) {
+            const hasI = /(?:^|[\s\n*])\(?[iI]\)[\s\n.]/.test(q.text);
+            const hasII = /(?:^|[\s\n*])\(?ii\)[\s\n.]/i.test(q.text);
+            const hasIII = /(?:^|[\s\n*])\(?iii\)[\s\n.]/i.test(q.text);
+            if (hasI && hasII && hasIII) detectedCount = 3;
+            else if (hasI && hasII) detectedCount = 2;
+        }
 
-        if (mcqCount > 1) {
+        let finalCount = 1;
+        if (detectedCount > 1) {
+            finalCount = detectedCount;
+        } else if (q.subdivided || q.marks > 1) {
+            finalCount = q.marks; // Assume 1 mark per subquestion if marks > 1
+        }
+
+        if (finalCount > 1) {
             const romanNumerals = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
-            const marksPerSub = q.marks / mcqCount;
-            for (let j = 0; j < mcqCount; j++) {
+            const marksPerSub = q.marks / finalCount;
+            for (let j = 0; j < finalCount; j++) {
                 const subLabel = romanNumerals[j] || (j + 1).toString();
                 questionsListForKey.push({ id: `${i}_${j}`, label: `${displayQNo}(${subLabel})`, marks: marksPerSub });
             }
-            totalMaxMarks += q.marks;
-        } else if (q.subdivided) {
-            questionsListForKey.push({ id: `${i}_0`, label: `${displayQNo}(I)`, marks: q.marks / 2 });
-            questionsListForKey.push({ id: `${i}_1`, label: `${displayQNo}(II)`, marks: q.marks / 2 });
             totalMaxMarks += q.marks;
         } else {
             questionsListForKey.push({ id: `${i}`, label: `${displayQNo}`, marks: q.marks });
@@ -364,73 +427,203 @@ export default function EmrMcqsPortal() {
                         </div>
 
                         <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 shadow-sm">
-                            <label className="block text-xs font-bold text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2"><HelpCircle className="w-4 h-4 text-emerald-500" /> Select MCQ Question Paper</label>
+                            <label className="block text-xs font-bold text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2"><HelpCircle className="w-4 h-4 text-emerald-500" /> Question Paper Source</label>
                             
-                            <select
-                                className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700"
-                                value={selectedPaperId}
-                                onChange={(e) => {
-                                    const id = e.target.value;
-                                    setSelectedPaperId(id);
-                                    const paper = store.papers.find(p => p.id === id);
-                                    if (paper) {
-                                        setInstituteName(paper.instituteName);
-                                        setCourse(paper.course);
-                                        setDepartment(paper.department);
-                                        setExamName(paper.examName);
-                                        
-                                        // Parse out questions to build the key
-                                        const parsedQs = paper.questions.map(q => {
-                                            const isMcq2M = q.type.includes('2 Marks') || q.type.includes('2 sub questions') || (q as any).subdivided;
-                                            return {
-                                                questionNo: q.questionNo,
-                                                text: q.generatedContent,
-                                                type: q.type,
-                                                marks: q.marks,
-                                                subdivided: isMcq2M,
-                                            };
-                                        });
-                                        setPaperQuestions(parsedQs);
-                                        setAnswerKey({}); // Reset key
-                                    }
-                                }}
-                            >
-                                <option value="" disabled>Select a saved MCQ question paper...</option>
-                                {store.papers.filter(p => {
-                                    const format = store.formats.find(f => f.id === p.formatId);
-                                    return format?.paperType === 'MCQ';
-                                }).length === 0 && <option value="" disabled>No MCQ formats found in Q-Paper Dev.</option>}
-                                {store.papers.filter(p => {
-                                    const format = store.formats.find(f => f.id === p.formatId);
-                                    return format?.paperType === 'MCQ';
-                                }).map(p => (
-                                    <option key={p.id} value={p.id}>{p.examName} ({p.course} - {p.department})</option>
-                                ))}
-                            </select>
+                            <div className="flex flex-wrap gap-2 mb-4 bg-slate-200/50 p-1.5 rounded-xl w-max">
+                                <button onClick={() => setPaperSource('qpaper')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${paperSource === 'qpaper' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-500 hover:text-slate-800'}`}>Select from Q-Paper Dev</button>
+                                <button onClick={() => { setPaperSource('upload'); setUploadedFile(null); setPaperQuestions([]); setParseError(''); setAnswerKey({}); }} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1.5 ${paperSource === 'upload' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-500 hover:text-slate-800'}`}><Upload className="w-3.5 h-3.5"/> Upload Question Paper (Word)</button>
+                            </div>
+
+                            {paperSource === 'qpaper' && (
+                                <select
+                                    className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700"
+                                    value={selectedPaperId}
+                                    onChange={(e) => {
+                                        const id = e.target.value;
+                                        setSelectedPaperId(id);
+                                        const paper = store.papers.find(p => p.id === id);
+                                        if (paper) {
+                                            setInstituteName(paper.instituteName);
+                                            setCourse(paper.course);
+                                            setDepartment(paper.department);
+                                            setExamName(paper.examName);
+                                            
+                                            // Parse out questions to build the key
+                                            const parsedQs = paper.questions.map(q => {
+                                                const isMcq2M = q.type.includes('2 Marks') || q.type.includes('2 sub questions') || (q as any).subdivided;
+                                                return {
+                                                    questionNo: q.questionNo,
+                                                    text: q.generatedContent,
+                                                    type: q.type,
+                                                    marks: q.marks,
+                                                    subdivided: isMcq2M,
+                                                };
+                                            });
+                                            setPaperQuestions(parsedQs);
+                                            setAnswerKey({}); // Reset key
+                                        }
+                                    }}
+                                >
+                                    <option value="" disabled>Select a saved MCQ question paper...</option>
+                                    {store.papers.filter(p => {
+                                        const format = store.formats.find(f => f.id === p.formatId);
+                                        return format?.paperType === 'MCQ';
+                                    }).length === 0 && <option value="" disabled>No MCQ formats found in Q-Paper Dev.</option>}
+                                    {store.papers.filter(p => {
+                                        const format = store.formats.find(f => f.id === p.formatId);
+                                        return format?.paperType === 'MCQ';
+                                    }).map(p => (
+                                        <option key={p.id} value={p.id}>{p.examName} ({p.course} - {p.department})</option>
+                                    ))}
+                                </select>
+                            )}
+
+                            {paperSource === 'upload' && (
+                                <div className="animate-in fade-in duration-300 space-y-5">
+                                    {/* Drop Zone */}
+                                    {!uploadedFile && (
+                                        <div
+                                            onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
+                                            onDragLeave={() => setIsDragOver(false)}
+                                            onDrop={e => {
+                                                e.preventDefault();
+                                                setIsDragOver(false);
+                                                const f = e.dataTransfer.files[0];
+                                                if (f) handleWordUpload(f);
+                                            }}
+                                            onClick={() => wordFileRef.current?.click()}
+                                            className={`relative border-2 border-dashed rounded-3xl p-12 flex flex-col items-center justify-center gap-4 cursor-pointer transition-all select-none ${
+                                                isDragOver
+                                                    ? 'border-emerald-500 bg-emerald-50 scale-[1.01]'
+                                                    : 'border-slate-300 bg-white hover:border-emerald-400 hover:bg-emerald-50/40'
+                                            }`}
+                                        >
+                                            <input
+                                                ref={wordFileRef}
+                                                type="file"
+                                                accept=".docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
+                                                className="hidden"
+                                                onChange={e => { const f = e.target.files?.[0]; if (f) handleWordUpload(f); }}
+                                            />
+                                            <div className={`w-20 h-20 rounded-2xl flex items-center justify-center transition-colors ${
+                                                isDragOver ? 'bg-emerald-100' : 'bg-slate-100'
+                                            }`}>
+                                                <FileText className={`w-10 h-10 transition-colors ${
+                                                    isDragOver ? 'text-emerald-600' : 'text-slate-400'
+                                                }`} />
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="font-bold text-slate-800 text-lg">Drop your Word file here</p>
+                                                <p className="text-slate-500 text-sm mt-1">or <span className="text-emerald-600 font-bold underline underline-offset-2">browse files</span></p>
+                                                <p className="text-xs text-slate-400 mt-3 bg-slate-100 px-3 py-1.5 rounded-full inline-block">Supports .docx and .doc formats</p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Parsing Spinner */}
+                                    {isParsingWord && (
+                                        <div className="flex flex-col items-center gap-5 py-10 bg-white rounded-3xl border border-slate-200">
+                                            <div className="relative w-16 h-16">
+                                                <div className="absolute inset-0 border-4 border-emerald-100 rounded-full" />
+                                                <div className="absolute inset-0 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                                                <FileText className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 text-emerald-600" />
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="font-bold text-slate-800">AI is Reading Your Question Paper...</p>
+                                                <p className="text-sm text-slate-500 mt-1">Extracting questions and mark allocations</p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Error State */}
+                                    {parseError && !isParsingWord && (
+                                        <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl p-5">
+                                            <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
+                                            <div>
+                                                <p className="font-bold text-red-800">Parsing Failed</p>
+                                                <p className="text-sm text-red-600 mt-1">{parseError}</p>
+                                                <button onClick={() => { setUploadedFile(null); setParseError(''); }} className="mt-3 text-sm font-bold text-red-700 underline">Try a different file</button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Parsed Results Summary */}
+                                    {paperQuestions.length > 0 && !isParsingWord && (
+                                        <div className="space-y-4 animate-in fade-in duration-300">
+                                            <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center shrink-0">
+                                                        <CheckCircle className="w-7 h-7 text-emerald-600" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-bold text-emerald-900 text-lg">Successfully Parsed!</p>
+                                                        <p className="text-base text-emerald-700">{paperQuestions.length} questions · {parsedTotalMarks} total marks · {uploadedFile?.name}</p>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => { setUploadedFile(null); setPaperQuestions([]); setParseError(''); setAnswerKey({}); }}
+                                                    className="text-sm font-bold text-slate-500 hover:text-red-600 px-4 py-2 rounded-lg hover:bg-red-50 transition-colors shrink-0 ml-4"
+                                                >Remove</button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
-                        {selectedPaperId && paperQuestions.length > 0 && (
+                        {((paperSource === 'qpaper' && selectedPaperId) || (paperSource === 'upload')) && paperQuestions.length > 0 && (
                             <div className="space-y-6 animate-in slide-in-from-bottom duration-300">
                                 <h4 className="font-bold text-lg text-slate-800 border-b border-slate-100 pb-2">Set Correct Answers</h4>
                                 
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {questionsListForKey.map((q) => (
-                                        <div key={q.id} className="bg-white border text-slate-700 border-slate-200 p-4 rounded-xl shadow-sm flex items-center justify-between">
-                                            <span className="font-bold">{q.label} <span className="text-slate-400 font-normal text-xs ml-1">({q.marks}m)</span></span>
-                                            
-                                            <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
-                                                {['A', 'B', 'C', 'D'].map(opt => (
-                                                    <button 
-                                                        key={`${q.id}-${opt}`}
-                                                        onClick={() => setAnswerKey(prev => ({ ...prev, [q.id]: opt }))}
-                                                        className={`w-8 h-8 rounded-md font-bold text-sm transition-all focus:outline-none ${answerKey[q.id] === opt ? 'bg-emerald-500 text-white shadow-sm' : 'hover:bg-slate-200 text-slate-500'}`}
-                                                    >
-                                                        {opt}
-                                                    </button>
-                                                ))}
+                                <div className="grid grid-cols-1 gap-4">
+                                    {paperQuestions.map((q, i) => {
+                                        const subQuestions = questionsListForKey.filter(kq => kq.id === `${i}` || kq.id.startsWith(`${i}_`));
+                                        if (subQuestions.length === 0) return null;
+                                        
+                                        return (
+                                            <div key={i} className="bg-white border text-slate-700 border-slate-200 p-5 rounded-xl shadow-sm flex flex-col md:flex-row md:items-start justify-between gap-6">
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-bold text-slate-800 text-lg">
+                                                            {subQuestions.length === 1 ? `Q${subQuestions[0].label}` : `Q${i + 1}`} 
+                                                            <span className="text-slate-400 font-normal text-sm ml-2">({q.marks}m)</span>
+                                                        </span>
+                                                        {subQuestions.every(sq => answerKey[sq.id]) && (
+                                                            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">Completed</span>
+                                                        )}
+                                                    </div>
+                                                    {q.text && (
+                                                        <div className="mt-3 text-lg font-medium text-slate-800 prose prose-slate max-w-none prose-p:my-1 prose-headings:my-2">
+                                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                                                {q.text.split('\n').map((line: string) => line.trimStart()).join('\n')}
+                                                            </ReactMarkdown>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                
+                                                <div className="flex flex-col gap-3 shrink-0 pt-2 md:pt-0">
+                                                    {subQuestions.map(sq => (
+                                                        <div key={sq.id} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 justify-end">
+                                                            {subQuestions.length > 1 && (
+                                                                <span className="text-sm font-bold text-slate-500 w-12 text-left sm:text-right">({sq.label.split('(')[1] || sq.label}</span>
+                                                            )}
+                                                            <div className="flex gap-1 bg-slate-50 p-1.5 rounded-lg shrink-0 h-10">
+                                                                {['A', 'B', 'C', 'D'].map(opt => (
+                                                                    <button 
+                                                                        key={`${sq.id}-${opt}`}
+                                                                        onClick={() => setAnswerKey(prev => ({ ...prev, [sq.id]: opt }))}
+                                                                        className={`w-8 h-8 rounded-md font-bold text-sm transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 ${answerKey[sq.id] === opt ? 'bg-emerald-500 text-white shadow-sm' : 'hover:bg-slate-200 text-slate-500'}`}
+                                                                    >
+                                                                        {opt}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
@@ -438,7 +631,7 @@ export default function EmrMcqsPortal() {
                         <div className="flex justify-end pt-6 border-t border-slate-100">
                             <button 
                                 onClick={() => setStep(2)}
-                                disabled={!selectedPaperId || !isAnswerKeyComplete}
+                                disabled={(paperSource === 'qpaper' && !selectedPaperId) || (paperSource === 'upload' && paperQuestions.length === 0) || !isAnswerKeyComplete}
                                 className="bg-slate-900 text-white font-bold px-8 py-3 rounded-xl hover:bg-slate-800 disabled:opacity-50 transition-all flex items-center gap-2"
                             >
                                 Continue to Examinees <ChevronRight className="w-5 h-5" />

@@ -472,31 +472,10 @@ export default function EvaluationManagementSystem() {
                                 <div className="text-center mb-8">
                                     <ClipboardCheck className="w-16 h-16 text-indigo-200 mx-auto mb-4" />
                                     <h3 className="text-2xl font-bold text-slate-800">Initialize New Examination</h3>
-                                    <p className="text-slate-500 mt-2">Set up exam details and provide the question paper to generate rubrics.</p>
+                                    <p className="text-slate-500 mt-2">Upload the question paper to generate rubrics</p>
                                 </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
-                            <div className="md:col-span-2">
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Name of the Institution</label>
-                                <input value={instituteName} onChange={e => setInstituteName(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g. ABC Medical College" />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Course</label>
-                                <input value={course} onChange={e => setCourse(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g. MBBS First Year" />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Department</label>
-                                <input value={department} onChange={e => setDepartment(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g. Anatomy" />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Logo URL (Optional)</label>
-                                <input value={logoUrl} onChange={e => setLogoUrl(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="https://..." />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Examination Name *</label>
-                                <input value={examName} onChange={e => setExamName(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 font-bold" placeholder="e.g. Internal Assessment 1" />
-                            </div>
-                        </div>
+
 
                         <div className="border border-slate-200 rounded-2xl p-6 bg-white shadow-sm space-y-6">
                             <div>
@@ -671,7 +650,7 @@ export default function EvaluationManagementSystem() {
                                                                             const paperText = newQ.map((qItem) => `**${qItem.qNum || 'Q'}. [${qItem.marks} Marks]**\n\n${qItem.text}`).join('\n\n---\n\n');
                                                                             setQuestionPaperText(paperText);
                                                                         }}
-                                                                        className="w-10 text-sm font-bold text-white bg-transparent outline-none text-right placeholder-indigo-200"
+                                                                        className="w-10 text-sm font-bold !text-white bg-transparent outline-none text-right placeholder-indigo-200"
                                                                     />
                                                                     <span className="text-sm font-bold text-white">M</span>
                                                                 </div>
@@ -753,7 +732,7 @@ export default function EvaluationManagementSystem() {
                             <div className="flex gap-4 pt-4">
                                 <button
                                     onClick={() => {
-                                        if (!examName || !questionPaperText) return alert("Exam Name and Question Paper text are required.");
+                                        if (!questionPaperText) return alert("Question Paper text is required.");
                                         setIsPaperLocked(true);
                                     }}
                                     className="w-full py-4 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all flex justify-center items-center gap-2 shadow-sm"

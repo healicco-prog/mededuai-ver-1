@@ -13,7 +13,7 @@ const nextConfig = {
         {
           source: '/api/:path*',
           // Destination points to the new Cloud Run backend
-          destination: 'https://mededuai-backend-3js7mh5u5a-uc.a.run.app/api/:path*',
+          destination: 'https://mededuai-backend-945029424967.us-central1.run.app/api/:path*',
         },
       ];
     }
