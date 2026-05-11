@@ -88,7 +88,7 @@ export default function EssayGeneratorPage() {
             if (data.success) {
                 setResult(data.questions || 'No questions were generated.');
                 setAnswerKey(data.answerKey || '');
-                tokenService.processTransaction(currentUser.id, 'Essay Generator', 'gemini-2.5-flash');
+                tokenService.processTransaction(currentUser.id, 'Essay Generator', 'gemini-2.0-flash');
             }
         } catch (e) {
             console.error(e);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { FileEdit, Loader2, Sparkles, RefreshCcw, Download, Copy, CheckCircle, BookOpen, Save, Share2, FileDown, X, ChevronDown } from 'lucide-react';
+import { FilePenLine as FileEdit, Loader2, Sparkles, RefreshCcw, Download, Copy, CheckCircle, BookOpen, Save, Share2, FileDown, X, ChevronDown } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';

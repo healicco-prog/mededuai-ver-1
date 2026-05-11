@@ -1,7 +1,7 @@
 steps:
   # ── Step 1: Build Docker image ──────────────────────────────────────────────
-  # Only NEXT_PUBLIC_* vars baked at build time (safe/public).
-  # All secrets injected at Cloud Run runtime via substitutions — never in image.
+  # ONLY NEXT_PUBLIC_* vars baked at build time (safe/public).
+  # ALL secrets injected at Cloud Run runtime — NEVER in image layers.
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
@@ -12,9 +12,7 @@ steps:
       - '--build-arg'
       - 'NEXT_PUBLIC_SITE_URL=${_NEXT_PUBLIC_SITE_URL}'
       - '--build-arg'
-      - 'GOOGLE_CLOUD_PROJECT=$PROJECT_ID'
-      - '--build-arg'
-      - 'GOOGLE_CLOUD_LOCATION=us-central1'
+      - 'STANDALONE_BUILD=1'
       - '-t'
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/mededuai-backend'
       - '.'
@@ -26,8 +24,10 @@ steps:
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/mededuai-backend'
 
   # ── Step 3: Deploy to Cloud Run ─────────────────────────────────────────────
-  # Single --set-env-vars with all vars. Secrets come from CLI substitutions only.
-  # Memory bumped to 2Gi — needed for mammoth Word doc parsing + Gemini AI calls.
+  # Memory: 2Gi — needed for Gemini AI calls + image processing
+  # CPU: 2 — handles concurrent AI generation requests
+  # Min instances: 1 — avoids cold starts for users (auth never fails)
+  # Secrets: ALL passed as runtime env vars, NEVER baked into image
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: bash
     args:
@@ -41,9 +41,10 @@ steps:
           --allow-unauthenticated \
           --memory=2Gi \
           --cpu=2 \
-          --min-instances=0 \
+          --min-instances=1 \
           --max-instances=10 \
           --timeout=300 \
+          --concurrency=80 \
           --set-env-vars="NODE_ENV=production" \
           --set-env-vars="GOOGLE_CLOUD_PROJECT=$PROJECT_ID" \
           --set-env-vars="GOOGLE_CLOUD_LOCATION=us-central1" \

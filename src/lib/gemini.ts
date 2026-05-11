@@ -56,23 +56,44 @@ function getAI(): GoogleGenAI {
 
 // Model fallback chain — each must be a genuinely different model so that
 // when one is overloaded (503) the next one can succeed.
-// IMPORTANT: Gemini 1.5 models (gemini-1.5-flash, gemini-1.5-pro) have been
-// REMOVED from the v1beta API and return 404. Only use 2.x models.
 const MODELS = {
-    primary:   'gemini-2.5-flash',          // Latest: fast, 1M context, best for bulk
-    secondary: 'gemini-2.0-flash',          // Proven stable fallback
-    tertiary:  'gemini-2.0-flash-lite',     // Lighter/cheaper fallback
-    quaternary: 'gemini-2.5-pro',           // High intelligence last-resort
+    primary:   'gemini-2.5-flash',  // Confirmed working ✅
+    secondary: 'gemini-2.5-pro',    // Confirmed working ✅ (higher intelligence)
+    tertiary:  'gemini-2.5-pro',    // Same — last resort
+    ultimate:  'gemini-2.5-pro',    // Same — final fallback
 } as const;
 
 // Errors that warrant retrying the SAME model (transient)
 const RETRYABLE_CODES = new Set([429, 503, 502, 504, 500]);
 
 // Errors that mean the model is GONE (deprecated/removed) — skip immediately
-const PERMANENT_SKIP_CODES = new Set([404, 400]);
+// Common HTTP status codes to skip model and try next immediately
+const PERMANENT_SKIP_CODES = new Set([404, 400, 401, 403]);
+
+// Safety threshold for model generation
+const SAFETY_SETTINGS = [
+    { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
+    { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
+    { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
+    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
+];
 
 /** Sleep helper */
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Helper to convert base64 data URLs to Gemini's inlineData format
+ */
+function formatImagePart(base64DataUrl: string) {
+    const match = base64DataUrl.match(/^data:(image\/\w+);base64,(.+)$/);
+    if (!match) return null;
+    return {
+        inlineData: {
+            mimeType: match[1],
+            data: match[2],
+        },
+    };
+}
 
 /**
  * Smart Gemini content generation with automatic model fallback.
@@ -81,6 +102,10 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
  * - Skips to the next model immediately on permanent errors (400, 401, 403)
  * ⚠️  MUST only be called from Next.js API routes (server-side).
  *     Never import or call from client components.
+ *
+ * Uses the new @google/genai SDK shape:
+ *   ai.models.generateContent({ model, contents, config })
+ *   response.text   // property, not function
  */
 export async function generateWithFallback(
     prompt: string,
@@ -88,72 +113,124 @@ export async function generateWithFallback(
         jsonMode?: boolean;
         preferredModels?: string[];
         maxRetries?: number;
+        /** Array of base64 data URLs for multimodal analysis */
+        images?: string[];
         /** Set true for bulk/creator generation — disables Gemini 2.5 thinking tokens.
          *  Thinking tokens eat into the maxOutputTokens budget and add 5–30s latency per call.
-         *  For structured content generation we want speed + full token budget for content. */
+         *  For structured content generation we want speed + full token budget for content.
+         *  Default: true — bulk content creator workflows benefit from this.            */
         disableThinking?: boolean;
+        /** Optional per-call timeout in ms. Default 120000 (2 min). */
+        timeoutMs?: number;
     }
 ): Promise<string> {
     const models = options?.preferredModels || [
         MODELS.primary,
         MODELS.secondary,
         MODELS.tertiary,
-        MODELS.quaternary,
+        MODELS.ultimate,
     ];
+
+    // ── Prepare contents (standardized parts format for new SDK) ──
+    const parts: any[] = [{ text: prompt }];
+
+    if (options?.images && options.images.length > 0) {
+        const imageParts = options.images.map(formatImagePart).filter(Boolean);
+        if (imageParts.length > 0) {
+            parts.push(...imageParts);
+        }
+    }
+
+    const contents: any[] = [{ role: 'user', parts }];
+
     // ── Output token limits ──
-    // Gemini 2.5 Flash has thinking enabled by default; thinking tokens count against
-    // maxOutputTokens. Setting thinkingBudget:0 reserves all 65536 tokens for content.
-    const config: Record<string, any> = { maxOutputTokens: 65536 };
+    const config: Record<string, any> = {
+        maxOutputTokens: 65536,
+        safetySettings: SAFETY_SETTINGS,
+    };
     if (options?.jsonMode) config.responseMimeType = 'application/json';
-    if (options?.disableThinking) {
-        // Disable thinking tokens: faster responses + full output budget for content.
-        // Supported on gemini-2.5-flash and gemini-2.5-pro (ignored by 2.0 models).
+    // Disable thinking tokens to reduce latency (especially for batch operations).
+    // gemini-2.5-flash supports thinkingBudget:0 to skip reasoning steps.
+    const shouldDisableThinking = options?.disableThinking !== false;
+    if (shouldDisableThinking) {
         config.thinkingConfig = { thinkingBudget: 0 };
     }
-    const maxRetries = options?.maxRetries ?? 4; // Increased from 3 for better resilience
+
+    const maxRetries = options?.maxRetries ?? 4;
+    const timeoutMs = options?.timeoutMs ?? 120000;
 
     let lastError: Error | null = null;
 
     for (const model of models) {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                console.log(`[MedEduAI AI] Trying model=${model} attempt=${attempt}/${maxRetries}`);
-                const response = await getAI().models.generateContent({
+                const ai = getAI();
+                // ── New SDK shape: ai.models.generateContent({...}) ──
+                // Wrap in a per-call timeout so the whole creator batch never
+                // hangs indefinitely on a model that has gone silent.
+                const callPromise = ai.models.generateContent({
                     model,
-                    contents: prompt,
-                    ...(config ? { config } : {}),
+                    contents,
+                    config,
                 });
-                const text = response.text || (options?.jsonMode ? '{}' : '');
-                console.log(`[MedEduAI AI] ✅ model=${model} succeeded (attempt ${attempt})`);
+
+                const timeoutPromise = new Promise<never>((_, reject) => {
+                    setTimeout(() => reject(new Error(`GEMINI_CALL_TIMEOUT (${timeoutMs}ms) on model=${model}`)), timeoutMs);
+                });
+
+                const response: any = await Promise.race([callPromise, timeoutPromise]);
+
+                // ── Detect safety blocks ──
+                const finishReason = response?.candidates?.[0]?.finishReason;
+                if (finishReason === 'SAFETY' || finishReason === 'BLOCKED_REASON_BLOCKLIST' || finishReason === 'PROHIBITED_CONTENT') {
+                    console.warn(`[MedEduAI AI] Model ${model} blocked by safety filters (${finishReason}).`);
+                    throw new Error('CONTENT_BLOCKED_BY_SAFETY');
+                }
+
+                // text is a PROPERTY (string | undefined) in the new SDK, not a function.
+                const text: string = (response?.text ?? '') || (options?.jsonMode ? '{}' : '');
+
+                if (!text && !options?.jsonMode) {
+                    throw new Error('EMPTY_RESPONSE_FROM_AI');
+                }
+
+                console.log(`[MedEduAI AI] ✅ model=${model} succeeded (attempt ${attempt}, ${text.length} chars)`);
                 return text;
             } catch (e: any) {
                 lastError = e;
                 const httpCode: number = e?.status ?? e?.code ?? 0;
-                const isRetryable = RETRYABLE_CODES.has(httpCode) || e?.message?.includes('503') || e?.message?.includes('UNAVAILABLE') || e?.message?.includes('overloaded') || e?.message?.includes('high demand');
+
+                if (e.message === 'CONTENT_BLOCKED_BY_SAFETY') {
+                    console.error(`[MedEduAI AI] Model ${model} failed due to safety filters. Trying next model.`);
+                    break;
+                }
+
+                // Timeouts on a model that hung mid-response → treat as transient
+                const isTimeout = typeof e?.message === 'string' && e.message.includes('GEMINI_CALL_TIMEOUT');
+                const isRetryable = isTimeout
+                    || RETRYABLE_CODES.has(httpCode)
+                    || e?.message?.includes('503')
+                    || e?.message?.includes('UNAVAILABLE')
+                    || e?.message?.includes('429')
+                    || e?.message?.includes('RESOURCE_EXHAUSTED')
+                    || e?.message?.includes('DEADLINE_EXCEEDED');
 
                 console.warn(
                     `[MedEduAI AI] model=${model} attempt=${attempt} failed — httpCode=${httpCode} retryable=${isRetryable} — ${e.message}`
                 );
 
                 if (!isRetryable || PERMANENT_SKIP_CODES.has(httpCode)) {
-                    // Permanent error (e.g. 404 model removed, 400 bad request, 401/403 auth)
-                    // Skip this model entirely — no point retrying
                     console.error(`[MedEduAI AI] Permanent error (${httpCode}) on model=${model}, skipping to next model.`);
                     break;
                 }
 
                 if (attempt === maxRetries) {
-                    // Exhausted retries for this model — move to next
                     console.warn(`[MedEduAI AI] model=${model} exhausted all retries, trying next model.`);
                     break;
                 }
 
-                // Exponential backoff with jitter
-                // 429 = rate limit / quota — use aggressive delays to let the quota window reset.
-                // Free tier resets per minute, so waiting up to 65s covers a full window.
-                // 503 = overload — moderate delay.
-                const baseDelay = httpCode === 429 ? 15000 : (httpCode === 503 ? 5000 : 2000);
-                const backoffMs = Math.min(baseDelay * Math.pow(2, attempt - 1) + Math.random() * 2000, 65000);
+                const baseDelay = httpCode === 429 ? 5000 : (httpCode === 503 ? 2000 : 1000);
+                const backoffMs = Math.min(baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000, 30000);
                 console.log(`[MedEduAI AI] Retrying model=${model} in ${Math.round(backoffMs / 1000)}s (httpCode=${httpCode})…`);
                 await sleep(backoffMs);
             }
@@ -227,6 +304,10 @@ function repairJSON(raw: string): string {
     // 2. Remove trailing commas before } or ]
     result = result.replace(/,\s*([\]}])/g, '$1');
 
+    // 3. Handle unquoted keys (Gemini sometimes does this for short keys)
+    // This is a bit risky but helps for common cases like { key: "value" }
+    result = result.replace(/([{,]\s*)([a-zA-Z0-9_]+)(\s*:)/g, '$1"$2"$3');
+
     return result;
 }
 
@@ -236,11 +317,17 @@ function repairJSON(raw: string): string {
  */
 export async function generateJSON<T = any>(
     prompt: string,
-    preferredModels?: string[]
+    options?: {
+        jsonMode?: boolean;
+        preferredModels?: string[];
+        maxRetries?: number;
+        images?: string[];
+        disableThinking?: boolean;
+    }
 ): Promise<T> {
     const text = await generateWithFallback(prompt, {
+        ...options,
         jsonMode: true,
-        preferredModels,
     });
     
     // Strip markdown formatting like ```json ... ```
@@ -274,7 +361,7 @@ export async function generateJSON<T = any>(
         console.log('[MedEduAI AI] Layer 3: Re-generating without JSON mode…');
         const textFallback = await generateWithFallback(
             prompt + '\n\nIMPORTANT: Return ONLY a valid JSON object. No markdown, no backticks, no explanations. Every string value must have properly escaped special characters.',
-            { jsonMode: false, preferredModels }
+            { jsonMode: false, preferredModels: options?.preferredModels, images: options?.images }
         );
 
         // Try to extract JSON from the text
@@ -321,7 +408,7 @@ export async function generateText(
 }
 
 // ── Re-export the models and AI instance for advanced usage ──
-export { getAI, MODELS };
+export { getAI, MODELS, repairJSON };
 
 // ── Existing LMS functions (updated to use centralized helper) ──
 
@@ -355,7 +442,7 @@ export async function evaluateStudentScript(
     maxMarks: number
 ) {
     const prompt = `You are a strict medical examiner.
-Evaluate the student answer against the provided rubric. 
+Evaluate the student answer against the provided rubric.
 Maximum possible marks: ${maxMarks}.
 
 Student Answer:

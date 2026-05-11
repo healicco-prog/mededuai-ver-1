@@ -1073,7 +1073,7 @@ export default function EvaluationManagementSystem() {
                                                             <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">{student.progress}%</span>
                                                         </div>
                                                     ) : (
-                                                        <AlertCircle className="w-5 h-5 text-red-500" title="Error in evaluation" />
+                                                        <AlertCircle className="w-5 h-5 text-red-500" aria-label="Error in evaluation" />
                                                     )}
                                                 </div>
 

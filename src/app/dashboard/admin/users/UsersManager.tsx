@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { Users, Edit2, CheckCircle2, X, Search, Loader2, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { getAuthHeaders } from '@/lib/clientAuth';
 
 type UserRow = {
     id: string;
@@ -279,7 +280,10 @@ export default function UsersManager({
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 15000);
         try {
-            const res = await fetch('/api/admin/users', { signal: controller.signal });
+            const res = await fetch('/api/admin/users', { 
+                signal: controller.signal,
+                headers: await getAuthHeaders()
+            });
             if (!res.ok) throw new Error(`API error: ${res.status}`);
             setUsers(await res.json());
         } catch (err: any) {
@@ -312,7 +316,7 @@ export default function UsersManager({
         try {
             const res = await fetch('/api/admin/users', {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: await getAuthHeaders(),
                 body: JSON.stringify({ userId, role: editRole }),
             });
             if (!res.ok) throw new Error('Failed');
@@ -333,7 +337,7 @@ export default function UsersManager({
         try {
             const res = await fetch('/api/admin/users', {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: await getAuthHeaders(),
                 body: JSON.stringify({ userId, newPassword: newPw }),
             });
             if (!res.ok) {

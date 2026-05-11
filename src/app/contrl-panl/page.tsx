@@ -10,11 +10,9 @@ import {
     AlertCircle, ClipboardList, ClipboardType, CalendarDays,
     LogOut, Lock, Eye, EyeOff, Shield, ChevronRight, ExternalLink,
     Menu, X, Home, Activity, Cpu, BarChart3, Server, UserPlus, Clock,
-    FileEdit, PenTool, Building2
+    FilePenLine as FileEdit, PenTool, Building2
 } from "lucide-react";
 import MededuLogo from "@/components/MededuLogo";
-
-
 
 /* ── role → sections mapping ── */
 type SectionKey = "superadmin" | "masteradmin" | "instadmin" | "deptadmin" | "teaching" | "learning";
@@ -22,7 +20,7 @@ type SectionKey = "superadmin" | "masteradmin" | "instadmin" | "deptadmin" | "te
 interface ModuleLink {
     label: string;
     href: string;
-    icon: React.ReactNode;
+    icon: any;
     badge?: string;
 }
 
@@ -31,7 +29,7 @@ interface Section {
     title: string;
     color: string;
     bgGradient: string;
-    icon: React.ReactNode;
+    icon: any;
     modules: ModuleLink[];
 }
 
@@ -41,14 +39,14 @@ const ALL_SECTIONS: Section[] = [
         title: "Super Admin",
         color: "rose",
         bgGradient: "from-rose-600 to-rose-800",
-        icon: <Shield className="w-6 h-6" />,
+        icon: Shield,
         modules: [
-            { label: "Super Admin Dashboard", href: "/dashboard/superadmin", icon: <LayoutDashboard className="w-5 h-5" /> },
-            { label: "LMS Auto-Gen", href: "/dashboard/admin/creator", icon: <Settings className="w-5 h-5" /> },
-            { label: "Blog Publications", href: "/dashboard/admin/blog", icon: <FileText className="w-5 h-5" /> },
-            { label: "User Management", href: "/dashboard/admin/users", icon: <Users className="w-5 h-5" /> },
-            { label: "Token Economy", href: "/dashboard/admin/tokens", icon: <BrainCircuit className="w-5 h-5" /> },
-            { label: "Create Institution", href: "/dashboard/admin/create-institution", icon: <Building2 className="w-5 h-5" /> },
+            { label: "Super Admin Dashboard", href: "/dashboard/superadmin", icon: LayoutDashboard },
+            { label: "LMS Auto-Gen", href: "/dashboard/admin/creator", icon: Settings },
+            { label: "Blog Publications", href: "/dashboard/admin/blog", icon: FileText },
+            { label: "User Management", href: "/dashboard/admin/users", icon: Users },
+            { label: "Token Economy", href: "/dashboard/admin/tokens", icon: BrainCircuit },
+            { label: "Create Institution", href: "/dashboard/admin/create-institution", icon: Building2 },
         ],
     },
     {
@@ -56,10 +54,10 @@ const ALL_SECTIONS: Section[] = [
         title: "Master Admin",
         color: "purple",
         bgGradient: "from-purple-600 to-purple-800",
-        icon: <BrainCircuit className="w-6 h-6" />,
+        icon: BrainCircuit,
         modules: [
-            { label: "Master Admin Dashboard", href: "/dashboard/masteradmin", icon: <LayoutDashboard className="w-5 h-5" /> },
-            { label: "LMS Database", href: "/dashboard/admin/lms-db", icon: <BookOpen className="w-5 h-5" /> },
+            { label: "Master Admin Dashboard", href: "/dashboard/masteradmin", icon: LayoutDashboard },
+            { label: "LMS Database", href: "/dashboard/admin/lms-db", icon: BookOpen },
         ],
     },
     {
@@ -67,12 +65,12 @@ const ALL_SECTIONS: Section[] = [
         title: "Institution Admin",
         color: "amber",
         bgGradient: "from-amber-500 to-amber-700",
-        icon: <GraduationCap className="w-6 h-6" />,
+        icon: GraduationCap,
         modules: [
-            { label: "Institution Admin Dashboard", href: "/dashboard/instadmin", icon: <LayoutDashboard className="w-5 h-5" /> },
-            { label: "Mentoring MS", href: "/dashboard/admin/mentoring", icon: <Users className="w-5 h-5" /> },
-            { label: "Elective MS", href: "/dashboard/admin/elective", icon: <BookOpen className="w-5 h-5" /> },
-            { label: "LogBook MS", href: "/dashboard/admin/logbook", icon: <ClipboardList className="w-5 h-5" /> },
+            { label: "Institution Admin Dashboard", href: "/dashboard/instadmin", icon: LayoutDashboard },
+            { label: "Mentoring MS", href: "/dashboard/admin/mentoring", icon: Users },
+            { label: "Elective MS", href: "/dashboard/admin/elective", icon: BookOpen },
+            { label: "LogBook MS", href: "/dashboard/admin/logbook", icon: ClipboardList },
         ],
     },
     {
@@ -80,21 +78,21 @@ const ALL_SECTIONS: Section[] = [
         title: "Department Admin",
         color: "teal",
         bgGradient: "from-teal-600 to-teal-800",
-        icon: <ClipboardCheck className="w-6 h-6" />,
+        icon: ClipboardCheck,
         modules: [
-            { label: "Dept Admin Dashboard", href: "/dashboard/deptadmin", icon: <LayoutDashboard className="w-5 h-5" /> },
-            { label: "LMS Notes", href: "/dashboard/admin/notes", icon: <BookOpen className="w-5 h-5" /> },
-            { label: "Notes Creator", href: "/dashboard/admin/notes-creator", icon: <FileEdit className="w-5 h-5" /> },
-            { label: "Mentorship MS", href: "/dashboard/admin/mentorship", icon: <Users className="w-5 h-5" /> },
-            { label: "Lesson Plan", href: "/dashboard/admin/lesson-plan", icon: <FileText className="w-5 h-5" /> },
-            { label: "Rubrics Generator", href: "/dashboard/admin/rubrics-generator", icon: <ClipboardList className="w-5 h-5" /> },
-            { label: "Classroom Generator", href: "/dashboard/admin/classroom-generator", icon: <GraduationCap className="w-5 h-5" /> },
-            { label: "Time Table MS", href: "/dashboard/admin/timetable", icon: <CalendarDays className="w-5 h-5" /> },
-            { label: "Attendance MS", href: "/dashboard/admin/attendance", icon: <Users className="w-5 h-5" /> },
-            { label: "Essay Answer Gen", href: "/dashboard/admin/essay-answer", icon: <PenTool className="w-5 h-5" /> },
-            { label: "Q-Paper Dev", href: "/dashboard/admin/q-paper", icon: <AlertCircle className="w-5 h-5" /> },
-            { label: "EMS - Essay", href: "/dashboard/admin/ems", icon: <ClipboardCheck className="w-5 h-5" /> },
-            { label: "EMR - MCQs", href: "/dashboard/admin/emr-mcq", icon: <ClipboardType className="w-5 h-5" /> },
+            { label: "Dept Admin Dashboard", href: "/dashboard/deptadmin", icon: LayoutDashboard },
+            { label: "LMS Notes", href: "/dashboard/admin/notes", icon: BookOpen },
+            { label: "Notes Creator", href: "/dashboard/admin/notes-creator", icon: FileEdit },
+            { label: "Mentorship MS", href: "/dashboard/admin/mentorship", icon: Users },
+            { label: "Lesson Plan", href: "/dashboard/admin/lesson-plan", icon: FileText },
+            { label: "Rubrics Generator", href: "/dashboard/admin/rubrics-generator", icon: ClipboardList },
+            { label: "Classroom Generator", href: "/dashboard/admin/classroom-generator", icon: GraduationCap },
+            { label: "Time Table MS", href: "/dashboard/admin/timetable", icon: CalendarDays },
+            { label: "Attendance MS", href: "/dashboard/admin/attendance", icon: Users },
+            { label: "Essay Answer Gen", href: "/dashboard/admin/essay-answer", icon: PenTool },
+            { label: "Q-Paper Dev", href: "/dashboard/admin/q-paper", icon: AlertCircle },
+            { label: "EMS - Essay", href: "/dashboard/admin/ems", icon: ClipboardCheck },
+            { label: "EMR - MCQs", href: "/dashboard/admin/emr-mcq", icon: ClipboardType },
         ],
     },
     {
@@ -102,17 +100,17 @@ const ALL_SECTIONS: Section[] = [
         title: "Teaching",
         color: "blue",
         bgGradient: "from-blue-600 to-blue-800",
-        icon: <FileText className="w-6 h-6" />,
+        icon: FileText,
         modules: [
-            { label: "Teaching Dashboard", href: "/dashboard/teacher", icon: <LayoutDashboard className="w-5 h-5" /> },
-            { label: "LMS Notes", href: "/dashboard/teacher/notes", icon: <BookOpen className="w-5 h-5" /> },
-            { label: "Notes Creator", href: "/dashboard/teacher/notes-creator", icon: <FileEdit className="w-5 h-5" /> },
-            { label: "Mentorship MS", href: "/dashboard/teacher/mentorship", icon: <Users className="w-5 h-5" /> },
-            { label: "Lesson Plan", href: "/dashboard/teacher/lesson-plan", icon: <FileText className="w-5 h-5" /> },
-            { label: "Rubrics Generator", href: "/dashboard/teacher/rubrics-generator", icon: <ClipboardList className="w-5 h-5" /> },
-            { label: "Essay Qs Generator", href: "/dashboard/teacher/essays", icon: <ClipboardType className="w-5 h-5" /> },
-            { label: "Essay Answer Gen", href: "/dashboard/teacher/essay-answer", icon: <PenTool className="w-5 h-5" /> },
-            { label: "MCQs Generator", href: "/dashboard/teacher/mcqs", icon: <ClipboardCheck className="w-5 h-5" /> },
+            { label: "Teaching Dashboard", href: "/dashboard/teacher", icon: LayoutDashboard },
+            { label: "LMS Notes", href: "/dashboard/teacher/notes", icon: BookOpen },
+            { label: "Notes Creator", href: "/dashboard/teacher/notes-creator", icon: FileEdit },
+            { label: "Mentorship MS", href: "/dashboard/teacher/mentorship", icon: Users },
+            { label: "Lesson Plan", href: "/dashboard/teacher/lesson-plan", icon: FileText },
+            { label: "Rubrics Generator", href: "/dashboard/teacher/rubrics-generator", icon: ClipboardList },
+            { label: "Essay Qs Generator", href: "/dashboard/teacher/essays", icon: ClipboardType },
+            { label: "Essay Answer Gen", href: "/dashboard/teacher/essay-answer", icon: PenTool },
+            { label: "MCQs Generator", href: "/dashboard/teacher/mcqs", icon: ClipboardCheck },
         ],
     },
     {
@@ -120,19 +118,19 @@ const ALL_SECTIONS: Section[] = [
         title: "Learning",
         color: "emerald",
         bgGradient: "from-emerald-600 to-emerald-800",
-        icon: <GraduationCap className="w-6 h-6" />,
+        icon: GraduationCap,
         modules: [
-            { label: "Learning Dashboard", href: "/dashboard/student", icon: <LayoutDashboard className="w-5 h-5" /> },
-            { label: "LMS Notes", href: "/dashboard/student/notes", icon: <BookOpen className="w-5 h-5" /> },
-            { label: "Notes Creator", href: "/dashboard/student/notes-creator", icon: <FileEdit className="w-5 h-5" /> },
-            { label: "Mentorship MS", href: "/dashboard/student/mentorship", icon: <Users className="w-5 h-5" /> },
-            { label: "AI Mentor", href: "/dashboard/student/mentor", icon: <MessageSquare className="w-5 h-5" />, badge: "Pro" },
-            { label: "Viva Simulator", href: "/dashboard/student/viva", icon: <Mic className="w-5 h-5" /> },
-            { label: "Vocabulary", href: "/dashboard/student/vocab", icon: <GraduationCap className="w-5 h-5" /> },
-            { label: "Reflection Generator", href: "/dashboard/student/reflection", icon: <FileText className="w-5 h-5" /> },
-            { label: "Essay Qs Generator", href: "/dashboard/student/essays", icon: <ClipboardType className="w-5 h-5" /> },
-            { label: "Essay Answer Gen", href: "/dashboard/student/essay-answer", icon: <PenTool className="w-5 h-5" /> },
-            { label: "MCQs Generator", href: "/dashboard/student/mcqs", icon: <ClipboardCheck className="w-5 h-5" /> },
+            { label: "Learning Dashboard", href: "/dashboard/student", icon: LayoutDashboard },
+            { label: "LMS Notes", href: "/dashboard/student/notes", icon: BookOpen },
+            { label: "Notes Creator", href: "/dashboard/student/notes-creator", icon: FileEdit },
+            { label: "Mentorship MS", href: "/dashboard/student/mentorship", icon: Users },
+            { label: "AI Mentor", href: "/dashboard/student/mentor", icon: MessageSquare, badge: "Pro" },
+            { label: "Viva Simulator", href: "/dashboard/student/viva", icon: Mic },
+            { label: "Vocabulary", href: "/dashboard/student/vocab", icon: GraduationCap },
+            { label: "Reflection Generator", href: "/dashboard/student/reflection", icon: FileText },
+            { label: "Essay Qs Generator", href: "/dashboard/student/essays", icon: ClipboardType },
+            { label: "Essay Answer Gen", href: "/dashboard/student/essay-answer", icon: PenTool },
+            { label: "MCQs Generator", href: "/dashboard/student/mcqs", icon: ClipboardCheck },
         ],
     },
 ];
@@ -143,8 +141,17 @@ const ROLE_VISIBILITY: Record<string, SectionKey[]> = {
     admin: ["masteradmin", "instadmin", "deptadmin", "teaching", "learning"],
 };
 
+/* ═════════════════  Safe Icon Wrapper  ═════════════════ */
+function SafeIcon({ icon: Icon, className }: { icon: any; className?: string }) {
+    if (!Icon || typeof Icon !== 'function' && typeof Icon !== 'object') return <div className={className} />;
+    return <Icon className={className} />;
+}
+
 /* ═════════════════  Sidebar Item Component  ═════════════════ */
-function SidebarItem({ icon, label, href, badge, isActive }: { icon: React.ReactNode; label: string; href: string; badge?: string; isActive?: boolean }) {
+function SidebarItem({ icon: Icon, label, href, badge }: { icon: any; label: string; href: string; badge?: string }) {
+    const pathname = usePathname();
+    const isActive = pathname === href;
+
     return (
         <Link
             href={href}
@@ -152,7 +159,7 @@ function SidebarItem({ icon, label, href, badge, isActive }: { icon: React.React
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative group font-semibold ${isActive ? 'bg-emerald-50 text-emerald-700' : 'text-slate-500 hover:bg-emerald-50 hover:text-emerald-700'}`}
         >
             <div className={`transition-colors ${isActive ? 'text-emerald-600' : 'text-slate-400 group-hover:text-emerald-600'}`}>
-                {icon}
+                {Icon ? <Icon className="w-5 h-5" aria-hidden="true" /> : <div className="w-5 h-5" />}
             </div>
             <span className="flex-1 text-left truncate">{label}</span>
             {badge && (
@@ -176,6 +183,7 @@ export default function ControlPanelPage() {
     const [isLoggingIn, setIsLoggingIn] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [activeSectionKey, setActiveSectionKey] = useState<SectionKey | null>(null);
+    const [mounted, setMounted] = useState(false);
 
     const getLabel = (role: string): string => ({
         superadmin: 'Super Admin',
@@ -186,6 +194,7 @@ export default function ControlPanelPage() {
 
     /* On mount: if valid admin cookie AND cp_auth session exist, skip login form */
     useEffect(() => {
+        setMounted(true);
         const match = document.cookie.match(/(^| )role=([^;]+)/);
         const hasCpAuth = sessionStorage.getItem('cp_auth') === 'true';
         if (hasCpAuth && match && match[2] && ADMIN_ROLES.includes(match[2])) {
@@ -303,6 +312,7 @@ export default function ControlPanelPage() {
                                     onChange={(e) => setEmail(e.target.value)}
                                     className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 transition-all text-sm"
                                     placeholder="admin@mededuai.com"
+                                    suppressHydrationWarning
                                 />
                             </div>
                             <div>
@@ -317,9 +327,10 @@ export default function ControlPanelPage() {
                                         onChange={(e) => setPassword(e.target.value)}
                                         className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 transition-all text-sm pr-12"
                                         placeholder="••••••••••"
+                                        suppressHydrationWarning
                                     />
-                                    <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
-                                        {showPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                    <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors" suppressHydrationWarning aria-label={showPw ? 'Hide password' : 'Show password'}>
+                                        {showPw ? <EyeOff className="w-5 h-5" aria-hidden="true" /> : <Eye className="w-5 h-5" aria-hidden="true" />}
                                     </button>
                                 </div>
                             </div>
@@ -329,6 +340,7 @@ export default function ControlPanelPage() {
                             type="submit"
                             disabled={isLoggingIn}
                             className="w-full mt-8 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20"
+                            suppressHydrationWarning
                         >
                             {isLoggingIn ? (
                                 <><span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Authenticating…</>
@@ -381,7 +393,7 @@ export default function ControlPanelPage() {
                 </div>
 
                 <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto w-full">
-                    <SidebarItem href="/" icon={<Home className="w-5 h-5" />} label="Home Page" />
+                    <SidebarItem href="/" icon={Home} label="Home Page" />
 
                     {sidebarSections.map((section) => (
                         <React.Fragment key={section.key}>
@@ -413,7 +425,7 @@ export default function ControlPanelPage() {
                         onClick={handleLogout}
                         className="w-full flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all group"
                     >
-                        <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                        <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform" aria-hidden="true" />
                         <span className="font-bold">Logout</span>
                     </button>
                 </div>
@@ -427,8 +439,9 @@ export default function ControlPanelPage() {
                         <button
                             className="lg:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-xl"
                             onClick={() => setIsSidebarOpen(true)}
+                            aria-label="Open sidebar"
                         >
-                            <Menu className="w-6 h-6" />
+                            <Menu className="w-6 h-6" aria-hidden="true" />
                         </button>
                         <div>
                             <h2 className="text-xl font-bold text-slate-900 capitalize hidden sm:block">
@@ -439,14 +452,16 @@ export default function ControlPanelPage() {
                     </div>
                     <div className="flex items-center gap-4 border-l border-slate-100 pl-4 sm:border-none sm:pl-0">
                         <div className="text-right hidden sm:flex sm:flex-col sm:justify-center">
-                            <p className="text-sm font-bold text-slate-900 capitalize leading-tight mb-0.5">{authLabel} User</p>
+                            <div className="text-sm font-bold text-slate-900 capitalize leading-tight mb-0.5">
+                                {mounted ? `${authLabel} User` : <div className="h-4 w-24 bg-slate-100 animate-pulse rounded" />}
+                            </div>
                             <div className="flex items-center gap-1.5 justify-end mb-0.5">
                                 <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider leading-none">{authLabel}</p>
                                 <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md leading-none bg-purple-100 text-purple-600">PREMIUM</span>
                             </div>
                         </div>
                         <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center border border-slate-200">
-                            <Users className="w-5 h-5 text-slate-400" />
+                            <Users className="w-5 h-5 text-slate-400" aria-hidden="true" />
                         </div>
                     </div>
                 </header>
@@ -462,7 +477,7 @@ export default function ControlPanelPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
                         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex items-start gap-4">
                             <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center flex-shrink-0">
-                                <Activity className="w-6 h-6 text-emerald-600" />
+                                <Activity className="w-6 h-6 text-emerald-600" aria-hidden="true" />
                             </div>
                             <div>
                                 <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">System Health</p>
@@ -472,7 +487,7 @@ export default function ControlPanelPage() {
                         </div>
                         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex items-start gap-4">
                             <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center flex-shrink-0">
-                                <Cpu className="w-6 h-6 text-blue-600" />
+                                <Cpu className="w-6 h-6 text-blue-600" aria-hidden="true" />
                             </div>
                             <div>
                                 <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">AI Generation Stats</p>
@@ -482,7 +497,7 @@ export default function ControlPanelPage() {
                         </div>
                         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex items-start gap-4">
                             <div className="w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center flex-shrink-0">
-                                <Users className="w-6 h-6 text-purple-600" />
+                                <Users className="w-6 h-6 text-purple-600" aria-hidden="true" />
                             </div>
                             <div>
                                 <p className="text-[10px] font-bold text-purple-600 uppercase tracking-widest mb-1">Active Users</p>
@@ -497,7 +512,7 @@ export default function ControlPanelPage() {
                         {/* System Logs */}
                         <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                             <div className="flex items-center gap-2 mb-5">
-                                <AlertCircle className="w-5 h-5 text-slate-400" />
+                                <AlertCircle className="w-5 h-5 text-slate-400" aria-hidden="true" />
                                 <h4 className="text-lg font-bold text-slate-900">System Logs</h4>
                             </div>
                             <div className="space-y-4">
@@ -536,7 +551,7 @@ export default function ControlPanelPage() {
                             </div>
                             <div className="flex items-center gap-2 mt-6 relative z-10">
                                 <Link href="/" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm font-medium">
-                                    <Home className="w-4 h-4" />
+                                    <Home className="w-4 h-4" aria-hidden="true" />
                                     Return to Home
                                 </Link>
                             </div>
@@ -549,7 +564,7 @@ export default function ControlPanelPage() {
                         <div key={section.key} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
                             <div className={`bg-gradient-to-r ${section.bgGradient} px-5 py-3.5 flex items-center gap-3`}>
                                 <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center text-white">
-                                    {section.icon}
+                                    {section.icon ? <section.icon className="w-5 h-5" aria-hidden="true" /> : <div className="w-6 h-6" />}
                                 </div>
                                 <div>
                                     <h4 className="text-sm font-bold text-white">{section.title}</h4>
@@ -563,8 +578,8 @@ export default function ControlPanelPage() {
                                         href={mod.href}
                                         className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors group border border-transparent hover:border-slate-200"
                                     >
-                                        <div className="text-slate-400 group-hover:text-emerald-600 transition-colors flex-shrink-0">
-                                            {mod.icon}
+                                        <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors">
+                                            {mod.icon ? <mod.icon className="w-5 h-5" aria-hidden="true" /> : <div className="w-5 h-5" />}
                                         </div>
                                         <span className="text-xs font-semibold text-slate-600 group-hover:text-slate-900 transition-colors truncate">
                                             {mod.label}

@@ -1,6 +1,6 @@
 import { checkSecurity, validateInput } from '@/lib/apiSecurity';
 import { NextResponse } from 'next/server';
-import { generateWithFallback } from '@/lib/gemini';
+import { generateJSON, MODELS } from '@/lib/gemini';
 import { createClient } from '@supabase/supabase-js';
 
 function getSupabase() {
@@ -16,27 +16,28 @@ export async function POST(req: Request) {
 
     try {
         const body = await req.json();
-        const { course, subject, question, marksAllotted, userId } = body;
+        const { course, subject, question, marksAllotted, userId, questionImages } = body;
 
-        if (!question || !marksAllotted || !course || !subject) {
-            return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
+        if ((!question && (!questionImages || questionImages.length === 0)) || !marksAllotted || !course || !subject) {
+            return NextResponse.json({ success: false, error: 'Missing required fields (Question text or images)' }, { status: 400 });
         }
 
         const minCriteria = Math.max(3, Math.ceil(marksAllotted / 2));
 
         const prompt = `You are a senior ${course} university examiner specializing in ${subject}.
-Your task is to create a HIGHLY DETAILED marking rubric for evaluating handwritten answer scripts.
+Your task is to create a HIGHLY DETAILED marking rubric for evaluating student answer scripts.
 
 CONTEXT:
-- Course Standard: ${course} (university examination level)
+- Course Standard: ${course}
 - Subject: ${subject}
-- Question: "${question}"
+- Question Context: ${question || 'The question is provided in the attached image(s).'}
 - Total Marks Allocated: ${marksAllotted}
 
 INSTRUCTIONS:
-Create a comprehensive, granular marking scheme that breaks down the total ${marksAllotted} marks into individual components.
-Each component should have clear descriptors for full marks, partial marks, and zero marks.
-Include must-mention keywords, expected diagrams (if relevant), and common student errors.
+1. If the question text is provided above, use it. If not, analyze the attached images to identify the question being asked.
+2. Create a comprehensive, granular marking scheme that breaks down the total ${marksAllotted} marks into individual components.
+3. Each component should have clear descriptors for full marks, partial marks, and zero marks.
+4. Include must-mention keywords, expected diagrams (if relevant), and common student errors.
 
 Return ONLY raw valid JSON (no markdown, no backticks, no extra text):
 {
@@ -71,17 +72,11 @@ STRICT RULES:
 - Keywords must be medical/clinical terms that a student MUST use
 - Common errors should reflect real examination patterns`;
 
-        const rubricsContent = await generateWithFallback(prompt, {
-            jsonMode: true,
-            preferredModels: ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'],
+        const parsedRubrics = await generateJSON(prompt, {
+            images: questionImages,
+            preferredModels: [MODELS.primary, MODELS.secondary, MODELS.tertiary, MODELS.ultimate],
+            disableThinking: true,
         });
-
-        let parsedRubrics;
-        try {
-            parsedRubrics = JSON.parse(rubricsContent);
-        } catch {
-            parsedRubrics = { raw: rubricsContent, totalMarks: marksAllotted };
-        }
 
         // Save to Supabase automatically
         let rubricId = null;
@@ -113,10 +108,18 @@ STRICT RULES:
             rubricId,
         });
     } catch (error: any) {
-        console.error('Dig Eval Generate Rubrics Error:', error.message);
+        const msg = error?.message || 'Unknown error';
+        console.error('Dig Eval Generate Rubrics Error:', msg);
+        // Surface key-level errors clearly
+        const isKeyError = msg.includes('leaked') || msg.includes('API key') || msg.includes('403');
+        const isQuota = msg.includes('quota') || msg.includes('429');
         return NextResponse.json({
             success: false,
-            error: 'Failed to generate rubrics. Please try again.',
+            error: isKeyError
+                ? 'AI service error: The API key is invalid or has been revoked. Please contact admin.'
+                : isQuota
+                ? 'AI is busy (rate limited). Please wait 30 seconds and try again.'
+                : `Failed to generate rubrics: ${msg}`,
         }, { status: 500 });
     }
 }

@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAI, MODELS } from '@/lib/gemini';
+import { checkSecurity } from '@/lib/apiSecurity';
 
 export const runtime = 'nodejs'; // Use nodejs for larger image processing
 export const maxDuration = 60; // 60 seconds
 
 export async function POST(req: NextRequest) {
+    // Auth required — this route calls Gemini AI and must be protected
+    const security = await checkSecurity(req, { roles: ['teacher', 'department_admin', 'institution_admin', 'master_admin', 'super_admin'], rateLimitCount: 30 });
+    if (!security.authorized) return security.response;
+
     try {
         const formData = await req.formData();
         const imageFile = formData.get('image') as File;

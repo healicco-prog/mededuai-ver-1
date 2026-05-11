@@ -81,7 +81,7 @@ Be thorough, fair, and constructive. If handwriting is unclear, mention it but t
 
         // Use Gemini multimodal API
         const ai = getAI();
-        const models = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash'];
+        const models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
         let evaluationResult = '';
         let lastError: Error | null = null;
 

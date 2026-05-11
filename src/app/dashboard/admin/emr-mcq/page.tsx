@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { ClipboardType, Sparkles, UploadCloud, Users, CheckCircle2, FileSearch, HelpCircle, Camera, Settings, Trash2, ChevronLeft, ChevronRight, X, FolderOpen, Save, Target, Edit2 } from 'lucide-react';
+import { ClipboardType, Sparkles, UploadCloud, Upload, Users, CheckCircle2, FileSearch, HelpCircle, Camera, Settings, Trash2, ChevronLeft, ChevronRight, X, FolderOpen, Save, Target, Edit2 } from 'lucide-react';
 import { useQPaperStore } from '@/store/qPaperStore';
 import { useEmrStore, EvaluatedStudent } from '@/store/emrStore';
 import ReactCrop, { type Crop } from 'react-image-crop';
@@ -206,9 +206,9 @@ export default function EmrMcqsPortal() {
                     }
                 });
 
-                setStudents(prev => prev.map(s => 
-                    s.id === selectedStudentId 
-                    ? { ...s, status: 'evaluated', marks: total, breakdown: bd, omrImageUrl: uploadedOmr } 
+                setStudents(prev => prev.map(s =>
+                    s.id === selectedStudentId
+                    ? { ...s, status: 'evaluated' as const, marks: total, breakdown: bd, omrImageUrl: uploadedOmr ?? undefined }
                     : s
                 ));
                 

@@ -29,10 +29,4 @@ input::placeholder, select::placeholder, textarea::placeholder {
   opacity: 1 !important;
 }
 
-/* Force hide Next.js dev indicators */
-nextjs-portal,
-#nextjs-build-indicator,
-[data-nextjs-dialog-overlay] {
-  display: none !important;
-  pointer-events: none !important;
-}
+

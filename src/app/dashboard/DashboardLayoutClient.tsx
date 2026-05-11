@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
     LayoutDashboard, BookOpen, MessageSquare, Mic,
     Settings, LogOut, Users, FileText,
-    GraduationCap, ClipboardCheck, AlertCircle, Home, ClipboardList, Menu, X, ClipboardType, CalendarDays, Lock, ArrowLeft, Shield, FileEdit, ScanLine, Zap, Building2
+    GraduationCap, ClipboardCheck, AlertCircle, Home, ClipboardList, Menu, X, ClipboardType, CalendarDays, Lock, ArrowLeft, Shield, FilePenLine as FileEdit, ScanLine, Zap, Building2
 } from 'lucide-react';
 import MededuLogo from '@/components/MededuLogo';
 import TrialCountdown from '@/components/TrialCountdown';
@@ -25,6 +25,49 @@ interface SubscriptionData {
     bonus_tokens: number;
 }
 
+/* ── Hoisted Components to avoid hydration issues ── */
+
+function SidebarItem({ icon: Icon, label, href, badge }: any) {
+    const pathname = usePathname();
+    const isActive = pathname === href;
+
+    return (
+        <Link
+            href={href}
+            title={label}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative group font-semibold ${isActive ? 'bg-emerald-50 text-emerald-700' : 'text-slate-500 hover:bg-emerald-50 hover:text-emerald-700'}`}
+        >
+            <div className={`transition-colors ${isActive ? 'text-emerald-600' : 'text-slate-400 group-hover:text-emerald-600'}`}>
+                {Icon ? <Icon size={20} aria-hidden="true" /> : <div className="w-5 h-5" />}
+            </div>
+            <span className="flex-1 text-left truncate">{label}</span>
+            {badge && (
+                <span className="text-[9px] font-bold bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                    {badge}
+                </span>
+            )}
+        </Link>
+    );
+}
+
+function LockedSidebarItem({ label, requiredPlan }: { label: string; requiredPlan: string }) {
+    return (
+        <Link
+            href="/dashboard/student/upgrade"
+            title={`Upgrade to ${requiredPlan} to unlock ${label}`}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative group font-semibold text-slate-400 hover:bg-amber-50 hover:text-amber-600 cursor-pointer"
+        >
+            <div className="text-slate-300 group-hover:text-amber-500 transition-colors">
+                <Lock size={20} aria-hidden="true" />
+            </div>
+            <span className="flex-1 text-left truncate">{label}</span>
+            <span className="text-[8px] font-bold bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-md uppercase tracking-wider opacity-70 group-hover:opacity-100">
+                {requiredPlan}
+            </span>
+        </Link>
+    );
+}
+
 export default function DashboardLayoutClient({ children, role, handleLogout }: any) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [userName, setUserName] = useState('');
@@ -33,11 +76,13 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
     const [hasMentorshipAccess, setHasMentorshipAccess] = useState(false);
     const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
     const [subscriptionLoading, setSubscriptionLoading] = useState(true);
+    const [mounted, setMounted] = useState(false);
     const hasFetched = useRef(false);
     const pathname = usePathname();
 
     // Check if user has a Control Panel session
     useEffect(() => {
+        setMounted(true);
         try {
             const cpAuth = sessionStorage.getItem('cp_auth');
             if (cpAuth) setHasControlPanelSession(true);
@@ -120,7 +165,7 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
     // Subscription-based feature gating
     const planTier = subscription?.plan_tier || 'free';
     const billingStatus = subscription?.billing_status || 'trialing';
-    const trialEndDate = subscription?.trial_end_date || new Date().toISOString();
+    const trialEndDate = subscription?.trial_end_date || '2000-01-01T00:00:00.000Z'; // Stable fallback for hydration
 
     // Helper to check if a feature is accessible
     const isFeatureAccessible = (featureSlug: string): boolean => {
@@ -200,8 +245,9 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                     <button
                         className="lg:hidden p-2 text-slate-500 hover:bg-slate-100 rounded-xl"
                         onClick={() => setIsSidebarOpen(false)}
+                        aria-label="Close sidebar"
                     >
-                        <X className="w-5 h-5" />
+                        <X className="w-5 h-5" aria-hidden="true" />
                     </button>
                 </div>
 
@@ -211,11 +257,11 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                             href="/contrl-panl"
                             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-semibold text-purple-600 bg-purple-50 hover:bg-purple-100 border border-purple-200 mb-3"
                         >
-                            <ArrowLeft size={20} />
+                            <ArrowLeft size={20} aria-hidden="true" />
                             <span className="flex-1 text-left truncate">Back to Control Panel</span>
                         </Link>
                     )}
-                    <SidebarItem href="/" icon={<Home />} label="Home Page" />
+                    <SidebarItem href="/" icon={Home} label="Home Page" />
 
                     {/* Trial Countdown / Token Meter — stable skeleton while loading to prevent flicker */}
                     {subscriptionLoading ? (
@@ -240,7 +286,7 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                                 <div className="mx-3 mt-2 p-3 rounded-xl border bg-gradient-to-br from-slate-50 to-emerald-50 border-emerald-200">
                                     <div className="flex items-center gap-2 mb-1">
                                         <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-600">
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
                                         </div>
                                         <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">AI Tokens</span>
                                     </div>
@@ -263,47 +309,47 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                             <div className="pt-4 pb-2 px-3">
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Learning</p>
                             </div>
-                            <SidebarItem href={`/dashboard/student`} icon={<LayoutDashboard />} label="Learning Dashboard" />
-                            <SidebarItem href={`/dashboard/student/notes`} icon={<BookOpen />} label="LMS Notes" />
-                            <SidebarItem href={`/dashboard/student/notes-creator`} icon={<FileEdit />} label="Notes Creator" />
+                            <SidebarItem href={`/dashboard/student`} icon={LayoutDashboard} label="Learning Dashboard" />
+                            <SidebarItem href={`/dashboard/student/notes`} icon={BookOpen} label="LMS Notes" />
+                            <SidebarItem href={`/dashboard/student/notes-creator`} icon={FileEdit} label="Notes Creator" />
                             {(hasMentorshipAccess || isMasterOrSuperAdmin) && (
-                                <SidebarItem href={`/dashboard/student/mentorship`} icon={<Users />} label="Mentorship MS" />
+                                <SidebarItem href={`/dashboard/student/mentorship`} icon={Users} label="Mentorship MS" />
                             )}
-                            <SidebarItem href={`/dashboard/student/elective`} icon={<BookOpen />} label="Elective MS" />
+                            <SidebarItem href={`/dashboard/student/elective`} icon={BookOpen} label="Elective MS" />
 
                             {/* Standard+ features — shown with lock if not accessible */}
                             {isFeatureAccessible('ai-mentor') ? (
-                                <SidebarItem href={`/dashboard/student/mentor`} icon={<MessageSquare />} label="AI Mentor" />
+                                <SidebarItem href={`/dashboard/student/mentor`} icon={MessageSquare} label="AI Mentor" />
                             ) : (
                                 <LockedSidebarItem label="AI Mentor" requiredPlan="Standard" />
                             )}
                             {isFeatureAccessible('viva-simulator') ? (
-                                <SidebarItem href={`/dashboard/student/viva`} icon={<Mic />} label="Viva Simulator" />
+                                <SidebarItem href={`/dashboard/student/viva`} icon={Mic} label="Viva Simulator" />
                             ) : (
                                 <LockedSidebarItem label="Viva Simulator" requiredPlan="Standard" />
                             )}
                             {isFeatureAccessible('vocabulary') ? (
-                                <SidebarItem href={`/dashboard/student/vocab`} icon={<GraduationCap />} label="Vocabulary" />
+                                <SidebarItem href={`/dashboard/student/vocab`} icon={GraduationCap} label="Vocabulary" />
                             ) : (
                                 <LockedSidebarItem label="Vocabulary" requiredPlan="Standard" />
                             )}
                             {isFeatureAccessible('reflection-generator') ? (
-                                <SidebarItem href={`/dashboard/student/reflection`} icon={<FileText />} label="Reflection Generator" />
+                                <SidebarItem href={`/dashboard/student/reflection`} icon={FileText} label="Reflection Generator" />
                             ) : (
                                 <LockedSidebarItem label="Reflection Generator" requiredPlan="Standard" />
                             )}
                             {isFeatureAccessible('essay-qs-generator') ? (
-                                <SidebarItem href={`/dashboard/student/essays`} icon={<ClipboardType />} label="Essay Qs Generator" />
+                                <SidebarItem href={`/dashboard/student/essays`} icon={ClipboardType} label="Essay Qs Generator" />
                             ) : (
                                 <LockedSidebarItem label="Essay Qs Generator" requiredPlan="Standard" />
                             )}
                             {isFeatureAccessible('mcqs-generator') ? (
-                                <SidebarItem href={`/dashboard/student/mcqs`} icon={<ClipboardCheck />} label="MCQs Generator" />
+                                <SidebarItem href={`/dashboard/student/mcqs`} icon={ClipboardCheck} label="MCQs Generator" />
                             ) : (
                                 <LockedSidebarItem label="MCQs Generator" requiredPlan="Standard" />
                             )}
                             {isFeatureAccessible('self-evaluation') ? (
-                                <SidebarItem href={`/dashboard/student/self-eval-system`} icon={<ClipboardList />} label="Self-Evaluation" />
+                                <SidebarItem href={`/dashboard/student/self-eval-system`} icon={ClipboardList} label="Self-Evaluation" />
                             ) : (
                                 <LockedSidebarItem label="Self-Evaluation" requiredPlan="Standard" />
                             )}
@@ -326,18 +372,18 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                             <div className="pt-4 pb-2 px-3">
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Teaching</p>
                             </div>
-                            <SidebarItem href={`/dashboard/teacher`} icon={<LayoutDashboard />} label="Teaching Dashboard" />
-                            <SidebarItem href={`/dashboard/teacher/notes`} icon={<BookOpen />} label="LMS Notes" />
-                            <SidebarItem href={`/dashboard/teacher/notes-creator`} icon={<FileEdit />} label="Notes Creator" />
+                            <SidebarItem href={`/dashboard/teacher`} icon={LayoutDashboard} label="Teaching Dashboard" />
+                            <SidebarItem href={`/dashboard/teacher/notes`} icon={BookOpen} label="LMS Notes" />
+                            <SidebarItem href={`/dashboard/teacher/notes-creator`} icon={FileEdit} label="Notes Creator" />
                             {(hasMentorshipAccess || isMasterOrSuperAdmin) && (
-                                <SidebarItem href={`/dashboard/teacher/mentorship`} icon={<Users />} label="Mentorship MS" />
+                                <SidebarItem href={`/dashboard/teacher/mentorship`} icon={Users} label="Mentorship MS" />
                             )}
-                            <SidebarItem href={`/dashboard/teacher/elective`} icon={<BookOpen />} label="Elective MS" />
-                            <SidebarItem href={`/dashboard/teacher/lesson-plan`} icon={<FileText />} label="Lesson Plan" />
-                            <SidebarItem href={`/dashboard/teacher/rubrics-generator`} icon={<ClipboardList />} label="Rubrics Generator" />
-                            <SidebarItem href={`/dashboard/teacher/essays`} icon={<ClipboardType />} label="Essay Qs Generator" />
-                            <SidebarItem href={`/dashboard/teacher/mcqs`} icon={<ClipboardCheck />} label="MCQs Generator" />
-                            <SidebarItem href={`/dashboard/teacher/dig-eval-assist`} icon={<ScanLine />} label="Dig Evaluation Assist" />
+                            <SidebarItem href={`/dashboard/teacher/elective`} icon={BookOpen} label="Elective MS" />
+                            <SidebarItem href={`/dashboard/teacher/lesson-plan`} icon={FileText} label="Lesson Plan" />
+                            <SidebarItem href={`/dashboard/teacher/rubrics-generator`} icon={ClipboardList} label="Rubrics Generator" />
+                            <SidebarItem href={`/dashboard/teacher/essays`} icon={ClipboardType} label="Essay Qs Generator" />
+                            <SidebarItem href={`/dashboard/teacher/mcqs`} icon={ClipboardCheck} label="MCQs Generator" />
+                            <SidebarItem href={`/dashboard/teacher/dig-eval-assist`} icon={ScanLine} label="Dig Evaluation Assist" />
                         </>
                     )}
 
@@ -346,21 +392,21 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                             <div className="pt-4 pb-2 px-3">
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Department Admin</p>
                             </div>
-                            <SidebarItem href={`/dashboard/deptadmin`} icon={<LayoutDashboard />} label="Department Admin Dashboard" />
-                            <SidebarItem href={`/dashboard/admin/notes`} icon={<BookOpen />} label="LMS Notes" />
-                            <SidebarItem href={`/dashboard/admin/notes-creator`} icon={<FileEdit />} label="Notes Creator" />
+                            <SidebarItem href={`/dashboard/deptadmin`} icon={LayoutDashboard} label="Department Admin Dashboard" />
+                            <SidebarItem href={`/dashboard/admin/notes`} icon={BookOpen} label="LMS Notes" />
+                            <SidebarItem href={`/dashboard/admin/notes-creator`} icon={FileEdit} label="Notes Creator" />
                             {(hasMentorshipAccess || isMasterOrSuperAdmin) && (
-                                <SidebarItem href={`/dashboard/admin/mentorship`} icon={<Users />} label="Mentorship MS" />
+                                <SidebarItem href={`/dashboard/admin/mentorship`} icon={Users} label="Mentorship MS" />
                             )}
-                            <SidebarItem href={`/dashboard/admin/dept-elective`} icon={<BookOpen />} label="Elective MS" />
-                            <SidebarItem href={`/dashboard/admin/lesson-plan`} icon={<FileText />} label="Lesson Plan" />
-                            <SidebarItem href={`/dashboard/admin/rubrics-generator`} icon={<ClipboardList />} label="Rubrics Generator" />
-                            <SidebarItem href={`/dashboard/admin/classroom-generator`} icon={<GraduationCap />} label="Classroom Generator" />
-                            <SidebarItem href={`/dashboard/admin/timetable`} icon={<CalendarDays />} label="Time Table MS" />
-                            <SidebarItem href={`/dashboard/admin/attendance`} icon={<Users />} label="Attendance MS" />
-                            <SidebarItem href={`/dashboard/admin/q-paper`} icon={<AlertCircle />} label="Q-Paper Dev" />
-                            <SidebarItem href={`/dashboard/admin/ems`} icon={<ClipboardCheck />} label="EMS - Essay" />
-                            <SidebarItem href={`/dashboard/admin/emr-mcq`} icon={<ClipboardType />} label="EMR - MCQs" />
+                            <SidebarItem href={`/dashboard/admin/dept-elective`} icon={BookOpen} label="Elective MS" />
+                            <SidebarItem href={`/dashboard/admin/lesson-plan`} icon={FileText} label="Lesson Plan" />
+                            <SidebarItem href={`/dashboard/admin/rubrics-generator`} icon={ClipboardList} label="Rubrics Generator" />
+                            <SidebarItem href={`/dashboard/admin/classroom-generator`} icon={GraduationCap} label="Classroom Generator" />
+                            <SidebarItem href={`/dashboard/admin/timetable`} icon={CalendarDays} label="Time Table MS" />
+                            <SidebarItem href={`/dashboard/admin/attendance`} icon={Users} label="Attendance MS" />
+                            <SidebarItem href={`/dashboard/admin/q-paper`} icon={AlertCircle} label="Q-Paper Dev" />
+                            <SidebarItem href={`/dashboard/admin/ems`} icon={ClipboardCheck} label="EMS - Essay" />
+                            <SidebarItem href={`/dashboard/admin/emr-mcq`} icon={ClipboardType} label="EMR - MCQs" />
                         </>
                     )}
 
@@ -369,10 +415,10 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                             <div className="pt-4 pb-2 px-3 mt-2">
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Institution Admin</p>
                             </div>
-                            <SidebarItem href={`/dashboard/instadmin`} icon={<LayoutDashboard />} label="Institution Admin Dashboard" />
-                            <SidebarItem href={`/dashboard/admin/mentoring`} icon={<Users />} label="Mentoring MS" />
-                            <SidebarItem href={`/dashboard/admin/elective`} icon={<BookOpen />} label="Elective MS" />
-                            <SidebarItem href={`/dashboard/admin/logbook`} icon={<ClipboardList />} label="LogBook MS" />
+                            <SidebarItem href={`/dashboard/instadmin`} icon={LayoutDashboard} label="Institution Admin Dashboard" />
+                            <SidebarItem href={`/dashboard/admin/mentoring`} icon={Users} label="Mentoring MS" />
+                            <SidebarItem href={`/dashboard/admin/elective`} icon={BookOpen} label="Elective MS" />
+                            <SidebarItem href={`/dashboard/admin/logbook`} icon={ClipboardList} label="LogBook MS" />
                         </>
                     )}
 
@@ -381,8 +427,8 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                             <div className="pt-4 pb-2 px-3 mt-2">
                                 <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest">Master Admin</p>
                             </div>
-                            <SidebarItem href={`/dashboard/masteradmin`} icon={<LayoutDashboard />} label="Master Admin Dashboard" />
-                            <SidebarItem href={`/dashboard/admin/lms-db`} icon={<BookOpen />} label="LMS Database" />
+                            <SidebarItem href={`/dashboard/masteradmin`} icon={LayoutDashboard} label="Master Admin Dashboard" />
+                            <SidebarItem href={`/dashboard/admin/lms-db`} icon={BookOpen} label="LMS Database" />
                         </>
                     )}
 
@@ -391,11 +437,11 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                             <div className="pt-4 pb-2 px-3 mt-2">
                                 <p className="text-[10px] font-bold text-rose-500 uppercase tracking-widest">Super Admin</p>
                             </div>
-                            <SidebarItem href={`/dashboard/admin/creator`} icon={<Settings />} label="LMS Auto-Gen" />
-                            <SidebarItem href={`/dashboard/admin/blog`} icon={<FileText />} label="Blog Publications" />
-                            <SidebarItem href={`/dashboard/admin/users`} icon={<Users />} label="User Management" />
-                            <SidebarItem href={`/dashboard/admin/tokens`} icon={<Settings />} label="Token Economy" />
-                            <SidebarItem href={`/dashboard/admin/create-institution`} icon={<Building2 />} label="Create Institution" />
+                            <SidebarItem href={`/dashboard/admin/creator`} icon={Settings} label="LMS Auto-Gen" />
+                            <SidebarItem href={`/dashboard/admin/blog`} icon={FileText} label="Blog Publications" />
+                            <SidebarItem href={`/dashboard/admin/users`} icon={Users} label="User Management" />
+                            <SidebarItem href={`/dashboard/admin/tokens`} icon={Settings} label="Token Economy" />
+                            <SidebarItem href={`/dashboard/admin/create-institution`} icon={Building2} label="Create Institution" />
                         </>
                     )}
                 </nav>
@@ -412,10 +458,9 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                     }}>
                         <button
                             type="submit"
-                            suppressHydrationWarning
                             className="w-full flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all group"
                         >
-                            <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                            <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform" aria-hidden="true" />
                             <span className="font-bold">Logout</span>
                         </button>
                     </form>
@@ -428,8 +473,9 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                         <button
                             className="lg:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-xl"
                             onClick={() => setIsSidebarOpen(true)}
+                            aria-label="Open sidebar"
                         >
-                            <Menu className="w-6 h-6" />
+                            <Menu className="w-6 h-6" aria-hidden="true" />
                         </button>
                         <div>
                             <h2 className="text-xl font-bold text-slate-900 capitalize hidden sm:block">{dashboardTitle}</h2>
@@ -440,22 +486,24 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                                 href="/contrl-panl"
                                 className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-50 border border-purple-200 text-purple-700 hover:bg-purple-100 transition-all font-bold text-sm"
                             >
-                                <Shield className="w-4 h-4" />
+                                <Shield className="w-4 h-4" aria-hidden="true" />
                                 Control Panel
                             </Link>
                         )}
                     </div>
                     <div className="flex items-center gap-4 border-l border-slate-100 pl-4 sm:border-none sm:pl-0">
                         <div className="text-right hidden sm:flex sm:flex-col sm:justify-center">
-                            <p className="text-sm font-bold text-slate-900 capitalize leading-tight mb-0.5">{userName || `${roleDisplayLabel} User`}</p>
+                            <div className="text-sm font-bold text-slate-900 capitalize leading-tight mb-0.5">
+                                {mounted ? (userName || `${roleDisplayLabel} User`) : <div className="h-4 w-24 bg-slate-100 animate-pulse rounded" />}
+                            </div>
                             <div className="flex items-center gap-1.5 justify-end mb-0.5">
                                 <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider leading-none">{roleDisplayLabel}</p>
                                 <span className={`text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md leading-none ${getPlanBadgeColor(planTier)}`}>{planTier}</span>
                             </div>
-                            {userEmail && <p className="text-[10px] text-slate-400 font-medium leading-none">{userEmail}</p>}
+                            {mounted && userEmail && <p className="text-[10px] text-slate-400 font-medium leading-none">{userEmail}</p>}
                         </div>
                         <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center border border-slate-200">
-                            <Users className="w-5 h-5 text-slate-400" />
+                            <Users className="w-5 h-5 text-slate-400" aria-hidden="true" />
                         </div>
                     </div>
                 </header>
@@ -469,43 +517,3 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
     );
 }
 
-function SidebarItem({ icon, label, href, badge }: any) {
-    const pathname = usePathname();
-    const isActive = pathname === href;
-
-    return (
-        <Link
-            href={href}
-            title={label}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative group font-semibold ${isActive ? 'bg-emerald-50 text-emerald-700' : 'text-slate-500 hover:bg-emerald-50 hover:text-emerald-700'}`}
-        >
-            <div className={`transition-colors ${isActive ? 'text-emerald-600' : 'text-slate-400 group-hover:text-emerald-600'}`}>
-                {React.cloneElement(icon, { size: 20 })}
-            </div>
-            <span className="flex-1 text-left truncate">{label}</span>
-            {badge && (
-                <span className="text-[9px] font-bold bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-md uppercase tracking-wider">
-                    {badge}
-                </span>
-            )}
-        </Link>
-    );
-}
-
-function LockedSidebarItem({ label, requiredPlan }: { label: string; requiredPlan: string }) {
-    return (
-        <Link
-            href="/dashboard/student/upgrade"
-            title={`Upgrade to ${requiredPlan} to unlock ${label}`}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative group font-semibold text-slate-400 hover:bg-amber-50 hover:text-amber-600 cursor-pointer"
-        >
-            <div className="text-slate-300 group-hover:text-amber-500 transition-colors">
-                <Lock size={20} />
-            </div>
-            <span className="flex-1 text-left truncate">{label}</span>
-            <span className="text-[8px] font-bold bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-md uppercase tracking-wider opacity-70 group-hover:opacity-100">
-                {requiredPlan}
-            </span>
-        </Link>
-    );
-}

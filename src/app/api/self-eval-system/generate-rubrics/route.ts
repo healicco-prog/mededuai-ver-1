@@ -1,6 +1,6 @@
 import { checkSecurity, validateInput } from '@/lib/apiSecurity';
 import { NextResponse } from 'next/server';
-import { generateWithFallback } from '@/lib/gemini';
+import { generateJSON } from '@/lib/gemini';
 import { createClient } from '@supabase/supabase-js';
 
 function getSupabase() {
@@ -44,19 +44,9 @@ Rules:
 - Be specific to ${course} ${subject} curriculum
 - Include diagrams as a criterion if relevant`;
 
-        const rubricsContent = await generateWithFallback(prompt, {
-            jsonMode: true,
-            preferredModels: ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'],
+        const parsedRubrics = await generateJSON(prompt, {
+            preferredModels: ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'],
         });
-
-        // Validate JSON
-        let parsedRubrics;
-        try {
-            parsedRubrics = JSON.parse(rubricsContent);
-        } catch {
-            // If JSON parse fails, wrap raw content
-            parsedRubrics = { raw: rubricsContent, totalMarks: marksAllotted };
-        }
 
         // Save to Supabase automatically
         let rubricId = null;

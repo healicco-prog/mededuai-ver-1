@@ -93,7 +93,7 @@ export default function McqGeneratorPage() {
                 setMcqs(data.mcqs);
                 setAnswers(new Array(data.mcqs.length).fill(null));
                 setPhase('quiz');
-                tokenService.processTransaction(currentUser.id, 'MCQ Generator', 'gemini-2.5-flash');
+                tokenService.processTransaction(currentUser.id, 'MCQ Generator', 'gemini-2.0-flash');
             }
         } catch (e) {
             console.error(e);

@@ -207,7 +207,7 @@ export default function BlogManagerClient({ currentUserRole }: { currentUserRole
                     };
                     await blogService.createBlog(mappedBlog);
                     // Deduct for each iteration
-                    tokenService.processTransaction(currentUser.id, 'Blog Generator', 'gemini-2.5-bulk');
+                    tokenService.processTransaction(currentUser.id, 'Blog Generator', 'gemini-2.0-flash');
                 }
                 setShowBulkModal(false);
                 loadBlogs();

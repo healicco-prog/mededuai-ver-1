@@ -1,6 +1,6 @@
-import { checkSecurity, validateInput } from '@/lib/apiSecurity';
+import { checkSecurity } from '@/lib/apiSecurity';
 import { NextResponse } from 'next/server';
-import { getAI } from '@/lib/gemini';
+import { generateWithFallback, MODELS } from '@/lib/gemini';
 import { createClient } from '@supabase/supabase-js';
 
 function getSupabase() {
@@ -26,26 +26,12 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: 'Missing rubrics or answer images' }, { status: 400 });
         }
 
-        // Build multimodal content with images
-        const imageParts = answerImages.map((img: string) => {
-            const match = img.match(/^data:(image\/\w+);base64,(.+)$/);
-            if (match) {
-                return {
-                    inlineData: {
-                        mimeType: match[1],
-                        data: match[2],
-                    },
-                };
-            }
-            return null;
-        }).filter(Boolean);
-
         const textPrompt = `You are a strict but fair senior ${course} university examiner evaluating a student's HANDWRITTEN answer script for ${subject}.
 
 EVALUATION CONTEXT:
 - Course Standard: ${course}
 - Subject: ${subject}
-- Question: "${question}"
+- Question: "${question || 'See rubric context'}"
 - Maximum Marks: ${marksAllotted}
 - Student Roll No: ${rollNumber || 'N/A'}
 - Student Name: ${studentName || 'N/A'}
@@ -85,37 +71,12 @@ Provide your evaluation in this EXACT markdown format:
 
 Be thorough, fair, and constructive. Award marks based strictly on the rubric.`;
 
-        // Use Gemini multimodal API
-        const ai = getAI();
-        const models = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash'];
-        let evaluationResult = '';
-        let lastError: Error | null = null;
-
-        for (const model of models) {
-            try {
-                const response = await ai.models.generateContent({
-                    model,
-                    contents: [
-                        {
-                            role: 'user',
-                            parts: [
-                                { text: textPrompt },
-                                ...imageParts,
-                            ],
-                        },
-                    ],
-                });
-                evaluationResult = response.text || '';
-                break;
-            } catch (e: any) {
-                console.warn(`Model ${model} failed for dig-eval:`, e.message);
-                lastError = e;
-            }
-        }
-
-        if (!evaluationResult) {
-            throw lastError || new Error('All models failed for answer evaluation');
-        }
+        // Use centralized multimodal generation with fallback/retry logic
+        const evaluationResult = await generateWithFallback(textPrompt, {
+            images: answerImages,
+            preferredModels: [MODELS.primary, MODELS.secondary, MODELS.tertiary, MODELS.ultimate],
+            disableThinking: true,
+        });
 
         // Extract marks from the response
         const marksMatch = evaluationResult.match(/Marks Awarded:\s*(\d+(?:\.\d+)?)\s*\/\s*(\d+)/);

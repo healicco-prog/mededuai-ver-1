@@ -7,6 +7,19 @@ const nextConfig = {
   // Explicitly trigger this ONLY when STANDALONE_BUILD=1 is set (which is true in your Dockerfile).
   ...(process.env.STANDALONE_BUILD === '1' ? { output: 'standalone' } : {}),
 
+  async rewrites() {
+    if (isNetlify) {
+      return [
+        {
+          source: '/api/:path*',
+          // Destination points to the new Cloud Run backend
+          destination: 'https://mededuai-backend-3js7mh5u5a-uc.a.run.app/api/:path*',
+        },
+      ];
+    }
+    return [];
+  },
+
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'localhost' },

@@ -67,12 +67,13 @@ export default function RootLayout({
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning
       >
         <FetchInterceptor />
-        {children}
-        <GlobalHomeButton />
         <ServiceWorkerRegistrar />
         <InstallPWAButton />
+        {children}
+        <GlobalHomeButton />
       </body>
     </html>
   );

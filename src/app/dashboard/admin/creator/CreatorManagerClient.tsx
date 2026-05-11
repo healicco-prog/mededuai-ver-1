@@ -3,73 +3,15 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { BrainCircuit, Play, CheckCircle2, RotateCcw, AlertTriangle, Plus, Sparkles, BookOpen, Layers, Trash2, Edit2, Upload, X, Check, GripVertical, XCircle, Minus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { getAuthHeaders } from '@/lib/clientAuth';
 
 import { useCurriculumStore, type Course, type Subject, type Section, type Topic, type LMSNotesStructureItem, defaultLMSStructure } from '../../../../store/curriculumStore';
 import { useCurriculumStoreHydrated } from '@/hooks/useCurriculumStoreHydrated';
 
-// ── Robust session token retrieval ──────────────────────────────────────────
-// The Netlify frontend's NEXT_PUBLIC_SUPABASE_URL may still point to a stale
-// project (e.g. PGMentor) even after we've migrated to MedEduAI-1. When that
-// happens supabase.auth.getSession() returns null because the supabase client
-// looks for a session keyed to the wrong project URL.
-//
-// Fallback chain:
-//  1. supabase.auth.getSession()         — works if URL is correct
-//  2. supabase.auth.refreshSession()     — in case token is stale but URL is correct
-//  3. localStorage direct read           — hardcoded MedEduAI-1 project ref
-//     key: "sb-yrelfdwkjtaidtoulwrj-auth-token"
-//  4. All known Supabase localStorage key patterns (scan)
-//
 const MEDEDUAI_PROJECT_REF = 'yrelfdwkjtaidtoulwrj';
 
-async function getAccessToken(forceRefresh = false): Promise<string | null> {
-    try {
-        // 1. Direct client call
-        if (forceRefresh) {
-            const { data: rd } = await supabase.auth.refreshSession();
-            if (rd?.session?.access_token) return rd.session.access_token;
-        }
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.access_token) return session.access_token;
-    } catch (_) { /* fall through */ }
-
-    // 2. Read the MedEduAI-1 token directly from localStorage regardless of
-    //    which URL the supabase client was initialised with.
-    try {
-        const knownKeys = [
-            `sb-${MEDEDUAI_PROJECT_REF}-auth-token`,
-            `supabase.auth.token`,
-        ];
-        for (const key of knownKeys) {
-            const raw = localStorage.getItem(key);
-            if (!raw) continue;
-            const parsed = JSON.parse(raw);
-            // Supabase v2 stores { currentSession: { access_token } }
-            const token = parsed?.access_token
-                || parsed?.currentSession?.access_token
-                || parsed?.session?.access_token;
-            if (token) return token;
-        }
-        // 3. Scan all localStorage keys for any sb-*-auth-token pattern
-        for (let i = 0; i < localStorage.length; i++) {
-            const k = localStorage.key(i) || '';
-            if (k.startsWith('sb-') && k.endsWith('-auth-token')) {
-                const raw = localStorage.getItem(k);
-                if (!raw) continue;
-                const parsed = JSON.parse(raw);
-                const token = parsed?.access_token
-                    || parsed?.currentSession?.access_token
-                    || parsed?.session?.access_token;
-                if (token) return token;
-            }
-        }
-    } catch (_) { /* localStorage unavailable */ }
-
-    console.warn('[getAccessToken] No active session token found — user may need to log in again');
-    return null;
-}
-
 export default function LMSCreatorAdmin() {
+    const fetchAuthHeaders = getAuthHeaders;
     // ── Hydration guard: prevents Zustand persist rehydration mismatch crash ──
     // Must be called before any store access so the component returns a loading
     // state on the first render (before localStorage data is loaded into the store).
@@ -138,14 +80,7 @@ export default function LMSCreatorAdmin() {
     const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
 
     // ── ROBUST Auth header helper ──
-    const fetchAuthHeaders = useCallback(async (forceRefresh = false): Promise<Record<string, string>> => {
-        const h: Record<string, string> = {
-            'Content-Type': 'application/json',
-        };
-        const token = await getAccessToken(forceRefresh);
-        if (token) h['Authorization'] = `Bearer ${token}`;
-        return h;
-    }, []);
+    // Using centralized getAuthHeaders from @/lib/clientAuth
 
     // Derived Selection Data
     const currentCourse = coursesList.find(c => c.id === selectedCourseId) || coursesList[0];
@@ -752,13 +687,40 @@ export default function LMSCreatorAdmin() {
         batchAbortRef.current = false;
         setIsBatchRunning(true);
 
+        // ── Track when we last force-refreshed the JWT so long-running
+        //    batches don't fail at the 1-hour Supabase JWT expiry mark.
+        //    We pre-emptively refresh every 30 minutes.
+        let lastTokenRefresh = Date.now();
+
         while (!batchAbortRef.current) {
             try {
-                const processRes = await fetch('/api/creator/batch-process', {
+                // ── Pre-emptive JWT refresh every 30 minutes to outlive the 1h Supabase
+                //    access token. This is the most common cause of long batches dying. ──
+                const elapsedMs = Date.now() - lastTokenRefresh;
+                const shouldRefresh = elapsedMs > 30 * 60 * 1000; // 30 min
+                let headers = await fetchAuthHeaders(shouldRefresh);
+                if (shouldRefresh) lastTokenRefresh = Date.now();
+
+                let processRes = await fetch('/api/creator/batch-process', {
                     method: 'POST',
-                    headers: await fetchAuthHeaders(),
+                    headers,
+                    credentials: 'include',
                     body: JSON.stringify({ batchId: targetBatchId }),
                 });
+
+                // ── If we hit 401, try once with a force-refreshed token. ──
+                if (processRes.status === 401) {
+                    console.warn('[Batch Loop] 401 — refreshing token and retrying once');
+                    headers = await fetchAuthHeaders(true);
+                    lastTokenRefresh = Date.now();
+                    processRes = await fetch('/api/creator/batch-process', {
+                        method: 'POST',
+                        headers,
+                        credentials: 'include',
+                        body: JSON.stringify({ batchId: targetBatchId }),
+                    });
+                }
+
                 const processData = await processRes.json();
 
                 if (!processData.success) {

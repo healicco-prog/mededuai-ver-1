@@ -109,11 +109,11 @@ export function GenerateView({ onBack, formats, initialFormatId, onSaveComplete 
       totalMarks: totalMarks,
       questions: frames.map(f => ({
         id: f.id,
-        questionNo: f.questionNo,
+        questionNo: typeof f.questionNo === 'number' ? f.questionNo : (parseInt(String(f.questionNo), 10) || 0),
         type: f.type,
         marks: f.marks,
         generatedContent: f.generatedContent || '',
-        mainOrSub: f.mainOrSub
+        mainOrSub: String(f.mainOrSub)
       })),
       createdAt: Date.now()
     });
@@ -237,7 +237,8 @@ export function GenerateView({ onBack, formats, initialFormatId, onSaveComplete 
     frames.forEach(f => {
       if (f.type.toLowerCase().includes('mcq')) {
         const content = f.generatedContent || '';
-        
+        let displayQNo: string = String(f.questionNo ?? '');
+
         if (content) {
             // More robust extraction: look for the first number that looks like a question number
             const qMatch = content.match(/(?:^|[\s\n*])Q?\s*(\d+)\s*[.)]/i);

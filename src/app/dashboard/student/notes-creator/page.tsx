@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { FileEdit, Loader2, Sparkles, RefreshCcw, Download, Copy, CheckCircle, BookOpen, Save, Share2, FileDown, X, Plus } from 'lucide-react';
+import { FilePenLine as FileEdit, Loader2, Sparkles, RefreshCcw, Download, Copy, CheckCircle, BookOpen, Save, Share2, FileDown, X, Plus } from 'lucide-react';
 import { useCurriculumStore } from '@/store/curriculumStore';
 import { useUserStore } from '@/store/userStore';
 import { tokenService } from '@/lib/tokenService';
@@ -124,7 +124,7 @@ export default function NotesCreatorPage() {
                 } else {
                     setResult(data.notes || 'No notes were generated.');
                 }
-                tokenService.processTransaction(currentUser.id, 'Notes Creator', 'gemini-2.5-flash');
+                tokenService.processTransaction(currentUser.id, 'Notes Creator', 'gemini-2.0-flash');
             }
         } catch (e) {
             console.error(e);

@@ -1,6 +1,6 @@
 import { checkSecurity, validateInput } from '@/lib/apiSecurity';
 import { NextResponse } from 'next/server';
-import { generateJSON } from '@/lib/gemini';
+import { generateJSON, MODELS } from '@/lib/gemini';
 
 export async function POST(req: Request) {
     const sec = await checkSecurity(req);
@@ -43,7 +43,9 @@ Return ONLY a raw valid JSON object. Do not return markdown blocks or backticks.
   ]
 }`;
 
-        const parsed = await generateJSON(promptText);
+        const parsed = await generateJSON(promptText, {
+            preferredModels: [MODELS.primary, MODELS.secondary, MODELS.tertiary, MODELS.ultimate],
+        });
         return NextResponse.json({ success: true, rubric: parsed.rubric });
     } catch (error: any) {
         console.warn('Rubrics API Error:', error.message);

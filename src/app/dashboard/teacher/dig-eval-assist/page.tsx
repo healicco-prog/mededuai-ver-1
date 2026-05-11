@@ -2,14 +2,18 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
-    Loader2, Sparkles, Upload, CheckCircle, X, Crop,
+    Loader2, Sparkles, Upload, CheckCircle, X, Crop as CropIcon,
     RotateCcw, ChevronRight, Award, FileText, Save,
     AlertCircle, Camera, UserCheck, Hash, Plus,
-    ClipboardList, ScanLine, ChevronDown, ChevronUp, Trash2
+    ClipboardList, ScanLine, ChevronDown, ChevronUp, Trash2,
+    Maximize2, GripHorizontal, ImageIcon
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { getAuthHeaders } from '@/lib/clientAuth';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import ReactCrop, { type Crop, PixelCrop } from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 
 const COURSES = [
     { id: 'MBBS', name: 'MBBS', subjects: ['Anatomy', 'Physiology', 'Biochemistry', 'Pathology', 'Pharmacology', 'Microbiology', 'Forensic Medicine', 'Community Medicine', 'General Medicine', 'General Surgery', 'Pediatrics', 'Obstetrics & Gynecology', 'Ophthalmology', 'ENT', 'Orthopedics', 'Dermatology', 'Psychiatry', 'Anesthesiology', 'Radiology'] },
@@ -23,7 +27,13 @@ const COURSES = [
 
 type Phase = 'setup' | 'generating-rubrics' | 'ready-for-scripts' | 'evaluating';
 
-interface CropState { top: number; right: number; bottom: number; left: number; }
+interface ImageWithCrop {
+    src: string;
+    preview?: string; // Cropped preview
+    crop: Crop | null;
+    id: string;
+    name?: string;
+}
 
 interface EvaluatedScript {
     id: string;
@@ -43,23 +53,47 @@ export default function DigEvalAssistPage() {
 
     const [phase, setPhase] = useState<Phase>('setup');
 
-    // Persistence for mobile refreshes
-    useEffect(() => {
-        const savedPhase = localStorage.getItem('dig_eval_phase');
-        if (savedPhase) setPhase(savedPhase as Phase);
-    }, []);
-
-    useEffect(() => {
-        localStorage.setItem('dig_eval_phase', phase);
-    }, [phase]);
-
+    // State for setup
     const [course, setCourse] = useState('');
     const [subject, setSubject] = useState('');
     const [customSubject, setCustomSubject] = useState('');
     const [question, setQuestion] = useState('');
-    const [questionImage, setQuestionImage] = useState<string | null>(null);
+    const [questionImages, setQuestionImages] = useState<ImageWithCrop[]>([]);
+    const [showRubricPreview, setShowRubricPreview] = useState(false);
     const [marks, setMarks] = useState(10);
 
+    // Rubrics State
+    const [rubrics, setRubrics] = useState('');
+    const [rubricId, setRubricId] = useState<string | null>(null);
+
+    // Evaluation State
+    const [rollNumber, setRollNumber] = useState('');
+    const [studentName, setStudentName] = useState('');
+    const [answerImages, setAnswerImages] = useState<ImageWithCrop[]>([]);
+    const [evaluatedScripts, setEvaluatedScripts] = useState<EvaluatedScript[]>([]);
+    const [currentEvaluation, setCurrentEvaluation] = useState('');
+    const [currentMarksObtained, setCurrentMarksObtained] = useState(0);
+    const [currentPercentage, setCurrentPercentage] = useState(0);
+    const [currentEvalId, setCurrentEvalId] = useState<string | null>(null);
+    const [showCurrentResult, setShowCurrentResult] = useState(false);
+    const [expandedScriptId, setExpandedScriptId] = useState<string | null>(null);
+
+    // Cropping State
+    const [showCropModal, setShowCropModal] = useState(false);
+    const [cropTarget, setCropTarget] = useState<{ type: 'question' | 'answer'; index: number } | null>(null);
+    const [currentCrop, setCurrentCrop] = useState<Crop>();
+    const [statusMessage, setStatusMessage] = useState('');
+    const imgRef = useRef<HTMLImageElement>(null);
+
+    // UI State
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => { setMounted(true); }, []);
+    const [error, setError] = useState('');
+    const [activeImageIdx, setActiveImageIdx] = useState<number | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const questionFileRef = useRef<HTMLInputElement>(null);
+
+    // Persistence
     useEffect(() => {
         const savedCourse = localStorage.getItem('dig_eval_course');
         const savedSubject = localStorage.getItem('dig_eval_subject');
@@ -70,67 +104,147 @@ export default function DigEvalAssistPage() {
         if (savedSubject) setSubject(savedSubject);
         if (savedQuestion) setQuestion(savedQuestion);
         if (savedMarks) setMarks(parseInt(savedMarks));
+        // Always start fresh — never restore a generating/failed phase
+        setPhase('setup');
+        setError('');
     }, []);
 
     useEffect(() => {
+        localStorage.setItem('dig_eval_phase', phase);
         localStorage.setItem('dig_eval_course', course);
         localStorage.setItem('dig_eval_subject', subject);
         localStorage.setItem('dig_eval_question', question);
         localStorage.setItem('dig_eval_marks', marks.toString());
-    }, [course, subject, question, marks]);
+    }, [phase, course, subject, question, marks]);
 
+    // ── Image Helpers ──
 
-    // Rubrics (internal — never shown to user)
-    const [rubrics, setRubrics] = useState('');
-    const [rubricId, setRubricId] = useState<string | null>(null);
+    const handleQuestionImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files) return;
+        Array.from(files).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                if (ev.target?.result) {
+                    setQuestionImages(prev => [...prev, {
+                        src: ev.target!.result as string,
+                        crop: null,
+                        id: Math.random().toString(36).substr(2, 9),
+                        name: file.name
+                    }]);
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+        if (questionFileRef.current) questionFileRef.current.value = '';
+    };
 
-    // Current student being evaluated
-    const [rollNumber, setRollNumber] = useState('');
-    const [studentName, setStudentName] = useState('');
-    const [answerImages, setAnswerImages] = useState<{ src: string; crop: CropState; name: string }[]>([]);
-    const [activeImageIdx, setActiveImageIdx] = useState<number | null>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const questionFileRef = useRef<HTMLInputElement>(null);
+    const handleAnswerImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files) return;
+        Array.from(files).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                if (ev.target?.result) {
+                    setAnswerImages(prev => [...prev, {
+                        src: ev.target!.result as string,
+                        crop: null,
+                        id: Math.random().toString(36).substr(2, 9),
+                        name: file.name
+                    }]);
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
 
-    // Evaluated scripts queue
-    const [evaluatedScripts, setEvaluatedScripts] = useState<EvaluatedScript[]>([]);
-    const [currentEvaluation, setCurrentEvaluation] = useState('');
-    const [currentMarksObtained, setCurrentMarksObtained] = useState(0);
-    const [currentPercentage, setCurrentPercentage] = useState(0);
-    const [currentEvalId, setCurrentEvalId] = useState<string | null>(null);
-    const [showCurrentResult, setShowCurrentResult] = useState(false);
-    const [expandedScriptId, setExpandedScriptId] = useState<string | null>(null);
+    const openCropModal = (type: 'question' | 'answer', index: number) => {
+        const target = type === 'question' ? questionImages[index] : answerImages[index];
+        if (!target) return;
+        setCropTarget({ type, index });
+        setCurrentCrop(target.crop || { unit: '%', x: 10, y: 10, width: 80, height: 80 });
+        setShowCropModal(true);
+    };
 
-    // UI State
-    const [error, setError] = useState('');
+    const handleCropSave = async () => {
+        if (!cropTarget || !currentCrop) return;
+        
+        const targetImages = cropTarget.type === 'question' ? questionImages : answerImages;
+        const img = targetImages[cropTarget.index];
+        const preview = await applyCropToImage(img.src, currentCrop);
 
-    const activeCourse = COURSES.find(c => c.id === course);
-    const subjects = activeCourse?.subjects || [];
-    const effectiveSubject = customSubject || subject;
+        if (cropTarget.type === 'question') {
+            setQuestionImages(prev => prev.map((img, i) => i === cropTarget.index ? { ...img, crop: currentCrop, preview } : img));
+        } else {
+            setAnswerImages(prev => prev.map((img, i) => i === cropTarget.index ? { ...img, crop: currentCrop, preview } : img));
+        }
+        setShowCropModal(false);
+    };
 
-    // ── Step 1: Generate Rubrics ──
+    const applyCropToImage = (src: string, crop: Crop | null): Promise<string> => {
+        const MAX_DIM = 1280; // Resize to reasonable max dimension for AI
+        return new Promise((resolve) => {
+            const img = new window.Image();
+            img.onload = () => {
+                let pxX = 0, pxY = 0, pxW = img.width, pxH = img.height;
+                
+                if (crop && crop.width > 0 && crop.height > 0) {
+                    if (crop.unit === '%') {
+                        pxX = (crop.x / 100) * img.width;
+                        pxY = (crop.y / 100) * img.height;
+                        pxW = (crop.width / 100) * img.width;
+                        pxH = (crop.height / 100) * img.height;
+                    } else {
+                        pxX = crop.x; pxY = crop.y; pxW = crop.width; pxH = crop.height;
+                    }
+                }
+
+                // Calculate resize ratio if exceeds MAX_DIM
+                let ratio = 1;
+                if (pxW > MAX_DIM || pxH > MAX_DIM) {
+                    ratio = Math.min(MAX_DIM / pxW, MAX_DIM / pxH);
+                }
+
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d')!;
+                canvas.width = pxW * ratio;
+                canvas.height = pxH * ratio;
+                
+                ctx.drawImage(img, pxX, pxY, pxW, pxH, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL('image/jpeg', 0.8)); // 0.8 quality is plenty for OCR
+            };
+            img.src = src;
+        });
+    };
+
+    // ── Logic ──
+
     const handleGenerateRubrics = async () => {
-        if (!course || !effectiveSubject || (!question.trim() && !questionImage) || marks < 1) {
-            setError('Please fill all fields (Course, Subject, Question, Marks) before proceeding.');
+        const effectiveSub = subject === 'Other' ? customSubject : subject;
+        if (!course || !effectiveSub || (!question.trim() && questionImages.length === 0) || marks < 1) {
+            setError('Please provide course, subject, question (text or image), and marks.');
             return;
         }
         setError('');
         setPhase('generating-rubrics');
-
+        setStatusMessage('Preparing images...');
         try {
+            const processedQuestionImages = await Promise.all(
+                questionImages.map(img => img.preview || applyCropToImage(img.src, img.crop))
+            );
+            
+            setStatusMessage('AI analyzing question and drafting rubrics...');
             const res = await fetch('/api/dig-eval-assist/generate-rubrics', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: await getAuthHeaders(),
                 body: JSON.stringify({
-                    course,
-                    subject: effectiveSubject,
-                    question: question || '[See uploaded question image]',
-                    marksAllotted: marks,
-                    userId,
+                    course, subject: effectiveSub,
+                    question, questionImages: processedQuestionImages,
+                    marksAllotted: marks, userId
                 }),
             });
             const data = await res.json();
-
             if (data.success) {
                 setRubrics(data.rubrics);
                 setRubricId(data.rubricId || null);
@@ -145,99 +259,31 @@ export default function DigEvalAssistPage() {
         }
     };
 
-    // ── Question Image Upload ──
-    const handleQuestionImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            if (ev.target?.result) setQuestionImage(ev.target.result as string);
-        };
-        reader.readAsDataURL(file);
-        e.target.value = '';
-    };
-
-    // ── Answer Image Upload ──
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (!files) return;
-        Array.from(files).forEach(file => {
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                if (ev.target?.result) {
-                    setAnswerImages(prev => [...prev, {
-                        src: ev.target!.result as string,
-                        crop: { top: 0, right: 0, bottom: 0, left: 0 },
-                        name: file.name,
-                    }]);
-                }
-            };
-            reader.readAsDataURL(file);
-        });
-        e.target.value = '';
-    };
-
-    const handleRemoveImage = (idx: number) => {
-        setAnswerImages(prev => prev.filter((_, i) => i !== idx));
-        if (activeImageIdx === idx) setActiveImageIdx(null);
-    };
-
-    const handleCropChange = (idx: number, side: keyof CropState, value: number) => {
-        setAnswerImages(prev => prev.map((img, i) => i === idx ? { ...img, crop: { ...img.crop, [side]: Math.max(0, Math.min(40, value)) } } : img));
-    };
-
-    const handleResetCrop = (idx: number) => {
-        setAnswerImages(prev => prev.map((img, i) => i === idx ? { ...img, crop: { top: 0, right: 0, bottom: 0, left: 0 } } : img));
-    };
-
-    // ── Apply crop to image using canvas ──
-    const applyCropToImage = useCallback((src: string, crop: CropState): Promise<string> => {
-        return new Promise((resolve) => {
-            const img = new window.Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d')!;
-                const cropLeft = (crop.left / 100) * img.width;
-                const cropTop = (crop.top / 100) * img.height;
-                const cropRight = (crop.right / 100) * img.width;
-                const cropBottom = (crop.bottom / 100) * img.height;
-                const w = img.width - cropLeft - cropRight;
-                const h = img.height - cropTop - cropBottom;
-                if (w <= 0 || h <= 0) { resolve(src); return; }
-                canvas.width = w;
-                canvas.height = h;
-                ctx.drawImage(img, cropLeft, cropTop, w, h, 0, 0, w, h);
-                resolve(canvas.toDataURL('image/jpeg', 0.85));
-            };
-            img.src = src;
-        });
-    }, []);
-
-    // ── Evaluate Current Script ──
-    const handleEvaluateScript = async () => {
-        if (!rollNumber.trim()) { setError('Please enter Roll Number / Reg No.'); return; }
-        if (!studentName.trim()) { setError('Please enter Student Name.'); return; }
-        if (answerImages.length === 0) { setError('Please upload at least one answer script image.'); return; }
+    const handleEvaluate = async () => {
+        if (!rollNumber.trim() || !studentName.trim() || answerImages.length === 0) {
+            setError('Please enter Roll Number, Name, and at least one image.');
+            return;
+        }
         setError('');
         setPhase('evaluating');
+        setStatusMessage('Processing answer script images...');
         setShowCurrentResult(false);
-
         try {
             const processedImages = await Promise.all(
-                answerImages.map(img => applyCropToImage(img.src, img.crop))
+                answerImages.map(img => img.preview || applyCropToImage(img.src, img.crop))
             );
-
+            
+            setStatusMessage('AI reading handwriting and evaluating against rubric...');
             const res = await fetch('/api/dig-eval-assist/evaluate-script', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: await getAuthHeaders(),
                 body: JSON.stringify({
-                    rubricId, rubrics, question: question || '[See uploaded question image]',
-                    marksAllotted: marks, course, subject: effectiveSubject,
+                    rubricId, rubrics, question: question || '[See uploaded question images]',
+                    marksAllotted: marks, course, subject: subject === 'Other' ? customSubject : subject,
                     answerImages: processedImages, rollNumber, studentName, userId,
                 }),
             });
             const data = await res.json();
-
             if (data.success) {
                 setCurrentEvaluation(data.evaluation);
                 setCurrentMarksObtained(data.marksObtained || 0);
@@ -255,44 +301,23 @@ export default function DigEvalAssistPage() {
         }
     };
 
-    // ── Approve Current Evaluation ──
     const handleApproveEvaluation = () => {
         const newScript: EvaluatedScript = {
             id: `${Date.now()}-${rollNumber}`,
-            rollNumber,
-            studentName,
-            marksObtained: currentMarksObtained,
-            totalMarks: marks,
-            percentage: currentPercentage,
-            evaluation: currentEvaluation,
-            approved: true,
-            evaluationId: currentEvalId,
+            rollNumber, studentName,
+            marksObtained: currentMarksObtained, totalMarks: marks,
+            percentage: currentPercentage, evaluation: currentEvaluation,
+            approved: true, evaluationId: currentEvalId,
         };
         setEvaluatedScripts(prev => [newScript, ...prev]);
-
-        // Reset current student fields for next entry
-        setRollNumber('');
-        setStudentName('');
-        setAnswerImages([]);
-        setActiveImageIdx(null);
-        setShowCurrentResult(false);
-        setCurrentEvaluation('');
-        setCurrentMarksObtained(0);
-        setCurrentPercentage(0);
-        setCurrentEvalId(null);
+        setRollNumber(''); setStudentName(''); setAnswerImages([]); setShowCurrentResult(false);
     };
 
-    // ── Reset Everything ──
     const handleFullReset = () => {
         setPhase('setup'); setCourse(''); setSubject(''); setCustomSubject('');
-        setQuestion(''); setQuestionImage(null); setMarks(10);
-        setRubrics(''); setRubricId(null);
-        setRollNumber(''); setStudentName('');
-        setAnswerImages([]); setActiveImageIdx(null);
-        setEvaluatedScripts([]);
-        setShowCurrentResult(false); setCurrentEvaluation('');
-        setCurrentMarksObtained(0); setCurrentPercentage(0); setCurrentEvalId(null);
-        setError('');
+        setQuestion(''); setQuestionImages([]); setMarks(10);
+        setRubrics(''); setRubricId(null); setRollNumber(''); setStudentName('');
+        setAnswerImages([]); setEvaluatedScripts([]); setError('');
     };
 
     const steps = [
@@ -303,23 +328,21 @@ export default function DigEvalAssistPage() {
 
     return (
         <div className="max-w-5xl mx-auto flex flex-col h-[calc(100vh-7rem)]">
-            {/* ═══════ HEADER ═══════ */}
+            {/* Header / Progress */}
             <div className="relative mb-6 flex-shrink-0">
                 <div className="bg-gradient-to-r from-teal-950 via-emerald-900 to-cyan-900 rounded-3xl p-6 shadow-xl overflow-hidden relative">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-                    <div className="absolute bottom-0 left-0 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
                     <div className="relative flex items-center gap-4">
                         <div className="w-14 h-14 bg-gradient-to-br from-teal-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-teal-500/25">
                             <ScanLine className="w-7 h-7 text-white" />
                         </div>
                         <div>
                             <h2 className="text-2xl font-bold text-white tracking-tight">Dig Evaluation Assist</h2>
-                            <p className="text-teal-300/80 text-sm font-medium">Digital Evaluation & Assist System — AI-powered answer script evaluation</p>
+                            <p className="text-teal-300/80 text-sm font-medium">AI-powered answer script evaluation system</p>
                         </div>
                     </div>
-                    {/* Progress Steps */}
                     <div className="relative mt-5 flex items-center gap-2">
-                        {steps.map((step, i) => (
+                        {mounted && steps.map((step, i) => (
                             <div key={i} className="flex items-center gap-2 flex-1">
                                 <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${step.done ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : step.active ? 'bg-teal-500/30 text-teal-200 border border-teal-400/40 animate-pulse' : 'bg-white/5 text-white/40 border border-white/10'}`}>
                                     {step.done ? <CheckCircle className="w-3.5 h-3.5" /> : step.active ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <span className="w-3.5 h-3.5 rounded-full border-2 border-current inline-block" />}
@@ -340,388 +363,260 @@ export default function DigEvalAssistPage() {
                 </div>
             )}
 
-            <div className="flex-1 overflow-y-auto pb-8 space-y-6">
-
-                {/* ═══════ SETUP PHASE ═══════ */}
+            <div className="flex-1 overflow-y-auto pb-8 space-y-6 px-1">
+                {/* ── PHASE: SETUP ── */}
                 {phase === 'setup' && (
-                    <div className="bg-white rounded-3xl border border-slate-200 shadow-lg overflow-hidden animate-in fade-in">
-                        <div className="bg-gradient-to-b from-teal-50/50 to-white p-6 border-b border-slate-100">
-                            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                <FileText className="w-5 h-5 text-teal-600" /> Question & Rubric Configuration
-                            </h3>
-                            <p className="text-sm text-slate-500 mt-1">Set up the question details. AI will prepare answer rubrics in the background and prompt you to start uploading scripts.</p>
+                    <div className="space-y-6 animate-in fade-in duration-500">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Select Course</label>
+                                <select value={course} onChange={e => setCourse(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-teal-500 text-sm font-medium">
+                                    <option value="">Select Course</option>
+                                    {COURSES.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Subject</label>
+                                <select value={subject} onChange={e => setSubject(e.target.value)} disabled={!course} className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-teal-500 text-sm font-medium disabled:opacity-50">
+                                    <option value="">Select Subject</option>
+                                    {COURSES.find(c => c.id === course)?.subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                                    <option value="Other">Other</option>
+                                </select>
+                                {subject === 'Other' && <input type="text" placeholder="Subject Name..." value={customSubject} onChange={e => setCustomSubject(e.target.value)} className="w-full mt-2 px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-teal-500 text-sm font-medium" />}
+                            </div>
                         </div>
-                        <div className="p-6 space-y-6">
-                            {/* Course & Subject */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Select Course</label>
-                                    <select value={course} onChange={e => { setCourse(e.target.value); setSubject(''); setCustomSubject(''); }}
-                                        className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-300 text-sm font-medium transition-all">
-                                        <option value="">Select Course</option>
-                                        {COURSES.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Subject</label>
-                                    <select value={subject} onChange={e => { setSubject(e.target.value); setCustomSubject(''); }} disabled={!course}
-                                        className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-300 text-sm font-medium transition-all disabled:opacity-50">
-                                        <option value="">Select Subject</option>
-                                        {subjects.map(s => <option key={s} value={s}>{s}</option>)}
-                                        <option value="__custom">Other (Type manually)</option>
-                                    </select>
-                                    {subject === '__custom' && (
-                                        <input type="text" placeholder="Type subject name..." value={customSubject}
-                                            onChange={e => setCustomSubject(e.target.value)}
-                                            className="w-full mt-2 px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-teal-500 text-sm font-medium transition-all" />
-                                    )}
-                                </div>
+
+                        <div className="bg-white rounded-3xl border border-slate-200 shadow-lg overflow-hidden">
+                            <div className="bg-gradient-to-r from-emerald-50 to-white p-6 border-b border-slate-100">
+                                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><ClipboardList className="w-5 h-5 text-emerald-600" /> Question Setup</h3>
+                                <p className="text-sm text-slate-500 mt-1">Upload question paper images and/or type the question text.</p>
                             </div>
-
-                            {/* Question */}
-                            <div className="space-y-3">
-                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Question (Type or Upload Image)</label>
-                                <textarea value={question} onChange={e => setQuestion(e.target.value)}
-                                    placeholder="Type the exam question here... e.g., 'Describe the pathogenesis and management of Rheumatic Heart Disease'"
-                                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-300 text-sm font-medium min-h-[100px] transition-all resize-y" />
-                                
-                                <div className="flex flex-col sm:flex-row items-center gap-3">
-                                    <div className="flex items-center gap-2 w-full sm:w-auto">
-                                        <button className="flex-1 sm:flex-none text-sm font-bold text-teal-600 hover:text-teal-700 flex items-center justify-center gap-2 bg-teal-50 px-4 py-2.5 rounded-xl border border-teal-200 hover:bg-teal-100 transition-all relative overflow-hidden">
-                                            <Camera className="w-4 h-4" /> Open Camera
-                                            <input 
-                                                type="file" 
-                                                accept="image/*" 
-                                                capture="environment" 
-                                                className="absolute inset-0 opacity-0 cursor-pointer" 
-                                                onChange={handleQuestionImageUpload} 
-                                            />
-                                        </button>
-                                        
-                                        <button className="flex-1 sm:flex-none text-sm font-bold text-slate-600 hover:text-slate-700 flex items-center justify-center gap-2 bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 transition-all relative overflow-hidden">
-                                            <Upload className="w-4 h-4" /> Upload Image
-                                            <input 
-                                                type="file" 
-                                                accept="image/*" 
-                                                className="absolute inset-0 opacity-0 cursor-pointer" 
-                                                onChange={handleQuestionImageUpload} 
-                                            />
-                                        </button>
-                                    </div>
-
-                                    {questionImage && (
-                                        <div className="flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
-                                            <span className="text-xs font-bold text-emerald-600 flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5" /> Image Attached</span>
-                                            <button onClick={() => setQuestionImage(null)} className="text-red-400 hover:text-red-600 p-1"><X className="w-4 h-4" /></button>
+                            <div className="p-6 space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-4">
+                                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"><Camera className="w-4 h-4" /> Question Paper Images</label>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {questionImages.map((img, idx) => (
+                                                <div key={img.id} className="relative group rounded-xl border-2 border-slate-100 overflow-hidden bg-slate-50 aspect-video">
+                                                    <img src={img.preview || img.src} className="w-full h-full object-cover" />
+                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                                        <button onClick={() => openCropModal('question', idx)} className="p-2 bg-white rounded-lg text-emerald-600 hover:scale-110 transition-transform"><CropIcon className="w-4 h-4" /></button>
+                                                        <button onClick={() => setQuestionImages(prev => prev.filter((_, i) => i !== idx))} className="p-2 bg-white rounded-lg text-red-600 hover:scale-110 transition-transform"><Trash2 className="w-4 h-4" /></button>
+                                                    </div>
+                                                    {img.crop && <div className="absolute bottom-1 right-1 bg-emerald-500 text-white text-[8px] px-1 rounded font-bold">CROPPED</div>}
+                                                </div>
+                                            ))}
+                                            <button onClick={() => questionFileRef.current?.click()} className="border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center gap-2 bg-slate-50 hover:bg-slate-100 hover:border-emerald-300 transition-all aspect-video group">
+                                                <Plus className="w-5 h-5 text-slate-400 group-hover:text-emerald-500 group-hover:scale-110 transition-all" />
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Add Image</span>
+                                            </button>
                                         </div>
-                                    )}
-                                </div>
-
-                                {questionImage && (
-                                    <div className="mt-2 rounded-xl overflow-hidden border border-slate-200 max-w-xs shadow-sm bg-slate-50 p-2">
-                                        <img src={questionImage} alt="Question Reference" className="w-full object-contain max-h-48 rounded-lg" />
+                                        <input type="file" multiple accept="image/*" ref={questionFileRef} className="hidden" onChange={handleQuestionImageUpload} />
                                     </div>
-                                )}
-                            </div>
-
-                            {/* Marks */}
-                            <div className="pt-4 border-t border-slate-100">
-                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Marks Allotted</label>
-                                <div className="flex gap-2 flex-wrap">
-                                    {[2, 3, 5, 10, 15, 20].map(m => (
-                                        <button key={m} onClick={() => setMarks(m)}
-                                            className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all border ${marks === m ? 'bg-teal-600 text-white border-teal-600 shadow-md shadow-teal-500/20' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-teal-200'}`}>
-                                            {m}
-                                        </button>
-                                    ))}
-                                    <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 ml-2">
-                                        <span className="text-xs font-bold text-slate-400 mr-2">Custom:</span>
-                                        <input type="number" value={marks} onChange={e => setMarks(parseInt(e.target.value) || 1)} min={1} max={100}
-                                            className="w-16 py-2 bg-transparent outline-none text-sm font-bold text-slate-700" />
+                                    <div className="space-y-4">
+                                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"><FileText className="w-4 h-4" /> Question Text (Optional)</label>
+                                        <textarea value={question} onChange={e => setQuestion(e.target.value)} placeholder="Type question here..." className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 min-h-[140px] text-sm font-medium shadow-inner resize-none" />
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="flex justify-end pt-6 border-t border-slate-100">
-                                <button onClick={handleGenerateRubrics}
-                                    disabled={!course || !(effectiveSubject && effectiveSubject !== '__custom') || (!question.trim() && !questionImage)}
-                                    className="bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold h-12 px-8 rounded-xl hover:shadow-lg hover:shadow-teal-500/25 transition-all disabled:opacity-50 flex items-center gap-2 hover:scale-[1.01] active:scale-[0.99] shadow-md">
-                                    <Sparkles className="w-5 h-5" /> Prepare Rubrics & Continue
-                                    <ChevronRight className="w-5 h-5" />
-                                </button>
+                                <div className="pt-6 border-t border-slate-100 flex items-center gap-4 flex-wrap">
+                                    <div className="flex-1">
+                                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Marks Allotted</label>
+                                        <div className="flex gap-2">
+                                            {[5, 10, 15, 20].map(m => (
+                                                <button key={m} onClick={() => setMarks(m)} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${marks === m ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-slate-600 border-slate-200 hover:bg-emerald-50'}`}>{m}M</button>
+                                            ))}
+                                            <input type="number" value={marks} onChange={e => setMarks(parseInt(e.target.value) || 1)} className="w-16 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 text-xs font-bold text-center" />
+                                        </div>
+                                    </div>
+                                    <button onClick={handleGenerateRubrics} disabled={!course || (!question.trim() && questionImages.length === 0)} className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold h-12 px-8 rounded-xl shadow-lg shadow-emerald-500/25 flex items-center gap-2 hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-50">
+                                        <UserCheck className="w-5 h-5" /> Approve & Generate Rubrics
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* ═══════ GENERATING RUBRICS ═══════ */}
+                {/* ── PHASE: GENERATING RUBRICS ── */}
                 {phase === 'generating-rubrics' && (
-                    <div className="flex items-center justify-center py-16 animate-in fade-in">
-                        <div className="bg-white p-10 rounded-3xl border border-slate-200 shadow-lg text-center max-w-sm">
-                            <div className="w-16 h-16 bg-gradient-to-br from-teal-400 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg shadow-teal-500/20">
-                                <Loader2 className="w-8 h-8 text-white animate-spin" />
-                            </div>
-                            <h3 className="text-lg font-bold text-slate-800 mb-2">Building Answer Rubrics...</h3>
-                            <p className="text-slate-500 text-sm">AI is creating a detailed per-mark rubric for <span className="font-bold text-teal-600">{effectiveSubject}</span> ({marks} marks). You'll be directed to upload answer scripts shortly.</p>
+                    <div className="flex flex-col items-center justify-center py-20 animate-in fade-in">
+                        <div className="w-20 h-20 bg-emerald-100 rounded-3xl flex items-center justify-center mb-6 shadow-inner">
+                            <Loader2 className="w-10 h-10 text-emerald-600 animate-spin" />
                         </div>
+                        <h3 className="text-xl font-bold text-slate-900 mb-2">Generating Answer Rubrics...</h3>
+                        <p className="text-slate-500 text-sm max-w-xs text-center mb-4">AI is analyzing the question and creating detailed evaluation standards.</p>
+                        {statusMessage && (
+                            <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold animate-pulse border border-emerald-100">
+                                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+                                {statusMessage}
+                            </div>
+                        )}
                     </div>
                 )}
 
-                {/* ═══════ READY FOR SCRIPTS / EVALUATING ═══════ */}
+                {/* ── PHASE: READY / EVALUATING ── */}
                 {(phase === 'ready-for-scripts' || phase === 'evaluating') && (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        {/* Rubrics Ready Banner */}
-                        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-3 flex items-center gap-3">
-                            <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-                            <div className="flex-1">
-                                <p className="text-sm font-bold text-emerald-800">Answer Rubrics Ready — Saved Automatically</p>
-                                <p className="text-xs text-emerald-600">{course} • {effectiveSubject} • {marks} Marks • Start uploading answer scripts below</p>
+                    <div className="space-y-6 animate-in fade-in duration-500">
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-3 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <CheckCircle className="w-5 h-5 text-emerald-600" />
+                                <span className="text-sm font-bold text-emerald-800">Rubrics Ready for {subject || course}</span>
                             </div>
-                            <button onClick={handleFullReset} className="text-xs font-bold text-slate-400 hover:text-red-500 flex items-center gap-1 transition-colors">
-                                <RotateCcw className="w-3 h-3" /> New Question
-                            </button>
+                            <div className="flex items-center gap-3">
+                                <button 
+                                    onClick={() => setShowRubricPreview(!showRubricPreview)} 
+                                    className="text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-white px-3 py-1.5 rounded-lg border border-emerald-200 shadow-sm transition-all"
+                                >
+                                    {showRubricPreview ? 'Hide Rubrics' : 'View Rubrics'}
+                                </button>
+                                <button onClick={handleFullReset} className="text-xs font-bold text-slate-400 hover:text-red-500 flex items-center gap-1"><RotateCcw className="w-3 h-3" /> Reset All</button>
+                            </div>
                         </div>
 
-                        {/* Question Reference */}
-                        <div className="bg-teal-50 rounded-2xl border border-teal-100 px-5 py-3">
-                            <p className="text-[10px] font-bold text-teal-500 uppercase tracking-widest mb-1">Question ({marks} Marks)</p>
-                            <p className="text-sm font-medium text-slate-800">{question || '[See uploaded question image]'}</p>
-                        </div>
-
-                        {/* Evaluated Scripts Summary Table */}
-                        {evaluatedScripts.length > 0 && (
-                            <div className="bg-white rounded-3xl border border-slate-200 shadow-lg overflow-hidden">
-                                <div className="bg-gradient-to-r from-slate-50 to-emerald-50 p-5 border-b border-slate-100 flex items-center justify-between">
-                                    <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                                        <ClipboardList className="w-5 h-5 text-emerald-600" /> Evaluated Scripts ({evaluatedScripts.length})
-                                    </h3>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs font-bold text-slate-400 uppercase">Avg:</span>
-                                        <span className="text-sm font-bold text-emerald-600">
-                                            {(evaluatedScripts.reduce((s, e) => s + e.marksObtained, 0) / evaluatedScripts.length).toFixed(1)} / {marks}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="divide-y divide-slate-100">
-                                    {evaluatedScripts.map((script) => (
-                                        <div key={script.id}>
-                                            <div className="flex items-center gap-4 p-4 hover:bg-slate-50 cursor-pointer transition-colors"
-                                                onClick={() => setExpandedScriptId(expandedScriptId === script.id ? null : script.id)}>
-                                                <div className="w-10 h-10 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-center flex-shrink-0">
-                                                    <CheckCircle className="w-5 h-5 text-emerald-500" />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-bold text-slate-900 truncate">{script.studentName}</p>
-                                                    <p className="text-xs text-slate-500 font-medium">Roll No: {script.rollNumber}</p>
-                                                </div>
-                                                <div className="text-right flex-shrink-0">
-                                                    <p className={`text-lg font-bold ${script.percentage >= 80 ? 'text-emerald-600' : script.percentage >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
-                                                        {script.marksObtained} / {script.totalMarks}
-                                                    </p>
-                                                    <p className="text-xs text-slate-400 font-bold">{script.percentage}%</p>
-                                                </div>
-                                                <div className="text-slate-400 flex-shrink-0">
-                                                    {expandedScriptId === script.id ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                                                </div>
-                                            </div>
-                                            {expandedScriptId === script.id && (
-                                                <div className="px-6 pb-5 pt-0 bg-slate-50 border-t border-slate-100">
-                                                    <div className="prose prose-slate max-w-none prose-sm">
-                                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{script.evaluation}</ReactMarkdown>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* ── Show Current Evaluation Result ── */}
-                        {showCurrentResult && (
-                            <div className="bg-white rounded-3xl border border-slate-200 shadow-lg overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                <div className="p-6">
-                                    {/* Score Card */}
-                                    <div className="text-center mb-6">
-                                        <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg ${currentPercentage >= 80 ? 'bg-gradient-to-br from-emerald-400 to-teal-600 shadow-emerald-500/20' : currentPercentage >= 50 ? 'bg-gradient-to-br from-amber-400 to-orange-600 shadow-amber-500/20' : 'bg-gradient-to-br from-red-400 to-rose-600 shadow-rose-500/20'}`}>
-                                            <Award className="w-10 h-10 text-white" />
-                                        </div>
-                                        <h3 className="text-3xl font-bold text-slate-900 mb-0.5">{currentMarksObtained} / {marks}</h3>
-                                        <p className={`text-lg font-bold ${currentPercentage >= 80 ? 'text-emerald-600' : currentPercentage >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>{currentPercentage}%</p>
-                                        <p className="text-sm text-slate-500 mt-1">
-                                            <span className="font-bold text-slate-700">{studentName}</span> • Roll No: <span className="font-bold text-slate-700">{rollNumber}</span>
-                                        </p>
-                                    </div>
-
-                                    {/* Detailed Evaluation */}
-                                    <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 mb-5">
-                                        <div className="prose prose-slate max-w-none prose-sm">
-                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentEvaluation}</ReactMarkdown>
-                                        </div>
-                                    </div>
-
-                                    {/* Approve & Continue */}
-                                    <div className="flex items-center justify-between gap-4">
-                                        <button onClick={() => { setShowCurrentResult(false); }}
-                                            className="text-sm font-bold text-slate-400 hover:text-red-500 flex items-center gap-1.5 transition-colors">
-                                            <X className="w-4 h-4" /> Discard & Re-evaluate
-                                        </button>
-                                        <button onClick={handleApproveEvaluation}
-                                            className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold h-12 px-8 rounded-xl hover:shadow-lg hover:shadow-emerald-500/25 transition-all flex items-center gap-2 hover:scale-[1.01] active:scale-[0.99]">
-                                            <CheckCircle className="w-5 h-5" /> Approve & Save
-                                            <ChevronRight className="w-5 h-5" />
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* ── Upload Script Card (shown when no current result visible) ── */}
-                        {!showCurrentResult && phase !== 'evaluating' && (
-                            <div className="bg-white rounded-3xl border border-slate-200 shadow-lg overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
-                                <div className="bg-gradient-to-r from-teal-50 to-emerald-50 p-5 border-b border-teal-100">
-                                    <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                                        <Camera className="w-5 h-5 text-teal-600" />
-                                        {evaluatedScripts.length > 0 ? 'Upload Next Answer Script' : 'Upload Answer Script'}
-                                    </h3>
-                                    <p className="text-sm text-slate-500 mt-1">Fill in student details and upload their handwritten answer pages.</p>
-                                </div>
-                                <div className="p-6 space-y-5">
-                                    {/* Student Info */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                                                <Hash className="w-3.5 h-3.5" /> Roll Number / Reg No
-                                            </label>
-                                            <input type="text" value={rollNumber} onChange={e => setRollNumber(e.target.value)}
-                                                placeholder="e.g., 2024MBBS001"
-                                                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-300 text-sm font-medium transition-all" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                                                <UserCheck className="w-3.5 h-3.5" /> Student Name
-                                            </label>
-                                            <input type="text" value={studentName} onChange={e => setStudentName(e.target.value)}
-                                                placeholder="e.g., Priya Sharma"
-                                                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-300 text-sm font-medium transition-all" />
-                                        </div>
-                                    </div>
-
-                                    {/* Upload Area */}
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                                            <Upload className="w-3.5 h-3.5" /> Answer Script Images
-                                        </label>
-                                        <div className="border-2 border-dashed border-teal-200 rounded-2xl p-8 flex flex-col items-center justify-center gap-4 bg-slate-50/50">
-                                            <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
-                                                <button className="flex-1 flex items-center justify-center gap-2 bg-teal-600 text-white font-bold py-3 px-4 rounded-xl shadow-md hover:bg-teal-700 transition-all relative overflow-hidden">
-                                                    <Camera className="w-5 h-5" /> Open Camera
-                                                    <input 
-                                                        type="file" 
-                                                        accept="image/*" 
-                                                        capture="environment" 
-                                                        className="absolute inset-0 opacity-0 cursor-pointer" 
-                                                        onChange={handleImageUpload} 
-                                                    />
-                                                </button>
-                                                
-                                                <button className="flex-1 flex items-center justify-center gap-2 bg-white border-2 border-teal-100 text-teal-600 font-bold py-3 px-4 rounded-xl hover:bg-teal-50 transition-all relative overflow-hidden">
-                                                    <Upload className="w-5 h-5" /> Upload Gallery
-                                                    <input 
-                                                        type="file" 
-                                                        multiple 
-                                                        accept="image/*" 
-                                                        className="absolute inset-0 opacity-0 cursor-pointer" 
-                                                        onChange={handleImageUpload} 
-                                                    />
-                                                </button>
-                                            </div>
-                                            <p className="text-xs text-slate-400">Supports JPG, PNG, WEBP • Multiple images allowed • Crop from all sides</p>
-                                        </div>
-                                    </div>
-
-                                    {/* Uploaded Images Grid */}
-                                    {answerImages.length > 0 && (
-                                        <div className="space-y-4">
-                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{answerImages.length} Page{answerImages.length > 1 ? 's' : ''} Uploaded</p>
-                                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                                {answerImages.map((img, idx) => (
-                                                    <div key={idx}
-                                                        className={`relative group rounded-2xl border-2 overflow-hidden cursor-pointer transition-all ${activeImageIdx === idx ? 'border-teal-500 shadow-lg shadow-teal-500/20' : 'border-slate-200 hover:border-teal-300'}`}
-                                                        onClick={() => setActiveImageIdx(activeImageIdx === idx ? null : idx)}>
-                                                        <div className="aspect-[3/4] overflow-hidden bg-slate-100">
-                                                            <img src={img.src} alt={`Page ${idx + 1}`} className="w-full h-full object-cover transition-all"
-                                                                style={{ clipPath: `inset(${img.crop.top}% ${img.crop.right}% ${img.crop.bottom}% ${img.crop.left}%)` }} />
-                                                        </div>
-                                                        <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-lg">
-                                                            Page {idx + 1}
-                                                        </div>
-                                                        <button onClick={(e) => { e.stopPropagation(); handleRemoveImage(idx); }}
-                                                            className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600">
-                                                            <X className="w-3 h-3" />
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                                {/* Add More Button */}
-                                                <div onClick={() => fileInputRef.current?.click()}
-                                                    className="aspect-[3/4] border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-teal-300 hover:bg-teal-50/50 transition-all group">
-                                                    <Plus className="w-8 h-8 text-slate-300 group-hover:text-teal-500 transition-colors" />
-                                                    <p className="text-[10px] font-bold text-slate-400 mt-2">Add More</p>
-                                                </div>
-                                            </div>
-
-                                            {/* Crop Controls */}
-                                            {activeImageIdx !== null && answerImages[activeImageIdx] && (
-                                                <div className="bg-gradient-to-r from-slate-50 to-teal-50 rounded-2xl p-5 border border-slate-200 animate-in fade-in slide-in-from-top-2 duration-200">
-                                                    <div className="flex items-center justify-between mb-4">
-                                                        <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                                                            <Crop className="w-4 h-4 text-teal-600" /> Crop Page {activeImageIdx + 1}
-                                                        </h4>
-                                                        <button onClick={() => handleResetCrop(activeImageIdx)}
-                                                            className="text-xs font-bold text-slate-400 hover:text-teal-600 flex items-center gap-1 transition-colors">
-                                                            <RotateCcw className="w-3 h-3" /> Reset
-                                                        </button>
-                                                    </div>
-                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                        {(['top', 'right', 'bottom', 'left'] as const).map(side => (
-                                                            <div key={side}>
-                                                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 capitalize">{side}</label>
-                                                                <input type="range" min={0} max={40} value={answerImages[activeImageIdx].crop[side]}
-                                                                    onChange={e => handleCropChange(activeImageIdx, side, parseInt(e.target.value))}
-                                                                    className="w-full accent-teal-600" />
-                                                                <span className="text-[10px] text-slate-500 font-bold">{answerImages[activeImageIdx].crop[side]}%</span>
+                        {showRubricPreview && rubrics && (
+                            <div className="bg-white rounded-3xl border border-emerald-100 shadow-sm p-6 animate-in slide-in-from-top-2 duration-300">
+                                <h4 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                    <ClipboardList className="w-4 h-4 text-emerald-600" /> 
+                                    Marking Standards & Criteria
+                                </h4>
+                                <div className="space-y-4">
+                                    {(() => {
+                                        try {
+                                            const r = JSON.parse(rubrics);
+                                            return (
+                                                <>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        {r.criteria?.map((c: any, i: number) => (
+                                                            <div key={i} className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                                                                <div className="flex justify-between items-start mb-2">
+                                                                    <p className="font-bold text-slate-900 text-sm">{c.component}</p>
+                                                                    <span className="text-[10px] font-black bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">{c.maxMarks}M</span>
+                                                                </div>
+                                                                <p className="text-[11px] text-slate-500 leading-relaxed">{c.descriptors?.full || c.description}</p>
+                                                                {c.keywords && (
+                                                                    <div className="mt-2 flex flex-wrap gap-1">
+                                                                        {c.keywords.slice(0, 3).map((k: string, j: number) => (
+                                                                            <span key={j} className="text-[9px] bg-white border border-slate-200 px-1.5 py-0.5 rounded text-slate-400">#{k}</span>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         ))}
                                                     </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    {/* Submit for Evaluation */}
-                                    <div className="flex justify-end pt-4 border-t border-slate-100">
-                                        <button onClick={handleEvaluateScript}
-                                            disabled={!rollNumber.trim() || !studentName.trim() || answerImages.length === 0}
-                                            className="bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold h-12 px-8 rounded-xl hover:shadow-lg hover:shadow-teal-500/25 transition-all disabled:opacity-50 flex items-center gap-2 hover:scale-[1.01] active:scale-[0.99]">
-                                            <Sparkles className="w-5 h-5" /> Evaluate Script
-                                            <ChevronRight className="w-5 h-5" />
-                                        </button>
-                                    </div>
+                                                    {r.mustMentionFacts && (
+                                                        <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-100">
+                                                            <p className="text-[10px] font-bold text-amber-700 uppercase tracking-widest mb-2">Must Mention Facts</p>
+                                                            <ul className="text-xs text-slate-600 list-disc list-inside space-y-1">
+                                                                {r.mustMentionFacts.slice(0, 3).map((f: string, i: number) => <li key={i}>{f}</li>)}
+                                                            </ul>
+                                                        </div>
+                                                    )}
+                                                </>
+                                            );
+                                        } catch {
+                                            return <p className="text-xs text-slate-400">Detailed rubrics are active. Review student scripts below.</p>;
+                                        }
+                                    })()}
                                 </div>
                             </div>
                         )}
 
-                        {/* ═══════ EVALUATING SPINNER ═══════ */}
-                        {phase === 'evaluating' && (
-                            <div className="flex items-center justify-center py-12 animate-in fade-in">
-                                <div className="bg-white p-10 rounded-3xl border border-slate-200 shadow-lg text-center max-w-sm">
-                                    <div className="w-16 h-16 bg-gradient-to-br from-teal-400 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg shadow-teal-500/20">
-                                        <Loader2 className="w-8 h-8 text-white animate-spin" />
+                        {evaluatedScripts.length > 0 && (
+                            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                                <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                                    <h4 className="text-sm font-bold text-slate-700">Evaluation History ({evaluatedScripts.length})</h4>
+                                </div>
+                                <div className="divide-y divide-slate-100 max-h-60 overflow-y-auto">
+                                    {evaluatedScripts.map(s => (
+                                        <div key={s.id} className="p-4 hover:bg-slate-50 cursor-pointer transition-colors" onClick={() => setExpandedScriptId(expandedScriptId === s.id ? null : s.id)}>
+                                            <div className="flex items-center justify-between">
+                                                <div className="font-bold text-slate-900 text-sm">{s.studentName} <span className="text-slate-400 ml-2">({s.rollNumber})</span></div>
+                                                <div className="text-emerald-600 font-bold">{s.marksObtained}/{s.totalMarks}</div>
+                                            </div>
+                                            {expandedScriptId === s.id && (
+                                                <div className="mt-3 p-4 bg-white rounded-xl border border-slate-100 prose prose-sm max-w-none shadow-inner">
+                                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{s.evaluation}</ReactMarkdown>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {showCurrentResult ? (
+                            <div className="bg-white rounded-3xl border-2 border-emerald-500 shadow-xl p-8 animate-in zoom-in-95 duration-300">
+                                <div className="text-center mb-8">
+                                    <div className="inline-flex items-center justify-center w-24 h-24 bg-emerald-50 rounded-full mb-4">
+                                        <div className="text-4xl font-black text-emerald-600">{currentMarksObtained}<span className="text-lg text-emerald-400 ml-1">/{marks}</span></div>
                                     </div>
-                                    <h3 className="text-lg font-bold text-slate-800 mb-2">Evaluating Answer Script...</h3>
-                                    <p className="text-slate-500 text-sm">AI is reading the handwriting and comparing against rubrics.</p>
-                                    <div className="mt-3 text-xs text-teal-600 font-bold flex items-center justify-center gap-1.5">
-                                        <Loader2 className="w-3 h-3 animate-spin" /> Processing {answerImages.length} page{answerImages.length > 1 ? 's' : ''} for {studentName}
+                                    <h3 className="text-2xl font-bold text-slate-900">{studentName}</h3>
+                                    <p className="text-slate-500 font-medium">{rollNumber}</p>
+                                </div>
+                                <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 prose prose-sm max-w-none mb-8 shadow-inner overflow-y-auto max-h-96">
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentEvaluation}</ReactMarkdown>
+                                </div>
+                                <button onClick={handleApproveEvaluation} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-2xl shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition-all">
+                                    <Save className="w-5 h-5" /> Approve & Save to Queue
+                                </button>
+                            </div>
+                        ) : phase === 'evaluating' ? (
+                            <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-slate-200 shadow-lg animate-in fade-in">
+                                <div className="w-20 h-20 bg-teal-100 rounded-3xl flex items-center justify-center mb-6 shadow-inner">
+                                    <Loader2 className="w-10 h-10 text-teal-600 animate-spin" />
+                                </div>
+                                <h3 className="text-xl font-bold text-slate-900 mb-2">Analyzing Answer Script...</h3>
+                                <p className="text-slate-500 text-sm max-w-xs text-center mb-4">AI is reading student response and evaluating marks.</p>
+                                {statusMessage && (
+                                    <div className="flex items-center gap-2 px-4 py-2 bg-teal-50 text-teal-700 rounded-full text-xs font-bold animate-pulse border border-teal-100">
+                                        <div className="w-1.5 h-1.5 bg-teal-500 rounded-full" />
+                                        {statusMessage}
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="bg-white rounded-3xl border border-slate-200 shadow-lg overflow-hidden animate-in slide-in-from-bottom-4">
+                                <div className="bg-gradient-to-r from-slate-50 to-white p-6 border-b border-slate-100">
+                                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><FileText className="w-5 h-5 text-teal-600" /> New Student Evaluation</h3>
+                                </div>
+                                <div className="p-6 space-y-6">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Roll Number</label>
+                                            <input type="text" value={rollNumber} onChange={e => setRollNumber(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-teal-500 text-sm font-bold" placeholder="e.g. 2024-MBBS-001" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Student Name</label>
+                                            <input type="text" value={studentName} onChange={e => setStudentName(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-teal-500 text-sm font-bold" placeholder="Full Name" />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"><ImageIcon className="w-4 h-4" /> Answer Script Images</label>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                                            {answerImages.map((img, idx) => (
+                                                <div key={img.id} className="relative group rounded-2xl border-2 border-slate-100 overflow-hidden bg-slate-50 aspect-[3/4]">
+                                                    <img src={img.preview || img.src} className="w-full h-full object-cover" />
+                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                                        <button onClick={() => openCropModal('answer', idx)} className="p-2 bg-white rounded-lg text-emerald-600 hover:scale-110 transition-transform"><CropIcon className="w-4 h-4" /></button>
+                                                        <button onClick={() => setAnswerImages(prev => prev.filter((_, i) => i !== idx))} className="p-2 bg-white rounded-lg text-red-600 hover:scale-110 transition-transform"><Trash2 className="w-4 h-4" /></button>
+                                                    </div>
+                                                    <div className="absolute top-2 right-2 bg-black/50 text-white text-[10px] font-bold w-6 h-6 rounded-full flex items-center justify-center">{idx + 1}</div>
+                                                    {img.crop && <div className="absolute bottom-2 left-2 bg-emerald-500 text-white text-[10px] px-2 rounded-full font-bold">CROPPED</div>}
+                                                </div>
+                                            ))}
+                                            <button onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-3 bg-slate-50 hover:bg-slate-100 hover:border-teal-300 transition-all aspect-[3/4] group">
+                                                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm text-slate-400 group-hover:text-teal-500 group-hover:scale-110 transition-all"><Upload className="w-6 h-6" /></div>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Upload Script</span>
+                                            </button>
+                                        </div>
+                                        <input type="file" multiple accept="image/*" ref={fileInputRef} className="hidden" onChange={handleAnswerImageUpload} />
+                                    </div>
+
+                                    <div className="pt-4 flex justify-end">
+                                        <button onClick={handleEvaluate} disabled={!rollNumber || !studentName || answerImages.length === 0} className="bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-bold h-14 px-10 rounded-2xl shadow-lg shadow-teal-500/20 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50">
+                                            <Sparkles className="w-5 h-5" /> Start AI Evaluation
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -729,6 +624,59 @@ export default function DigEvalAssistPage() {
                     </div>
                 )}
             </div>
+
+            {/* ── CROP MODAL ── */}
+            {showCropModal && cropTarget && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-10 bg-slate-900/90 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-white w-full max-w-4xl max-h-full rounded-3xl overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95 duration-300">
+                        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2"><CropIcon className="w-5 h-5 text-emerald-600" /> Precise Image Cropper</h3>
+                            <button onClick={() => setShowCropModal(false)} className="p-2 text-slate-400 hover:text-slate-600 transition-colors"><X className="w-6 h-6" /></button>
+                        </div>
+                        <div className="flex-1 overflow-auto bg-slate-200/50 p-4 sm:p-8 flex items-center justify-center min-h-[400px]">
+                            <ReactCrop 
+                                crop={currentCrop} 
+                                onChange={c => setCurrentCrop(c)}
+                                className="max-w-full max-h-full shadow-2xl rounded-lg overflow-hidden border-4 border-white"
+                            >
+                                <img 
+                                    ref={imgRef}
+                                    src={cropTarget.type === 'question' ? questionImages[cropTarget.index].src : answerImages[cropTarget.index].src} 
+                                    className="max-w-full max-h-[60vh] object-contain"
+                                    alt="Crop target"
+                                />
+                            </ReactCrop>
+                        </div>
+                        <div className="p-6 border-t border-slate-100 flex items-center justify-between bg-white flex-wrap gap-4">
+                            <div className="flex items-center gap-4">
+                                <button 
+                                    onClick={() => {
+                                        const nextIdx = cropTarget.index > 0 ? cropTarget.index - 1 : (cropTarget.type === 'question' ? questionImages.length : answerImages.length) - 1;
+                                        openCropModal(cropTarget.type, nextIdx);
+                                    }}
+                                    className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-400"
+                                >
+                                    <ChevronUp className="w-5 h-5 -rotate-90" />
+                                </button>
+                                <span className="text-sm font-bold text-slate-700">Image {cropTarget.index + 1} of {cropTarget.type === 'question' ? questionImages.length : answerImages.length}</span>
+                                <button 
+                                    onClick={() => {
+                                        const nextIdx = (cropTarget.index + 1) % (cropTarget.type === 'question' ? questionImages.length : answerImages.length);
+                                        openCropModal(cropTarget.type, nextIdx);
+                                    }}
+                                    className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-400"
+                                >
+                                    <ChevronDown className="w-5 h-5 -rotate-90" />
+                                </button>
+                            </div>
+                            <div className="flex gap-3">
+                                <button onClick={() => setShowCropModal(false)} className="px-6 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">Cancel</button>
+                                <button onClick={handleCropSave} className="px-8 py-2.5 rounded-xl text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-500 transition-colors shadow-lg shadow-emerald-600/20">Apply & Save Crop</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

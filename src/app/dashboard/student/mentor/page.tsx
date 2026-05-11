@@ -106,7 +106,7 @@ export default function AIMentorPage() {
       const data = await res.json();
       
       if (currentUser) {
-        tokenService.processTransaction(currentUser.id, 'AI Mentor', 'gemini-2.5-flash');
+        tokenService.processTransaction(currentUser.id, 'AI Mentor', 'gemini-2.0-flash');
       }
 
       const aiText = data.response;
