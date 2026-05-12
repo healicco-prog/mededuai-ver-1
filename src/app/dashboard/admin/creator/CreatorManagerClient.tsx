@@ -811,6 +811,11 @@ export default function LMSCreatorAdmin() {
     // When the engine course/subject/section changes, fetch any already-saved
     // notes from the database and hydrate the local coursesList state so that
     // topics with existing content are shown as "Created" (green tick).
+    //
+    // Two scenarios are handled:
+    //  A) Topic exists in local Zustand section → merge generatedNotes by name match
+    //  B) Topic exists only in lms_content (batch-saved) but NOT in local section →
+    //     inject it as a stub Topic so it appears in the "Generated Content & Editor" grid
     const loadExistingNotes = useCallback(async () => {
         if (!engineCourse || !engineSubject || !engineSection) return;
 
@@ -825,7 +830,6 @@ export default function LMSCreatorAdmin() {
 
             if (!data.success || !data.notes || Object.keys(data.notes).length === 0) return;
 
-            // Merge DB notes into coursesList topics by matching topic name
             setCoursesList(prev => prev.map(c => {
                 if (c.id !== engineCourse.id) return c;
                 return {
@@ -834,15 +838,38 @@ export default function LMSCreatorAdmin() {
                         return {
                             ...s, sections: s.sections.map(sec => {
                                 if (sec.id !== engineSection.id) return sec;
+
+                                // Build a set of existing topic names for quick lookup
+                                const existingNames = new Set(sec.topics.map(t => t.name));
+
+                                // A) Hydrate existing topics with notes from DB
+                                const hydratedTopics = sec.topics.map(t => {
+                                    const existingNotes = data.notes[t.name];
+                                    if (existingNotes && (!t.generatedNotes || Object.keys(t.generatedNotes).length === 0)) {
+                                        // Strip the internal __topicId marker before storing
+                                        const { __topicId, ...cleanNotes } = existingNotes as any;
+                                        return { ...t, generatedNotes: cleanNotes };
+                                    }
+                                    return t;
+                                });
+
+                                // B) Inject DB-only topics (found via denormalized columns) as stubs
+                                const stubTopics: any[] = [];
+                                for (const [topicName, notesRaw] of Object.entries(data.notes as Record<string, any>)) {
+                                    if (existingNames.has(topicName)) continue; // already handled above
+                                    const { __topicId, ...cleanNotes } = notesRaw;
+                                    if (Object.keys(cleanNotes).length === 0) continue;
+                                    // Create a minimal Topic stub so the editor can display/edit it
+                                    stubTopics.push({
+                                        id: __topicId || `db-${Date.now()}-${topicName}`,
+                                        name: topicName,
+                                        generatedNotes: cleanNotes,
+                                    });
+                                }
+
                                 return {
-                                    ...sec, topics: sec.topics.map(t => {
-                                        const existingNotes = data.notes[t.name];
-                                        // Only hydrate if topic doesn't already have notes in memory
-                                        if (existingNotes && (!t.generatedNotes || Object.keys(t.generatedNotes).length === 0)) {
-                                            return { ...t, generatedNotes: existingNotes };
-                                        }
-                                        return t;
-                                    })
+                                    ...sec,
+                                    topics: [...hydratedTopics, ...stubTopics],
                                 };
                             })
                         };
@@ -1004,6 +1031,7 @@ export default function LMSCreatorAdmin() {
                     version: engineVersion,
                     course: engineCourse.name,
                     subject: engineSubject.name,
+                    section: engineSection.name,
                     topic: t.name,
                     // ── Content columns ──
                     introduction: notes.l1 || null,
@@ -1791,7 +1819,7 @@ export default function LMSCreatorAdmin() {
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Context: Paper</label>
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Context: Paper / Subject</label>
                                 <select
                                     value={engineSubjectId}
                                     onChange={(e) => {
@@ -1806,25 +1834,10 @@ export default function LMSCreatorAdmin() {
                                     {engineCourse?.subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                 </select>
                             </div>
-                            <div>
-                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Context: Section</label>
-                                <select
-                                    value={engineSectionId}
-                                    onChange={(e) => setEngineSectionId(e.target.value)}
-                                    className="w-full px-3 py-2 text-sm rounded-lg bg-white border border-slate-200 outline-none focus:border-indigo-500 transition-colors"
-                                    disabled={!engineSubject || engineSubject.sections.length === 0}
-                                >
-                                    {!engineSubject?.sections.length && <option>No Sections</option>}
-                                    {engineSubject && engineSubject.sections.length > 0 && (
-                                        <option value="__all__">(All sections)</option>
-                                    )}
-                                    {engineSubject?.sections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                </select>
-                            </div>
 
-                            {/* ── Curriculum Version ── */}
+                            {/* ── Curriculum Version (placed directly below Subject) ── */}
                             <div>
-                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Curriculum Version</label>
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Version</label>
                                 <div className="flex gap-2">
                                     <select
                                         value={engineVersion}
@@ -1845,6 +1858,22 @@ export default function LMSCreatorAdmin() {
                                     />
                                 </div>
                                 <p className="text-[10px] text-slate-400 mt-1">Tags all generated content with this version (e.g. 2025, 2026).</p>
+                            </div>
+
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Context: Section</label>
+                                <select
+                                    value={engineSectionId}
+                                    onChange={(e) => setEngineSectionId(e.target.value)}
+                                    className="w-full px-3 py-2 text-sm rounded-lg bg-white border border-slate-200 outline-none focus:border-indigo-500 transition-colors"
+                                    disabled={!engineSubject || engineSubject.sections.length === 0}
+                                >
+                                    {!engineSubject?.sections.length && <option>No Sections</option>}
+                                    {engineSubject && engineSubject.sections.length > 0 && (
+                                        <option value="__all__">(All sections)</option>
+                                    )}
+                                    {engineSubject?.sections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                </select>
                             </div>
 
                             {/* ── Active LMS Structure Summary ── */}

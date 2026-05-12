@@ -656,7 +656,8 @@ export default function StudentLMSNotes() {
                         storeSubject.sections.push(storeSection);
                     }
 
-                    // Add any DB topics that are missing from the store section
+                    // Add any DB topics that are missing from the store section,
+                    // preserving hasNotes so the sidebar filter can include them.
                     for (const dbTopic of dbSection.topics) {
                         const exists = storeSection.topics.some(t =>
                             t.name.toLowerCase().trim() === dbTopic.name.toLowerCase().trim()
@@ -665,7 +666,8 @@ export default function StudentLMSNotes() {
                             storeSection.topics.push({
                                 id: `db-${dbTopic.id}`,
                                 name: dbTopic.name,
-                            });
+                                hasNotes: dbTopic.hasNotes,
+                            } as any);
                         }
                     }
                 }
@@ -725,9 +727,12 @@ export default function StudentLMSNotes() {
         }
     }, []);
 
-    // Load the DB hierarchy once — builds both dbCourses (for sidebar) and dbTopicMap (for content fetch)
+    // Load the DB hierarchy once — builds both dbCourses (for sidebar) and dbTopicMap (for content fetch).
+    // Uses the public /api/lms/hierarchy endpoint which requires no auth and reads directly
+    // from lms_content (which has public RLS read access). Only topics with actual generated
+    // content appear here.
     useEffect(() => {
-        fetch('/api/creator/hierarchy')
+        fetch('/api/lms/hierarchy')
             .then(r => r.json())
             .then(data => {
                 if (!data.success) return;
@@ -738,25 +743,18 @@ export default function StudentLMSNotes() {
                     const dbSubjects: DbSubject[] = [];
 
                     for (const subject of (course.subjects || [])) {
-                        // Group topics by section name
-                        const sectionMap: Record<string, DbTopic[]> = {};
-                        for (const topic of (subject.topics || [])) {
-                            map[topic.name] = topic.id;
-                            const secName = topic.section || subject.name;
-                            if (!sectionMap[secName]) sectionMap[secName] = [];
-                            sectionMap[secName].push({
-                                id: topic.id,
-                                name: topic.name,
-                                section: secName,
-                                hasNotes: topic.hasNotes || false,
+                        const dbSections: DbSection[] = (subject.sections || []).map((section: any) => {
+                            const topics: DbTopic[] = (section.topics || []).map((topic: any) => {
+                                map[topic.name] = topic.id;
+                                return {
+                                    id: topic.id,
+                                    name: topic.name,
+                                    section: section.name,
+                                    hasNotes: true, // only topics with notes come from this endpoint
+                                };
                             });
-                        }
-
-                        const dbSections: DbSection[] = Object.entries(sectionMap).map(([secName, topics]) => ({
-                            id: `${subject.id}-${secName}`,
-                            name: secName,
-                            topics,
-                        }));
+                            return { id: section.id, name: section.name, topics };
+                        });
 
                         dbSubjects.push({
                             id: subject.id,
@@ -789,7 +787,7 @@ export default function StudentLMSNotes() {
             : dbTopicMap[currentTopic.name];
         if (!dbId) return;
         setLoadingDbNotes(true);
-        fetch(`/api/creator/topic-notes?topicId=${dbId}`)
+        fetch(`/api/lms/notes?topicId=${dbId}`)
             .then(r => r.json())
             .then(data => {
                 if (data.success && data.notes) {
@@ -816,11 +814,11 @@ export default function StudentLMSNotes() {
             .finally(() => setLoadingDbNotes(false));
     }, [currentTopic?.id, dbTopicMap]);
 
-    // Initial topic selection
+    // Initial topic selection — prefer topics with content (from DB or local cache)
     useEffect(() => {
         if (!selectedTopicId && availableSections.length > 0) {
             const firstSec = availableSections[0];
-            const firstTop = firstSec.topics.filter(t => t.generatedNotes)?.[0] || firstSec.topics?.[0];
+            const firstTop = firstSec.topics.find(t => t.generatedNotes || (t as any).hasNotes) || firstSec.topics?.[0];
             if (firstTop) setSelectedTopicId(firstTop.id);
         }
     }, [selectedSubjectId, availableSections, selectedTopicId]);
@@ -931,8 +929,12 @@ export default function StudentLMSNotes() {
                 {/* Topic List - Search filtered or all topics flat */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-1">
                     {(() => {
+                        // Show topics that either have locally-cached notes (generatedNotes)
+                        // or were loaded from the DB and have content (hasNotes flag).
                         const allFlatTopics = availableSections.flatMap(section =>
-                            section.topics.filter(t => t.generatedNotes).map(topic => ({ ...topic, sectionName: section.name }))
+                            section.topics
+                                .filter(t => t.generatedNotes || (t as any).hasNotes)
+                                .map(topic => ({ ...topic, sectionName: section.name }))
                         );
                         const query = topicSearchQuery.trim().toLowerCase();
                         const filteredTopics = query

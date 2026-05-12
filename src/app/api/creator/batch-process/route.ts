@@ -238,6 +238,7 @@ async function saveTopicToDb({
         last_generated_at: new Date().toISOString(),
         course: courseName,
         subject: subjectName,
+        section: sectionName,
         topic: topicName,
         version,
     };

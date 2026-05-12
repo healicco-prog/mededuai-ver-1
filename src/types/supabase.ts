@@ -602,6 +602,7 @@ export type Database = {
           topic_id: string | null
           course: string | null
           subject: string | null
+          section: string | null
           topic: string | null
           version: string | null
           introduction: string | null
@@ -620,6 +621,7 @@ export type Database = {
           topic_id?: string | null
           course?: string | null
           subject?: string | null
+          section?: string | null
           topic?: string | null
           version?: string | null
           introduction?: string | null
@@ -638,6 +640,7 @@ export type Database = {
           topic_id?: string | null
           course?: string | null
           subject?: string | null
+          section?: string | null
           topic?: string | null
           version?: string | null
           introduction?: string | null

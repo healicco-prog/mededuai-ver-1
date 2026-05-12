@@ -318,7 +318,7 @@ export default function EvaluationManagementSystem() {
     };
 
     return (
-        <div className="max-w-6xl mx-auto space-y-8 h-[calc(100vh-8rem)] flex flex-col">
+        <div className="max-w-6xl mx-auto space-y-8 flex flex-col min-h-[calc(100vh-8rem)] pb-12">
             {/* Premium Gradient Header */}
             <div className="relative overflow-hidden rounded-3xl flex-shrink-0">
                 <div className="absolute inset-0 bg-gradient-to-br from-rose-900 via-pink-800 to-fuchsia-900" />
@@ -342,39 +342,40 @@ export default function EvaluationManagementSystem() {
 
             {/* Stepper only shows if we are in an active evaluation (step > 0) */}
             {step > 0 && (
-                <div className="flex items-center justify-center gap-4 mb-4 flex-shrink-0">
+                <div className="flex items-center justify-start md:justify-center gap-2 md:gap-4 mb-4 flex-shrink-0 overflow-x-auto max-w-full px-2 py-1 scrollbar-none">
                     {[
                         { num: 1, title: 'Create Exam' },
                         { num: 2, title: 'Approve Rubric' },
                         { num: 3, title: 'Upload Scripts' },
                         { num: 4, title: 'AI Evaluation' },
+                        { num: 5, title: 'Results' },
                     ].map((s) => (
-                        <div key={s.num} className="flex items-center gap-4">
-                            <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${step === s.num ? 'bg-indigo-600 text-white' :
+                        <div key={s.num} className="flex items-center gap-2 md:gap-4 shrink-0">
+                            <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm shrink-0 ${step === s.num ? 'bg-indigo-600 text-white shadow-sm' :
                                 step > s.num ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-400'
                                 }`}>
-                                {step > s.num ? <CheckCircle2 className="w-5 h-5" /> : s.num}
+                                {step > s.num ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : s.num}
                             </div>
                             <span className={`text-sm font-bold hidden md:block ${step >= s.num ? 'text-slate-800' : 'text-slate-400'}`}>
                                 {s.title}
                             </span>
-                            {s.num < 4 && <div className="w-12 h-0.5 bg-slate-200"></div>}
+                            {s.num < 5 && <div className="w-4 md:w-12 h-0.5 bg-slate-200 shrink-0"></div>}
                         </div>
                     ))}
                 </div>
             )}
 
-            <div className="flex-1 bg-white rounded-3xl border border-slate-200 shadow-sm p-8 flex flex-col overflow-y-auto relative">
+            <div className="flex-1 min-h-0 bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6 md:p-8 flex flex-col relative">
 
                 {/* Step 0: Dashboard / Saved Evaluations */}
                 {step === 0 && (
                     <div className="space-y-8 animate-in fade-in zoom-in duration-300">
-                        <div className="flex justify-between items-center mb-6">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                             <div>
                                 <h3 className="text-2xl font-bold text-slate-900">Evaluation Folders</h3>
                                 <p className="text-slate-500 font-medium mt-1">Access past results or start a new grading session.</p>
                             </div>
-                            <button onClick={() => setStep(1)} className="bg-indigo-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-indigo-700 flex items-center gap-2 shadow-md hover:-translate-y-0.5 transition-transform"><Sparkles className="w-5 h-5" /> New Evaluation Session</button>
+                            <button onClick={() => setStep(1)} className="w-full sm:w-auto justify-center bg-indigo-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-indigo-700 flex items-center gap-2 shadow-md hover:-translate-y-0.5 transition-transform"><Sparkles className="w-5 h-5 shrink-0" /> New Evaluation Session</button>
                         </div>
 
                         {emsStore.evaluations.length === 0 ? (
@@ -408,7 +409,7 @@ export default function EvaluationManagementSystem() {
                                                 setInstituteName(evalu.instituteName);
                                                 setQuestionPaperText(evalu.questions.join('\n\n---\n\n'));
                                                 setEvaluatedStudents(evalu.students);
-                                                setStep(4); // Go straight to results
+                                                setStep(5); // Go straight to results
                                             }} className="bg-white text-indigo-600 font-bold px-6 py-2 rounded-xl shadow-lg border border-indigo-100 scale-95 group-hover:scale-100 transition-all">View Results</button>
                                         </div>
                                     </div>
@@ -423,10 +424,10 @@ export default function EvaluationManagementSystem() {
                     <div className="mx-auto w-full space-y-8 mt-6">
                         {isPaperLocked ? (
                             <div className="space-y-6 animate-in slide-in-from-right duration-300 max-w-4xl mx-auto pb-12">
-                                <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm shrink-0">
-                                    <button onClick={() => setIsPaperLocked(false)} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 font-bold px-4 py-2 hover:bg-slate-50 rounded-lg transition-colors"><ChevronLeft className="w-5 h-5" /> Edit Exam Details</button>
+                                <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm shrink-0 text-center">
+                                    <button onClick={() => setIsPaperLocked(false)} className="flex items-center justify-center gap-2 text-slate-500 hover:text-slate-900 font-bold px-4 py-2 hover:bg-slate-50 rounded-lg transition-colors"><ChevronLeft className="w-5 h-5" /> Edit Exam Details</button>
                                     <h3 className="font-bold text-slate-800">Preview & Confirm Question Paper</h3>
-                                    <button className="opacity-0 cursor-default px-4">Spacer</button>
+                                    <div className="hidden sm:block opacity-0 px-4">Spacer</div>
                                 </div>
                                 
                                 <div className="bg-white p-12 rounded-3xl border border-slate-200 shadow-xl max-w-[21cm] mx-auto relative border-t-8 border-t-slate-800">
@@ -480,10 +481,10 @@ export default function EvaluationManagementSystem() {
                         <div className="border border-slate-200 rounded-2xl p-6 bg-white shadow-sm space-y-6">
                             <div>
                                 <label className="block text-xs font-bold text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2"><HelpCircle className="w-4 h-4 text-indigo-500" /> Add Question Paper</label>
-                                <div className="flex flex-wrap gap-2 mb-4 bg-slate-100 p-1.5 rounded-xl w-max">
-                                    <button onClick={() => setPaperSource('qpaper')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${paperSource === 'qpaper' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-800'}`}>Select from Q-Paper Dev</button>
-                                    <button onClick={() => setPaperSource('generator')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${paperSource === 'generator' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-800'}`}><Sparkles className="inline w-4 h-4 mr-1"/> Blueprint Generator</button>
-                                    <button onClick={() => { setPaperSource('upload'); setUploadedFile(null); setParsedQuestions([]); setParseError(''); }} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1.5 ${paperSource === 'upload' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-500 hover:text-slate-800'}`}><Upload className="w-3.5 h-3.5"/> Upload Question Paper</button>
+                                <div className="flex flex-col sm:flex-row gap-2 mb-4 bg-slate-100 p-1.5 rounded-xl w-full md:w-max">
+                                    <button onClick={() => setPaperSource('qpaper')} className={`flex-1 px-4 py-2 rounded-lg text-sm font-bold transition-all text-center ${paperSource === 'qpaper' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-800'}`}>Select from Q-Paper Dev</button>
+                                    <button onClick={() => setPaperSource('generator')} className={`flex-1 px-4 py-2 rounded-lg text-sm font-bold transition-all text-center justify-center flex items-center gap-1 ${paperSource === 'generator' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-800'}`}><Sparkles className="w-4 h-4 shrink-0"/> Blueprint Generator</button>
+                                    <button onClick={() => { setPaperSource('upload'); setUploadedFile(null); setParsedQuestions([]); setParseError(''); }} className={`flex-1 px-4 py-2 rounded-lg text-sm font-bold transition-all text-center justify-center flex items-center gap-1.5 ${paperSource === 'upload' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-500 hover:text-slate-800'}`}><Upload className="w-3.5 h-3.5 shrink-0"/> Upload Question Paper</button>
                                 </div>
 
                                 {paperSource === 'generator' && (
@@ -615,18 +616,48 @@ export default function EvaluationManagementSystem() {
                                                     </div>
                                                     <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
                                                         {parsedQuestions.map((q, idx) => (
-                                                            <div key={idx} className="flex items-start gap-4 px-5 py-3.5 hover:bg-slate-50 transition-colors">
-                                                                <input 
-                                                                    value={q.qNum || `Q${idx + 1}`} 
-                                                                    onChange={(e) => {
-                                                                        const newQ = [...parsedQuestions];
-                                                                        newQ[idx].qNum = e.target.value;
-                                                                        setParsedQuestions(newQ);
-                                                                        const paperText = newQ.map((qItem) => `**${qItem.qNum || 'Q'}. [${qItem.marks} Marks]**\n\n${qItem.text}`).join('\n\n---\n\n');
-                                                                        setQuestionPaperText(paperText);
-                                                                    }}
-                                                                    className="w-12 h-8 bg-indigo-100 rounded-lg text-center font-bold text-indigo-700 text-xs shrink-0 mt-0.5 outline-none focus:ring-2 focus:ring-indigo-400" 
-                                                                />
+                                                            <div key={idx} className="flex flex-col sm:flex-row items-stretch sm:items-start gap-2 sm:gap-4 px-3 sm:px-5 py-3.5 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-none">
+                                                                <div className="flex items-center justify-between sm:justify-start gap-2">
+                                                                    <input 
+                                                                        value={q.qNum || `Q${idx + 1}`} 
+                                                                        onChange={(e) => {
+                                                                            const newQ = [...parsedQuestions];
+                                                                            newQ[idx].qNum = e.target.value;
+                                                                            setParsedQuestions(newQ);
+                                                                            const paperText = newQ.map((qItem) => `**${qItem.qNum || 'Q'}. [${qItem.marks} Marks]**\n\n${qItem.text}`).join('\n\n---\n\n');
+                                                                            setQuestionPaperText(paperText);
+                                                                        }}
+                                                                        className="w-12 h-8 bg-indigo-100 rounded-lg text-center font-bold text-indigo-700 text-xs shrink-0 outline-none focus:ring-2 focus:ring-indigo-400" 
+                                                                    />
+                                                                    <div className="flex items-center gap-1 shrink-0 bg-indigo-500 rounded-full px-3 py-1 sm:hidden">
+                                                                        <input 
+                                                                            type="text" 
+                                                                            value={q.marks} 
+                                                                            onChange={(e) => {
+                                                                                const newQ = [...parsedQuestions];
+                                                                                newQ[idx].marks = Number(e.target.value.replace(/[^0-9]/g, '')) || 0;
+                                                                                setParsedQuestions(newQ);
+                                                                                setParsedTotalMarks(newQ.reduce((sum, item) => sum + (Number(item.marks) || 0), 0));
+                                                                                const paperText = newQ.map((qItem) => `**${qItem.qNum || 'Q'}. [${qItem.marks} Marks]**\n\n${qItem.text}`).join('\n\n---\n\n');
+                                                                                setQuestionPaperText(paperText);
+                                                                            }}
+                                                                            className="w-8 text-sm font-bold !text-white bg-transparent outline-none text-right placeholder-indigo-200"
+                                                                        />
+                                                                        <span className="text-sm font-bold text-white">M</span>
+                                                                    </div>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const newQ = parsedQuestions.filter((_, i) => i !== idx);
+                                                                            setParsedQuestions(newQ);
+                                                                            setParsedTotalMarks(newQ.reduce((sum, item) => sum + (Number(item.marks) || 0), 0));
+                                                                            const paperText = newQ.map((qItem) => `**${qItem.qNum || 'Q'}. [${qItem.marks} Marks]**\n\n${qItem.text}`).join('\n\n---\n\n');
+                                                                            setQuestionPaperText(paperText);
+                                                                        }}
+                                                                        className="shrink-0 text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors sm:hidden"
+                                                                    >
+                                                                        <Trash2 className="w-4 h-4" />
+                                                                    </button>
+                                                                </div>
                                                                 <textarea 
                                                                     value={q.text} 
                                                                     onChange={(e) => {
@@ -636,9 +667,9 @@ export default function EvaluationManagementSystem() {
                                                                         const paperText = newQ.map((qItem) => `**${qItem.qNum || 'Q'}. [${qItem.marks} Marks]**\n\n${qItem.text}`).join('\n\n---\n\n');
                                                                         setQuestionPaperText(paperText);
                                                                     }}
-                                                                    className="flex-1 text-sm text-slate-700 font-medium bg-transparent outline-none focus:ring-2 focus:ring-indigo-400 rounded p-1 resize-y min-h-[3rem]"
+                                                                    className="flex-1 text-sm text-slate-700 font-medium bg-transparent outline-none focus:ring-2 focus:ring-indigo-400 rounded p-1 resize-y min-h-[3rem] w-full"
                                                                 />
-                                                                <div className="flex items-center gap-1 shrink-0 bg-indigo-500 rounded-full px-3 py-1">
+                                                                <div className="hidden sm:flex items-center gap-1 shrink-0 bg-indigo-500 rounded-full px-3 py-1 mt-0.5">
                                                                     <input 
                                                                         type="text" 
                                                                         value={q.marks} 
@@ -662,7 +693,7 @@ export default function EvaluationManagementSystem() {
                                                                         const paperText = newQ.map((qItem) => `**${qItem.qNum || 'Q'}. [${qItem.marks} Marks]**\n\n${qItem.text}`).join('\n\n---\n\n');
                                                                         setQuestionPaperText(paperText);
                                                                     }}
-                                                                    className="shrink-0 text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors mt-0.5"
+                                                                    className="shrink-0 text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors mt-0.5 hidden sm:block"
                                                                 >
                                                                     <Trash2 className="w-4 h-4" />
                                                                 </button>
@@ -781,10 +812,10 @@ export default function EvaluationManagementSystem() {
                             ))}
                         </div>
 
-                        <div className="mt-auto flex gap-4 pt-4 border-t border-slate-100 flex-shrink-0">
-                            <button className="flex-1 py-4 bg-white border-2 border-slate-200 text-slate-600 font-bold justify-center rounded-xl hover:bg-slate-50 transition-colors shadow-sm">Edit All Rubrics</button>
-                            <button onClick={() => setStep(3)} className="flex-1 py-4 bg-indigo-600 text-white font-bold justify-center rounded-xl hover:bg-indigo-700 flex items-center gap-2 shadow-sm">
-                                <CheckCircle2 className="w-5 h-5" /> Approve & Lock All Rubrics
+                        <div className="mt-auto flex flex-col sm:flex-row gap-3 pt-4 border-t border-slate-100 flex-shrink-0">
+                            <button className="flex-1 py-3 sm:py-4 bg-white border-2 border-slate-200 text-slate-600 font-bold justify-center rounded-xl hover:bg-slate-50 transition-colors shadow-sm w-full">Edit All Rubrics</button>
+                            <button onClick={() => setStep(3)} className="flex-1 py-3 sm:py-4 bg-indigo-600 text-white font-bold justify-center rounded-xl hover:bg-indigo-700 flex items-center gap-2 shadow-sm w-full">
+                                <CheckCircle2 className="w-5 h-5 shrink-0" /> Approve & Lock All Rubrics
                             </button>
                         </div>
                     </div>
@@ -889,21 +920,21 @@ export default function EvaluationManagementSystem() {
                                     </div>
                                 </div>
 
-                                <div className="mt-auto flex gap-4 pt-4 border-t border-slate-100">
+                                <div className="mt-auto flex flex-col sm:flex-row gap-3 pt-4 border-t border-slate-100 items-stretch">
                                     <button
                                         disabled={currentQIndex === 0}
                                         onClick={() => setCurrentQIndex(prev => prev - 1)}
-                                        className="px-4 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 disabled:opacity-50 flex items-center gap-2"
+                                        className="px-4 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 disabled:opacity-50 flex items-center justify-center gap-2 w-full sm:w-auto"
                                     >
-                                        <ChevronLeft className="w-4 h-4" /> Prev Q
+                                        <ChevronLeft className="w-4 h-4 shrink-0" /> Prev Q
                                     </button>
 
                                     {currentQIndex < mockQuestions.length - 1 ? (
                                         <button
                                             onClick={() => setCurrentQIndex(prev => prev + 1)}
-                                            className="flex-1 py-3 bg-indigo-50 text-indigo-700 font-bold justify-center rounded-xl hover:bg-indigo-100 flex items-center gap-2"
+                                            className="flex-1 py-3 bg-indigo-50 text-indigo-700 font-bold justify-center rounded-xl hover:bg-indigo-100 flex items-center gap-2 w-full"
                                         >
-                                            Next Question <ChevronRight className="w-4 h-4" />
+                                            Next Question <ChevronRight className="w-4 h-4 shrink-0" />
                                         </button>
                                     ) : (
                                         <button
@@ -916,9 +947,9 @@ export default function EvaluationManagementSystem() {
                                                     uploads: uploads
                                                 });
                                             }}
-                                            className="flex-1 py-3 bg-indigo-600 text-white font-bold justify-center rounded-xl hover:bg-indigo-700 flex items-center gap-2 shadow-sm"
+                                            className="flex-1 py-3 bg-indigo-600 text-white font-bold justify-center rounded-xl hover:bg-indigo-700 flex items-center gap-2 shadow-sm w-full"
                                         >
-                                            Submit for Background Valuation <CheckCircle2 className="w-4 h-4" />
+                                            Submit for Background Valuation <CheckCircle2 className="w-4 h-4 shrink-0" />
                                         </button>
                                     )}
                                 </div>
@@ -929,22 +960,22 @@ export default function EvaluationManagementSystem() {
 
                 {/* Step 4: Final Dashboard */}
                 {step === 4 && (
-                    <div className="w-full h-full flex flex-col animate-in fade-in duration-500">
+                    <div className="w-full flex flex-col animate-in fade-in duration-500">
                         {reviewingStudentId ? (
-                            <div className="space-y-6 flex flex-col h-full relative">
-                                <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm shrink-0">
-                                    <button onClick={() => setReviewingStudentId(null)} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 font-bold px-4 py-2 hover:bg-slate-50 rounded-lg transition-colors"><ChevronLeft className="w-5 h-5" /> Back to Dashboard</button>
+                            <div className="space-y-6 flex flex-col relative">
+                                <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm shrink-0">
+                                    <button onClick={() => setReviewingStudentId(null)} className="flex items-center justify-center gap-2 text-slate-500 hover:text-slate-900 font-bold px-4 py-2 hover:bg-slate-50 rounded-lg transition-colors"><ChevronLeft className="w-5 h-5 shrink-0" /> Back to Dashboard</button>
                                     <div className="text-center">
-                                        <span className="text-xl font-bold text-slate-900 block">{evaluatedStudents.find(s => s.id === reviewingStudentId)?.name}</span>
+                                        <span className="text-xl font-bold text-slate-900 block truncate max-w-xs mx-auto">{evaluatedStudents.find(s => s.id === reviewingStudentId)?.name}</span>
                                         <span className="text-sm font-medium text-slate-500">{evaluatedStudents.find(s => s.id === reviewingStudentId)?.roll}</span>
                                     </div>
                                     <button onClick={() => {
                                         setEvaluatedStudents(prev => prev.map(s => s.id === reviewingStudentId ? { ...s, breakdown: editingMarks, marks: Object.values(editingMarks).reduce((a, b) => a + b, 0) } : s));
                                         setReviewingStudentId(null);
-                                    }} className="bg-indigo-600 text-white font-bold px-6 py-2.5 rounded-xl flex items-center gap-2 hover:bg-indigo-700 shadow-md transform hover:-translate-y-0.5 transition-all"><CheckCircle2 className="w-5 h-5" /> Save Final Marks</button>
+                                    }} className="bg-indigo-600 text-white font-bold px-6 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-700 shadow-md transform hover:-translate-y-0.5 transition-all w-full sm:w-auto"><CheckCircle2 className="w-5 h-5 shrink-0" /> Save Final Marks</button>
                                 </div>
 
-                                <div className="space-y-8 overflow-y-auto px-2 pb-8">
+                                <div className="space-y-8 px-2 pb-8">
                                     {mockQuestions.map((q, idx) => (
                                         <div key={idx} className="bg-white border text-slate-800 border-slate-200 shadow-md rounded-3xl p-8 flex flex-col md:flex-row gap-8 items-stretch transform transition-all hover:border-indigo-200 relative overflow-hidden">
                                             <div className="md:w-1/2 flex flex-col">
@@ -962,11 +993,15 @@ export default function EvaluationManagementSystem() {
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="md:w-1/2 rounded-2xl border-2 border-slate-200 overflow-hidden bg-slate-100 flex items-center justify-center relative min-h-[300px]">
-                                                {uploads[idx] && uploads[idx].length > 0 ? (
-                                                    <img src={uploads[idx][0]} alt={`Answer script for Q${idx + 1}`} className="w-full h-full object-cover transition-transform hover:scale-105 duration-500" />
+                                            <div className="md:w-1/2 rounded-2xl border-2 border-slate-200 overflow-hidden bg-slate-100 flex flex-col items-center justify-center relative min-h-[300px]">
+                                                {evaluatedStudents.find(s => s.id === reviewingStudentId)?.uploads?.[idx] && evaluatedStudents.find(s => s.id === reviewingStudentId)?.uploads?.[idx].length > 0 ? (
+                                                    <div className="w-full h-full flex flex-col gap-2 p-2 overflow-y-auto max-h-[500px]">
+                                                        {evaluatedStudents.find(s => s.id === reviewingStudentId)?.uploads?.[idx].map((imgUrl: string, imgI: number) => (
+                                                            <img key={imgI} src={imgUrl} alt={`Answer script ${imgI + 1} for Q${idx + 1}`} className="w-full rounded-xl object-contain border border-slate-200 bg-white shadow-sm" />
+                                                        ))}
+                                                    </div>
                                                 ) : (
-                                                    <div className="text-center px-8 space-y-4">
+                                                    <div className="text-center px-8 space-y-4 py-12">
                                                         <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mx-auto">
                                                             <FileSearch className="w-8 h-8 text-slate-300" />
                                                         </div>
@@ -982,7 +1017,7 @@ export default function EvaluationManagementSystem() {
                                 </div>
                             </div>
                         ) : (
-                            <div className="flex-1 flex flex-col h-full space-y-4">
+                            <div className="flex-1 flex flex-col space-y-4">
                                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-3xl border border-slate-200 shadow-sm shrink-0 gap-4">
                                     <div>
                                         <h3 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
@@ -991,43 +1026,21 @@ export default function EvaluationManagementSystem() {
                                         </h3>
                                         <p className="text-slate-500 text-sm">Real-time status of scripts being processed by AI.</p>
                                     </div>
-                                    <div className="flex items-center gap-3 w-full md:w-auto">
-                                        <button onClick={() => setStep(3)} className="flex-1 md:flex-none bg-indigo-600 text-white font-bold px-6 py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-md active:scale-95">
-                                            <Plus className="w-5 h-5" /> Evaluate Next Student
+                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+                                        <button onClick={() => setStep(3)} className="w-full sm:w-auto bg-indigo-600 text-white font-bold px-6 py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-md active:scale-95">
+                                            <Plus className="w-5 h-5 shrink-0" /> Evaluate Next Student
                                         </button>
                                         <button 
-                                            onClick={handleExportResults}
+                                            onClick={() => setStep(5)}
                                             disabled={evaluatedStudents.length === 0}
-                                            className="p-3 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 disabled:opacity-50"
-                                            title="Export Results"
+                                            className="w-full sm:w-auto px-6 py-3 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 disabled:opacity-50 flex items-center justify-center gap-2"
                                         >
-                                            <UploadCloud className="w-5 h-5" />
-                                        </button>
-                                        <button 
-                                            onClick={() => {
-                                                emsStore.saveEvaluation({
-                                                    id: Date.now().toString(),
-                                                    examName,
-                                                    course,
-                                                    department,
-                                                    instituteName,
-                                                    date: Date.now(),
-                                                    questions: mockQuestions,
-                                                    students: evaluatedStudents
-                                                });
-                                                alert("Evaluation results successfully saved to folder!");
-                                                setStep(0);
-                                            }}
-                                            disabled={evaluatedStudents.length === 0}
-                                            className="p-3 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 disabled:opacity-50"
-                                            title="Save to Folder"
-                                        >
-                                            <Save className="w-5 h-5" />
+                                            View Final Results <ChevronRight className="w-5 h-5 shrink-0" />
                                         </button>
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto pb-8">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-8">
                                     {evaluatedStudents.length === 0 ? (
                                         <div className="col-span-full py-20 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
                                             <HelpCircle className="w-16 h-16 text-slate-300 mx-auto mb-4" />
@@ -1087,6 +1100,121 @@ export default function EvaluationManagementSystem() {
                                 </div>
                             </div>
                         )}
+                    </div>
+                )}
+
+                {/* Step 5: Final Results */}
+                {step === 5 && (
+                    <div className="w-full flex flex-col animate-in fade-in duration-500">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-3xl border border-slate-200 shadow-sm shrink-0 gap-4 mb-6">
+                            <div>
+                                <h3 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
+                                    Final Results Summary
+                                </h3>
+                                <p className="text-slate-500 text-sm">Overview of students whose scripts are uploaded, evaluating, or evaluated.</p>
+                            </div>
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+                                <button onClick={() => setStep(4)} className="w-full sm:w-auto bg-white text-slate-700 border border-slate-200 font-bold px-6 py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-50 transition-all shadow-sm">
+                                    <ChevronLeft className="w-5 h-5 shrink-0" /> Back to Dashboard
+                                </button>
+                                <button 
+                                    onClick={handleExportResults}
+                                    disabled={evaluatedStudents.length === 0}
+                                    className="w-full sm:w-auto px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 disabled:opacity-50 font-bold flex items-center justify-center gap-2"
+                                >
+                                    <UploadCloud className="w-5 h-5 shrink-0" /> Export CSV
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        emsStore.saveEvaluation({
+                                            id: Date.now().toString(),
+                                            examName,
+                                            course,
+                                            department,
+                                            instituteName,
+                                            date: Date.now(),
+                                            questions: mockQuestions,
+                                            students: evaluatedStudents
+                                        });
+                                        alert("Evaluation results successfully saved to folder!");
+                                        setStep(0);
+                                    }}
+                                    disabled={evaluatedStudents.length === 0}
+                                    className="w-full sm:w-auto px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    <Save className="w-5 h-5 shrink-0" /> Save Evaluation
+                                </button>
+                            </div>
+                        </div>
+
+                        {evaluatedStudents.some(s => s.status === 'evaluating') && (
+                            <div className="mb-6 p-5 bg-indigo-50 border border-indigo-100 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center gap-4 animate-in fade-in duration-300 shadow-sm">
+                                <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-md">
+                                    <Loader2 className="w-6 h-6 animate-spin" />
+                                </div>
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-base font-bold text-indigo-950">Evaluation Ongoing for Answer Scripts</p>
+                                        <span className="bg-indigo-100 text-indigo-700 font-bold text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider animate-pulse">Live Updates</span>
+                                    </div>
+                                    <p className="text-xs font-medium text-indigo-800/90 mt-1">
+                                        Scripts are fully uploaded and AI grading is in progress. The breakdown will automatically populate below upon completion.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
+                                    <tr>
+                                        <th className="p-4 font-bold text-slate-600 text-sm uppercase tracking-wider">Roll No</th>
+                                        <th className="p-4 font-bold text-slate-600 text-sm uppercase tracking-wider">Name</th>
+                                        <th className="p-4 font-bold text-slate-600 text-sm uppercase tracking-wider text-center">Status</th>
+                                        {mockQuestions.map((_, i) => (
+                                            <th key={i} className="p-4 font-bold text-slate-600 text-sm uppercase tracking-wider text-center whitespace-nowrap">Q{i + 1}</th>
+                                        ))}
+                                        <th className="p-4 font-black text-indigo-700 text-sm uppercase tracking-wider text-right">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {evaluatedStudents.map(student => (
+                                        <tr key={student.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="p-4 text-slate-900 font-medium whitespace-nowrap">{student.roll}</td>
+                                            <td className="p-4 text-slate-900 font-bold min-w-[150px]">{student.name}</td>
+                                            <td className="p-4 text-center whitespace-nowrap">
+                                                {student.status === 'evaluated' ? (
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-green-50 text-green-700 text-xs font-bold border border-green-100">
+                                                        <CheckCircle2 className="w-3.5 h-3.5" /> Evaluated
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold border border-indigo-100 animate-pulse">
+                                                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Ongoing ({student.progress}%)
+                                                    </span>
+                                                )}
+                                            </td>
+                                            {mockQuestions.map((_, i) => (
+                                                <td key={i} className="p-4 text-slate-600 font-medium text-center">
+                                                    {student.status === 'evaluated' ? (student.breakdown && student.breakdown[i] !== undefined ? student.breakdown[i] : '-') : (
+                                                        <span className="text-slate-300 text-xs italic">-</span>
+                                                    )}
+                                                </td>
+                                            ))}
+                                            <td className="p-4 text-indigo-700 font-black text-right text-lg">
+                                                {student.status === 'evaluated' ? (student.marks ?? '-') : (
+                                                    <span className="text-indigo-400 text-xs font-bold italic">Grading...</span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {evaluatedStudents.length === 0 && (
+                                        <tr>
+                                            <td colSpan={mockQuestions.length + 4} className="p-8 text-center text-slate-500 font-medium">No results to display.</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 )}
 
