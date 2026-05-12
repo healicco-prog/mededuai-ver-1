@@ -91,7 +91,9 @@ export default function DigEvalAssistPage() {
     const [error, setError] = useState('');
     const [activeImageIdx, setActiveImageIdx] = useState<number | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const fileCameraRef = useRef<HTMLInputElement>(null);
     const questionFileRef = useRef<HTMLInputElement>(null);
+    const questionCameraRef = useRef<HTMLInputElement>(null);
 
     // Persistence
     useEffect(() => {
@@ -137,6 +139,7 @@ export default function DigEvalAssistPage() {
             reader.readAsDataURL(file);
         });
         if (questionFileRef.current) questionFileRef.current.value = '';
+        if (questionCameraRef.current) questionCameraRef.current.value = '';
     };
 
     const handleAnswerImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -157,6 +160,7 @@ export default function DigEvalAssistPage() {
             reader.readAsDataURL(file);
         });
         if (fileInputRef.current) fileInputRef.current.value = '';
+        if (fileCameraRef.current) fileCameraRef.current.value = '';
     };
 
     const openCropModal = (type: 'question' | 'answer', index: number) => {
@@ -410,8 +414,13 @@ export default function DigEvalAssistPage() {
                                                 <Plus className="w-5 h-5 text-slate-400 group-hover:text-emerald-500 group-hover:scale-110 transition-all" />
                                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Add Image</span>
                                             </button>
+                                            <button onClick={() => questionCameraRef.current?.click()} className="border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center gap-2 bg-slate-50 hover:bg-slate-100 hover:border-emerald-300 transition-all aspect-video group">
+                                                <Camera className="w-5 h-5 text-slate-400 group-hover:text-emerald-500 group-hover:scale-110 transition-all" />
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Take Photo</span>
+                                            </button>
                                         </div>
                                         <input type="file" multiple accept="image/*" ref={questionFileRef} className="hidden" onChange={handleQuestionImageUpload} />
+                                        <input type="file" accept="image/*" capture="environment" ref={questionCameraRef} className="hidden" onChange={handleQuestionImageUpload} />
                                     </div>
                                     <div className="space-y-4">
                                         <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"><FileText className="w-4 h-4" /> Question Text (Optional)</label>
@@ -609,8 +618,13 @@ export default function DigEvalAssistPage() {
                                                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm text-slate-400 group-hover:text-teal-500 group-hover:scale-110 transition-all"><Upload className="w-6 h-6" /></div>
                                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Upload Script</span>
                                             </button>
+                                            <button onClick={() => fileCameraRef.current?.click()} className="border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-3 bg-slate-50 hover:bg-slate-100 hover:border-teal-300 transition-all aspect-[3/4] group">
+                                                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm text-slate-400 group-hover:text-teal-500 group-hover:scale-110 transition-all"><Camera className="w-6 h-6" /></div>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Take Photo</span>
+                                            </button>
                                         </div>
                                         <input type="file" multiple accept="image/*" ref={fileInputRef} className="hidden" onChange={handleAnswerImageUpload} />
+                                        <input type="file" accept="image/*" capture="environment" ref={fileCameraRef} className="hidden" onChange={handleAnswerImageUpload} />
                                     </div>
 
                                     <div className="pt-4 flex justify-end">
