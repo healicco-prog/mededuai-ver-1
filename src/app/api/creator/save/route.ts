@@ -120,6 +120,7 @@ export async function POST(req: Request) {
             // ── Denormalized metadata for easy public querying ──
             course: courseName,
             subject: subjectName,
+            section: sectionName || 'General',   // ← persisted for hierarchy endpoint
             topic: topicName,
         };
 

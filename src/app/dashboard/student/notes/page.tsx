@@ -590,12 +590,13 @@ const MCQViewer = ({ rawText, colorClass = "indigo", marks = 1, currentTopic, cu
 export default function StudentLMSNotes() {
     const { coursesList: storeCoursesList } = useCurriculumStore();
 
-    // ── DB-driven hierarchy (courses → subjects → sections → topics) ──
+    // ── DB-driven hierarchy (courses → subjects → versions → sections → topics) ──
     // This replaces the pure-Zustand approach so that topics created by superadmin
-    // in the Creator and saved to Supabase appear for ALL users.
-    type DbTopic = { id: string; name: string; section: string; hasNotes: boolean };
+    // in the Creator and saved to Supabase appear for ALL users under specific versions.
+    type DbTopic = { id: string; name: string; section: string; version: string; hasNotes: boolean };
     type DbSection = { id: string; name: string; topics: DbTopic[] };
-    type DbSubject = { id: string; name: string; sections: DbSection[] };
+    type DbVersion = { id: string; name: string; sections: DbSection[] };
+    type DbSubject = { id: string; name: string; versions: DbVersion[] };
     type DbCourse = { id: string; name: string; subjects: DbSubject[] };
 
     const [dbCourses, setDbCourses] = useState<DbCourse[]>([]);
@@ -606,68 +607,108 @@ export default function StudentLMSNotes() {
     const [dbNotes, setDbNotes] = useState<Record<string, string>>({});
     const [loadingDbNotes, setLoadingDbNotes] = useState(false);
 
-    // Build a merged course list: use Zustand store as the base structure,
-    // then overlay/merge any topics from the database that have actual content.
+    // Build a merged course list: use Zustand store as the base structure wrapped in a default Version,
+    // then overlay/merge any versions, sections, and topics from the database that have actual content.
     const coursesList = React.useMemo(() => {
-        if (!dbLoaded || dbCourses.length === 0) return storeCoursesList;
-
-        // Start with a deep copy of the store's course list
-        const merged = storeCoursesList.map(course => ({
+        // Start by mapping store courses into the 5-level structure natively
+        const baseMerged = storeCoursesList.map(course => ({
             ...course,
             subjects: course.subjects.map(subj => ({
                 ...subj,
-                sections: subj.sections.map(sec => ({
-                    ...sec,
-                    topics: [...sec.topics],
+                versions: [
+                    {
+                        id: `store-ver-${subj.id}`,
+                        name: 'Standard Curriculum',
+                        sections: subj.sections.map(sec => ({
+                            ...sec,
+                            topics: [...sec.topics],
+                        })),
+                    }
+                ],
+            })),
+        }));
+
+        if (!dbLoaded || dbCourses.length === 0) return baseMerged;
+
+        // Deep copy base structure to avoid mutating memo dependencies
+        const merged = baseMerged.map(course => ({
+            ...course,
+            subjects: course.subjects.map(subj => ({
+                ...subj,
+                versions: subj.versions.map(ver => ({
+                    ...ver,
+                    sections: ver.sections.map(sec => ({
+                        ...sec,
+                        topics: [...sec.topics],
+                    })),
                 })),
             })),
         }));
 
-        // For each DB course, find or create a matching entry and inject DB topics
+        // For each DB course, find or create a matching entry and inject DB topics/versions
         for (const dbCourse of dbCourses) {
-            let storeCourse = merged.find(c =>
+            const foundCourse = merged.find(c =>
                 c.name.toLowerCase().trim() === dbCourse.name.toLowerCase().trim()
             );
-            if (!storeCourse) {
-                storeCourse = {
+            if (!foundCourse) {
+                merged.push({
                     id: `db-${dbCourse.id}`,
                     name: dbCourse.name,
                     subjects: [],
                     lmsNotesStructure: [],
-                };
-                merged.push(storeCourse);
+                } as any);
             }
+            // Re-fetch reference after possible push so TS sees a definite object
+            const storeCourse = merged.find(c =>
+                c.name.toLowerCase().trim() === dbCourse.name.toLowerCase().trim()
+            )!;
 
             for (const dbSubject of dbCourse.subjects) {
-                let storeSubject = storeCourse.subjects.find(s =>
+                const foundSubject = storeCourse.subjects.find(s =>
                     s.name.toLowerCase().trim() === dbSubject.name.toLowerCase().trim()
                 );
-                if (!storeSubject) {
-                    storeSubject = { id: `db-${dbSubject.id}`, name: dbSubject.name, sections: [] };
-                    storeCourse.subjects.push(storeSubject);
+                if (!foundSubject) {
+                    storeCourse.subjects.push({ id: `db-${dbSubject.id}`, name: dbSubject.name, versions: [] } as any);
                 }
+                const storeSubject = storeCourse.subjects.find(s =>
+                    s.name.toLowerCase().trim() === dbSubject.name.toLowerCase().trim()
+                )!;
 
-                for (const dbSection of dbSubject.sections) {
-                    let storeSection = storeSubject.sections.find(sec =>
-                        sec.name.toLowerCase().trim() === dbSection.name.toLowerCase().trim()
+                for (const dbVersion of dbSubject.versions) {
+                    const foundVersion = storeSubject.versions.find(v =>
+                        v.name.toLowerCase().trim() === dbVersion.name.toLowerCase().trim()
                     );
-                    if (!storeSection) {
-                        storeSection = { id: `db-sec-${dbSection.id}`, name: dbSection.name, topics: [] };
-                        storeSubject.sections.push(storeSection);
+                    if (!foundVersion) {
+                        storeSubject.versions.push({ id: `db-ver-${dbVersion.id}`, name: dbVersion.name, sections: [] });
                     }
+                    const storeVersion = storeSubject.versions.find(v =>
+                        v.name.toLowerCase().trim() === dbVersion.name.toLowerCase().trim()
+                    )!;
 
-                    // Add any DB topics that are missing from the store section,
-                    // preserving hasNotes so the sidebar filter can include them.
-                    for (const dbTopic of dbSection.topics) {
-                        const exists = storeSection.topics.some(t =>
-                            t.name.toLowerCase().trim() === dbTopic.name.toLowerCase().trim()
+                    for (const dbSection of dbVersion.sections) {
+                        const foundSection = storeVersion.sections.find(sec =>
+                            sec.name.toLowerCase().trim() === dbSection.name.toLowerCase().trim()
                         );
-                        if (!exists) {
-                            storeSection.topics.push({
-                                id: `db-${dbTopic.id}`,
-                                name: dbTopic.name,
-                                hasNotes: dbTopic.hasNotes,
-                            } as any);
+                        if (!foundSection) {
+                            storeVersion.sections.push({ id: `db-sec-${dbSection.id}`, name: dbSection.name, topics: [] });
+                        }
+                        const storeSection = storeVersion.sections.find(sec =>
+                            sec.name.toLowerCase().trim() === dbSection.name.toLowerCase().trim()
+                        )!;
+
+                        // Add any DB topics that are missing from the current section,
+                        // preserving hasNotes so the sidebar filter can include them.
+                        for (const dbTopic of dbSection.topics) {
+                            const exists = storeSection.topics.some(t =>
+                                t.name.toLowerCase().trim() === dbTopic.name.toLowerCase().trim()
+                            );
+                            if (!exists) {
+                                storeSection.topics.push({
+                                    id: `db-${dbTopic.id}`,
+                                    name: dbTopic.name,
+                                    hasNotes: dbTopic.hasNotes,
+                                } as any);
+                            }
                         }
                     }
                 }
@@ -678,11 +719,16 @@ export default function StudentLMSNotes() {
     }, [storeCoursesList, dbCourses, dbLoaded]);
 
     // Course selection state
-    const [selectedCourseId, setSelectedCourseId] = useState<string>(storeCoursesList[0]?.id || '');
+    const [selectedCourseId, setSelectedCourseId] = useState<string>(coursesList[0]?.id || '');
     const currentCourse = coursesList.find(c => c.id === selectedCourseId) || coursesList[0];
 
     // UI States
     const [selectedSubjectId, setSelectedSubjectId] = useState<string>(currentCourse?.subjects?.[0]?.id || '');
+    const currentSubject = currentCourse?.subjects?.find(s => s.id === selectedSubjectId) || currentCourse?.subjects?.[0];
+
+    const [selectedVersionId, setSelectedVersionId] = useState<string>(currentSubject?.versions?.[0]?.id || '');
+    const currentVersion = currentSubject?.versions?.find(v => v.id === selectedVersionId) || currentSubject?.versions?.[0];
+
     const [selectedSectionId, setSelectedSectionId] = useState<string>('');
     const [selectedTopicId, setSelectedTopicId] = useState<string>('');
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
@@ -743,40 +789,139 @@ export default function StudentLMSNotes() {
                     const dbSubjects: DbSubject[] = [];
 
                     for (const subject of (course.subjects || [])) {
-                        const dbSections: DbSection[] = (subject.sections || []).map((section: any) => {
-                            const topics: DbTopic[] = (section.topics || []).map((topic: any) => {
-                                map[topic.name] = topic.id;
-                                return {
-                                    id: topic.id,
-                                    name: topic.name,
-                                    section: section.name,
-                                    hasNotes: true, // only topics with notes come from this endpoint
-                                };
+                        const dbVersions: DbVersion[] = [];
+
+                        for (const version of (subject.versions || [])) {
+                            const dbSections: DbSection[] = (version.sections || []).map((section: any) => {
+                                const topics: DbTopic[] = (section.topics || []).map((topic: any) => {
+                                    map[topic.name] = topic.id;
+                                    return {
+                                        id: topic.id,
+                                        name: topic.name,
+                                        section: section.name,
+                                        version: version.name,
+                                        hasNotes: true, // only topics with notes come from this endpoint
+                                    };
+                                });
+                                return { id: section.id, name: section.name, topics };
                             });
-                            return { id: section.id, name: section.name, topics };
-                        });
+
+                            dbVersions.push({
+                                id: version.id,
+                                name: version.name,
+                                sections: dbSections,
+                            });
+                        }
 
                         dbSubjects.push({
                             id: subject.id,
                             name: subject.name,
-                            sections: dbSections,
+                            versions: dbVersions,
                         });
                     }
 
                     courses.push({ id: course.id, name: course.name, subjects: dbSubjects });
                 }
 
-                setDbTopicMap(map);
+        setDbTopicMap(map);
                 setDbCourses(courses);
                 setDbLoaded(true);
             })
             .catch(() => setDbLoaded(true));
     }, []);
 
-    const currentSubject = currentCourse?.subjects?.find(s => s.id === selectedSubjectId) || currentCourse?.subjects?.[0];
-    const availableSections = currentSubject?.sections || [];
+    // ── When DB finishes loading, immediately jump to the best version+topic ──
+    // This fires once after the hierarchy fetch completes and coursesList is updated.
+    // Without this, students see an empty "Standard Curriculum" version until they
+    // manually switch — even though 131 DB topics are available.
+    useEffect(() => {
+        if (!dbLoaded || coursesList.length === 0) return;
+
+        const course = coursesList.find(c => c.id === selectedCourseId) || coursesList[0];
+        const subjectList = course?.subjects || [];
+        const subject = subjectList.find(s => s.id === selectedSubjectId) || subjectList[0];
+        const versionList = subject?.versions || [];
+        if (versionList.length === 0) return;
+
+        // Pick the version with the most hasNotes topics
+        const ranked = versionList
+            .map(v => ({
+                v,
+                count: v.sections
+                    ?.flatMap((s: any) => s.topics ?? [])
+                    .filter((t: any) => t.hasNotes)
+                    .length ?? 0,
+            }))
+            .sort((a, b) => b.count - a.count);
+
+        const best = ranked[0];
+        if (!best || best.count === 0) return;
+
+        // Switch version if a better one is available
+        if (best.v.id !== selectedVersionId) {
+            setSelectedVersionId(best.v.id);
+        }
+
+        // Also immediately pick first topic with notes in that version
+        const firstTopicWithNotes = best.v.sections
+            ?.flatMap((s: any) => s.topics ?? [])
+            .find((t: any) => t.hasNotes);
+        if (firstTopicWithNotes) {
+            setSelectedTopicId(`db-${firstTopicWithNotes.id}`);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dbLoaded, coursesList]);
+
+    const availableSections = currentVersion?.sections || [];
     const currentSection = availableSections.find(s => s.id === selectedSectionId) || availableSections[0];
-    const currentTopic = currentSection?.topics.find(t => t.id === selectedTopicId);
+    // Search ALL sections for the selected topic so switching versions doesn't lose context
+    const currentTopic = availableSections.flatMap(s => s.topics).find(t => t.id === selectedTopicId);
+
+    // Synchronize defaults when coursesList changes (after DB load).
+    // KEY BEHAVIOUR: if the currently-selected version has NO topics with real
+    // content (hasNotes/generatedNotes), automatically switch to the first
+    // version that does — so DB-generated topics are immediately visible.
+    useEffect(() => {
+        if (coursesList.length === 0) return;
+
+        // ── Course ──
+        const course = coursesList.find(c => c.id === selectedCourseId) || coursesList[0];
+        if (course.id !== selectedCourseId) setSelectedCourseId(course.id);
+
+        // ── Subject ──
+        const subjectList = course?.subjects || [];
+        if (subjectList.length === 0) return;
+        const subject = subjectList.find(s => s.id === selectedSubjectId) || subjectList[0];
+        if (subject.id !== selectedSubjectId) setSelectedSubjectId(subject.id);
+
+        // ── Version: prefer the one that actually has content ──
+        const versionList = subject?.versions || [];
+        if (versionList.length === 0) return;
+
+        const currentVer = versionList.find(v => v.id === selectedVersionId);
+        const currentHasContent = currentVer?.sections
+            ?.flatMap((s: any) => s.topics ?? [])
+            .some((t: any) => t.hasNotes || (t.generatedNotes && Object.keys(t.generatedNotes).length > 0));
+
+        if (!currentVer || !currentHasContent) {
+            // Find the version with the most topics that have real content
+            const best = versionList
+                .map(v => ({
+                    v,
+                    count: v.sections
+                        ?.flatMap((s: any) => s.topics ?? [])
+                        .filter((t: any) => t.hasNotes || (t.generatedNotes && Object.keys(t.generatedNotes).length > 0))
+                        .length ?? 0,
+                }))
+                .sort((a, b) => b.count - a.count)[0];
+
+            if (best && best.count > 0) {
+                setSelectedVersionId(best.v.id);
+            } else if (!currentVer) {
+                setSelectedVersionId(versionList[0].id);
+            }
+        }
+    }, [coursesList]);
 
     // Fetch FRESH notes from DB whenever the selected topic changes
     useEffect(() => {
@@ -803,8 +948,8 @@ export default function StudentLMSNotes() {
                     if (n.marks_1_mcqs)          mapped['l8'] = n.marks_1_mcqs;
                     if (n.flashcards?.raw)       mapped['l9'] = n.flashcards.raw;
                     else if (typeof n.flashcards === 'string') mapped['l9'] = n.flashcards;
-                    if (n.ppt_content?.raw)      delete n.ppt_content;
-                    else if (typeof n.ppt_content === 'string') delete n.ppt_content;
+                    if (n.ppt_content?.raw)       mapped['l10'] = n.ppt_content.raw;
+                    else if (typeof n.ppt_content === 'string') mapped['l10'] = n.ppt_content;
                     setDbNotes(mapped);
                 } else {
                     setDbNotes({});
@@ -814,14 +959,42 @@ export default function StudentLMSNotes() {
             .finally(() => setLoadingDbNotes(false));
     }, [currentTopic?.id, dbTopicMap]);
 
-    // Initial topic selection — prefer topics with content (from DB or local cache)
+    // Auto-select the first topic with real content whenever version/subject/course changes.
+    // If the current version has NO topics at all, switch to the version that does.
     useEffect(() => {
-        if (!selectedTopicId && availableSections.length > 0) {
-            const firstSec = availableSections[0];
-            const firstTop = firstSec.topics.find(t => t.generatedNotes || (t as any).hasNotes) || firstSec.topics?.[0];
-            if (firstTop) setSelectedTopicId(firstTop.id);
+        const allVersions = currentSubject?.versions || [];
+
+        if (availableSections.length === 0 && allVersions.length > 1) {
+            // Current version is empty — switch to the best alternative
+            const better = allVersions
+                .filter(v => v.id !== selectedVersionId)
+                .map(v => ({
+                    v,
+                    count: v.sections
+                        ?.flatMap((s: any) => s.topics ?? [])
+                        .filter((t: any) => t.hasNotes || (t.generatedNotes && Object.keys(t.generatedNotes).length > 0))
+                        .length ?? 0,
+                }))
+                .sort((a, b) => b.count - a.count)[0];
+
+            if (better && better.count > 0) {
+                setSelectedVersionId(better.v.id);
+            }
+            return;
         }
-    }, [selectedSubjectId, availableSections, selectedTopicId]);
+
+        if (availableSections.length === 0) return;
+
+        const allTopics = availableSections.flatMap(s => s.topics);
+        const topicExistsInVersion = allTopics.some(t => t.id === selectedTopicId);
+        if (!topicExistsInVersion) {
+            // Prefer a topic that has real content
+            const firstTop =
+                allTopics.find(t => (t as any).hasNotes || (t.generatedNotes && Object.keys(t.generatedNotes).length > 0))
+                ?? allTopics[0];
+            setSelectedTopicId(firstTop?.id || '');
+        }
+    }, [selectedVersionId, selectedSubjectId, selectedCourseId]);
 
     const toggleSection = (id: string) => setExpandedSections(p => ({ ...p, [id]: !p[id] }));
 
@@ -875,51 +1048,84 @@ export default function StudentLMSNotes() {
             {/* 1. LEFT SIDEBAR NAVIGATION */}
             <aside className={`fixed inset-y-0 left-0 w-[300px] flex-shrink-0 bg-white border-r border-slate-200 flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-[110] transform transition-transform duration-300 md:relative md:translate-x-0 ${showSidebar ? "translate-x-0" : "-translate-x-full"}`}>
                 {/* Logo Area */}
-                <div className="h-20 flex items-center px-6 border-b border-slate-100">
-                    <div className="flex items-center gap-3 cursor-pointer" onClick={() => window.location.href = '/dashboard/student'}>
-                        <div className="w-10 h-10 bg-gradient-to-br from-[#6C63FF] to-[#8E6CFF] rounded-xl flex items-center justify-center shadow-lg shadow-purple-200">
-                            <BrainCircuit className="text-white w-5 h-5" />
+                <div className="h-16 flex items-center px-5 border-b border-slate-100 shrink-0">
+                    <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => window.location.href = '/dashboard/student'}>
+                        <div className="w-8 h-8 bg-gradient-to-br from-[#6C63FF] to-[#8E6CFF] rounded-lg flex items-center justify-center shadow-md shadow-purple-200">
+                            <BrainCircuit className="text-white w-4 h-4" />
                         </div>
-                        <span className="font-extrabold text-xl text-slate-900 tracking-tight">MedEduAI</span>
+                        <span className="font-extrabold text-lg text-slate-900 tracking-tight">MedEduAI</span>
                     </div>
                 </div>
 
-                {/* Course & Subject Selectors */}
-                <div className="p-6 pb-2 space-y-4">
+                {/* Course, Subject & Version Selectors */}
+                <div className="p-4 pb-1 space-y-2.5 shrink-0">
+                    <div className="grid grid-cols-2 gap-2">
+                        <div>
+                            <p className="text-[9px] font-black uppercase tracking-wider text-slate-400 mb-1">Course</p>
+                            <select
+                                value={selectedCourseId}
+                                onChange={(e) => {
+                                    setSelectedCourseId(e.target.value);
+                                    const newCourse = coursesList.find(c => c.id === e.target.value);
+                                    if (newCourse?.subjects?.[0]) {
+                                        setSelectedSubjectId(newCourse.subjects[0].id);
+                                        if (newCourse.subjects[0].versions?.[0]) {
+                                            setSelectedVersionId(newCourse.subjects[0].versions[0].id);
+                                        }
+                                        setSelectedTopicId('');
+                                    }
+                                }}
+                                className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-lg px-2.5 py-1.5 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all cursor-pointer"
+                            >
+                                {coursesList.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <p className="text-[9px] font-black uppercase tracking-wider text-slate-400 mb-1">Subject</p>
+                            <select
+                                value={selectedSubjectId}
+                                onChange={(e) => {
+                                    setSelectedSubjectId(e.target.value);
+                                    const newSubject = currentCourse?.subjects?.find(s => s.id === e.target.value);
+                                    if (newSubject?.versions?.[0]) {
+                                        setSelectedVersionId(newSubject.versions[0].id);
+                                    }
+                                    setSelectedTopicId('');
+                                }}
+                                className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-lg px-2.5 py-1.5 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all cursor-pointer"
+                            >
+                                {currentCourse?.subjects?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select>
+                        </div>
+                    </div>
+
                     <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Course</p>
+                        <p className="text-[9px] font-black uppercase tracking-wider text-slate-400 mb-1">Curriculum Version</p>
                         <select
-                            value={selectedCourseId}
-                            onChange={(e) => { setSelectedCourseId(e.target.value); const newCourse = coursesList.find(c => c.id === e.target.value); if (newCourse?.subjects?.[0]) { setSelectedSubjectId(newCourse.subjects[0].id); setSelectedTopicId(''); } }}
-                            className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all appearance-none cursor-pointer"
+                            value={selectedVersionId}
+                            onChange={(e) => {
+                                setSelectedVersionId(e.target.value);
+                                setSelectedTopicId('');
+                            }}
+                            className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-lg px-2.5 py-1.5 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all cursor-pointer"
                         >
-                            {coursesList.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            {currentSubject?.versions?.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
                         </select>
                     </div>
+
                     <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Subject</p>
-                        <select
-                            value={selectedSubjectId}
-                            onChange={(e) => { setSelectedSubjectId(e.target.value); setSelectedTopicId(''); }}
-                            className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all appearance-none cursor-pointer"
-                        >
-                            {currentCourse?.subjects?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Search Topic</p>
                         <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                             <input
                                 type="text"
                                 value={topicSearchQuery}
                                 onChange={(e) => setTopicSearchQuery(e.target.value)}
-                                placeholder="Type keywords to filter..."
-                                className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm font-medium rounded-xl pl-9 pr-8 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all"
+                                placeholder="Search topic..."
+                                className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-medium rounded-lg pl-8 pr-7 py-1.5 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all"
                             />
                             {topicSearchQuery && (
-                                <button onClick={() => setTopicSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                                    <X className="w-4 h-4" />
+                                <button onClick={() => setTopicSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                    <X className="w-3.5 h-3.5" />
                                 </button>
                             )}
                         </div>
@@ -927,63 +1133,69 @@ export default function StudentLMSNotes() {
                 </div>
 
                 {/* Topic List - Search filtered or all topics flat */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-1">
+                <div className="flex-1 overflow-y-auto p-3 space-y-1 min-h-[200px] custom-scrollbar border-t border-slate-100 mt-2">
                     {(() => {
-                        // Show topics that either have locally-cached notes (generatedNotes)
-                        // or were loaded from the DB and have content (hasNotes flag).
+                        // Show ALL topics in the curriculum version so students can freely browse and scroll them.
+                        // We visually indicate if a topic has pre-generated/DB notes available.
                         const allFlatTopics = availableSections.flatMap(section =>
-                            section.topics
-                                .filter(t => t.generatedNotes || (t as any).hasNotes)
-                                .map(topic => ({ ...topic, sectionName: section.name }))
+                            (section?.topics || []).map(topic => ({ ...topic, sectionName: section.name }))
                         );
                         const query = topicSearchQuery.trim().toLowerCase();
                         const filteredTopics = query
                             ? allFlatTopics.filter(t => t.name.toLowerCase().includes(query))
                             : allFlatTopics;
 
-                        if (filteredTopics.length === 0) {
-                            return (
-                                <div className="flex flex-col items-center justify-center py-8 text-slate-400">
-                                    <Search className="w-8 h-8 mb-2 opacity-30" />
-                                    <p className="text-xs font-bold">No topics found</p>
+                        return (
+                            <>
+                                <div className="px-2 pt-0.5 pb-1.5 flex items-center justify-between border-b border-slate-50 mb-1.5 sticky top-0 bg-white z-10">
+                                    <span className="text-[9px] font-extrabold uppercase tracking-widest text-slate-400">Topics</span>
+                                    <span className="text-[9px] font-bold px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded-full">{filteredTopics.length}</span>
                                 </div>
-                            );
-                        }
-
-                        return filteredTopics.map((topic, idx) => {
-                            const isActive = selectedTopicId === topic.id;
-                            return (
-                                <button
-                                    key={topic.id}
-                                    onClick={() => { setSelectedTopicId(topic.id); setActiveTab('introduction'); setShowSidebar(false); }}
-                                    className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-3 ${isActive
-                                        ? 'bg-purple-50 text-purple-700 shadow-sm shadow-purple-100/50'
-                                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
-                                        }`}
-                                >
-                                    <span className="w-6 h-6 rounded-lg bg-slate-100 text-slate-400 text-[10px] font-black flex items-center justify-center shrink-0">{idx + 1}</span>
-                                    {isActive ? <CheckCircle2 className="w-4 h-4 text-purple-600 shrink-0" /> : <BookOpen className="w-4 h-4 opacity-40 shrink-0" />}
-                                    <span className="truncate">{topic.name}</span>
-                                </button>
-                            );
-                        });
+                                {filteredTopics.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-6 text-slate-400">
+                                        <Search className="w-6 h-6 mb-1 opacity-30" />
+                                        <p className="text-[11px] font-bold">No topics found</p>
+                                    </div>
+                                ) : (
+                                    filteredTopics.map((topic, idx) => {
+                                        const isActive = selectedTopicId === topic.id;
+                                        const hasContent = topic.generatedNotes || (topic as any).hasNotes;
+                                        return (
+                                            <button
+                                                key={topic.id}
+                                                onClick={() => { setSelectedTopicId(topic.id); setActiveTab('introduction'); setShowSidebar(false); }}
+                                                className={`w-full text-left px-2.5 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2.5 ${isActive
+                                                    ? 'bg-purple-50 text-purple-700 shadow-sm shadow-purple-100/50'
+                                                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                                                    }`}
+                                            >
+                                                <span className="w-5 h-5 rounded-md bg-slate-100 text-slate-400 text-[9px] font-black flex items-center justify-center shrink-0">{idx + 1}</span>
+                                                {hasContent ? (
+                                                    <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-purple-600' : 'text-emerald-500'}`} />
+                                                ) : (
+                                                    <BookOpen className="w-3.5 h-3.5 opacity-40 shrink-0" />
+                                                )}
+                                                <span className="truncate flex-1">{topic.name}</span>
+                                            </button>
+                                        );
+                                    })
+                                )}
+                            </>
+                        );
                     })()}
                 </div>
 
                 {/* Overall Progress Card */}
-                <div className="p-6 border-t border-slate-100 bg-slate-50/50">
-                    <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-                        <div className="flex items-center justify-between mb-3">
-                            <span className="text-xs font-bold text-slate-500 flex items-center gap-2">
-                                <Trophy className="w-4 h-4 text-amber-500" /> Progress
+                <div className="p-3 border-t border-slate-100 bg-slate-50/50 shrink-0">
+                    <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-2xs">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
+                                <Trophy className="w-3.5 h-3.5 text-amber-500" /> Progress
                             </span>
-                            <span className="text-sm font-black text-slate-800">68%</span>
+                            <span className="text-xs font-black text-slate-800">68%</span>
                         </div>
-                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                             <div className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full" style={{ width: '68%' }} />
-                        </div>
-                        <div className="mt-3 text-[10px] uppercase tracking-wider font-bold text-slate-400 text-center">
-                            Anatomy Master Badge Unlocked
                         </div>
                     </div>
                 </div>

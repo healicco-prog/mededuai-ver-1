@@ -16,8 +16,8 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'refresh_token is required' }, { status: 400 });
         }
 
-        const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL  || '';
-        const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+        const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL  || 'https://dummyurl.supabase.co';
+        const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'dummykey';
 
         if (!supabaseUrl || !supabaseAnon) {
             return NextResponse.json({ error: 'Supabase env vars not configured' }, { status: 500 });

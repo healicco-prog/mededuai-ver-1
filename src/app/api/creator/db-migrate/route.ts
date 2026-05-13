@@ -29,6 +29,7 @@ export async function POST(req: Request) {
             'ALTER TABLE public.lms_content ADD COLUMN IF NOT EXISTS version TEXT;',
             'ALTER TABLE public.lms_content ADD COLUMN IF NOT EXISTS course TEXT;',
             'ALTER TABLE public.lms_content ADD COLUMN IF NOT EXISTS subject TEXT;',
+            'ALTER TABLE public.lms_content ADD COLUMN IF NOT EXISTS section TEXT;',
             'ALTER TABLE public.lms_content ADD COLUMN IF NOT EXISTS topic TEXT;',
             '',
             '-- 2. Migrate old column names to new names and drop old columns',
@@ -75,7 +76,7 @@ export async function POST(req: Request) {
         const requiredColumns = [
             'marks_10_questions', 'marks_5_questions',
             'marks_3_reasoning', 'marks_2_case_mcqs', 'marks_1_mcqs',
-            'flashcards', 'version', 'course', 'subject', 'topic',
+            'flashcards', 'version', 'course', 'subject', 'section', 'topic',
         ];
 
         const missingColumns: string[] = [];

@@ -493,14 +493,16 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                     </div>
                     <div className="flex items-center gap-4 border-l border-slate-100 pl-4 sm:border-none sm:pl-0">
                         <div className="text-right hidden sm:flex sm:flex-col sm:justify-center">
-                            <div className="text-sm font-bold text-slate-900 capitalize leading-tight mb-0.5">
-                                {mounted ? (userName || `${roleDisplayLabel} User`) : <div className="h-4 w-24 bg-slate-100 animate-pulse rounded" />}
+                            <div className="text-sm font-bold text-slate-900 leading-tight mb-0.5">
+                                {mounted ? (userName || <span className="text-slate-400 font-normal italic text-xs">Loading...</span>) : <div className="h-4 w-24 bg-slate-100 animate-pulse rounded" />}
                             </div>
-                            <div className="flex items-center gap-1.5 justify-end mb-0.5">
+                            <p className="text-[11px] text-slate-500 font-medium leading-none mb-0.5">
+                                {mounted ? (userEmail || <span className="text-slate-300">—</span>) : <div className="h-3 w-32 bg-slate-100 animate-pulse rounded inline-block" />}
+                            </p>
+                            <div className="flex items-center gap-1.5 justify-end">
                                 <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider leading-none">{roleDisplayLabel}</p>
                                 <span className={`text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md leading-none ${getPlanBadgeColor(planTier)}`}>{planTier}</span>
                             </div>
-                            {mounted && userEmail && <p className="text-[10px] text-slate-400 font-medium leading-none">{userEmail}</p>}
                         </div>
                         <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center border border-slate-200">
                             <Users className="w-5 h-5 text-slate-400" aria-hidden="true" />

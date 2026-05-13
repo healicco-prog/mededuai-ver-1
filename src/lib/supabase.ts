@@ -12,6 +12,9 @@ if (!supabaseAnonKey) {
   console.error('❗️ NEXT_PUBLIC_SUPABASE_ANON_KEY is not set. Supabase client cannot be initialized.');
 }
 
-// If either variable is missing, create a client with empty strings to avoid crashes,
+// If either variable is missing, create a client with dummy URL and key to avoid build crashes,
 // but all requests will fail – the console errors above will guide the developer.
-export const supabase = createClient(supabaseUrl ?? '', supabaseAnonKey ?? '');
+export const supabase = createClient(
+  supabaseUrl || 'https://dummyurl.supabase.co',
+  supabaseAnonKey || 'dummykey'
+);

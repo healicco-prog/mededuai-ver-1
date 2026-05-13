@@ -587,12 +587,12 @@ const MCQViewer = ({ rawText, colorClass = "indigo", marks = 1, currentTopic, cu
 export default function TeacherLMSNotes() {
     const { coursesList: storeCoursesList } = useCurriculumStore();
 
-    // ── DB-driven hierarchy (courses → subjects → sections → topics) ──
-    // This replaces the pure-Zustand approach so that topics created by superadmin
-    // in the Creator and saved to Supabase appear for ALL users.
-    type DbTopic = { id: string; name: string; section: string; hasNotes: boolean };
+    // ── DB-driven hierarchy — reads lms_content directly (public RLS) ──
+    // /api/lms/hierarchy returns: courses → subjects → versions → sections → topics
+    type DbTopic = { id: string; name: string; section: string; version: string };
     type DbSection = { id: string; name: string; topics: DbTopic[] };
-    type DbSubject = { id: string; name: string; sections: DbSection[] };
+    type DbVersion = { id: string; name: string; sections: DbSection[] };
+    type DbSubject = { id: string; name: string; versions: DbVersion[] };
     type DbCourse = { id: string; name: string; subjects: DbSubject[] };
 
     const [dbCourses, setDbCourses] = useState<DbCourse[]>([]);
@@ -603,73 +603,33 @@ export default function TeacherLMSNotes() {
     const [dbNotes, setDbNotes] = useState<Record<string, string>>({});
     const [loadingDbNotes, setLoadingDbNotes] = useState(false);
 
-    // Build a merged course list: use Zustand store as the base structure,
-    // then overlay/merge any topics from the database that have actual content.
+    // Build course list directly from lms_content DB data.
+    // Flatten versions into sections so the rest of the UI is unchanged.
     const coursesList = React.useMemo(() => {
         if (!dbLoaded || dbCourses.length === 0) return storeCoursesList;
 
-        // Start with a deep copy of the store's course list
-        const merged = storeCoursesList.map(course => ({
-            ...course,
-            subjects: course.subjects.map(subj => ({
-                ...subj,
-                sections: subj.sections.map(sec => ({
-                    ...sec,
-                    topics: [...sec.topics],
-                })),
+        return dbCourses.map(dbCourse => ({
+            id: dbCourse.id,
+            name: dbCourse.name,
+            lmsNotesStructure: [],
+            subjects: dbCourse.subjects.map(dbSubj => ({
+                id: dbSubj.id,
+                name: dbSubj.name,
+                // Flatten all versions → sections; prefix section id with version to avoid collisions
+                sections: dbSubj.versions.flatMap(ver =>
+                    ver.sections.map(sec => ({
+                        id: `${ver.id}__${sec.id}`,
+                        name: sec.name,
+                        topics: sec.topics.map(t => ({
+                            id: `db-${t.id}`,
+                            name: t.name,
+                            hasNotes: true,
+                            version: ver.name,
+                        })),
+                    }))
+                ),
             })),
         }));
-
-        // For each DB course, find or create a matching entry and inject DB topics
-        for (const dbCourse of dbCourses) {
-            let storeCourse = merged.find(c =>
-                c.name.toLowerCase().trim() === dbCourse.name.toLowerCase().trim()
-            );
-            if (!storeCourse) {
-                storeCourse = {
-                    id: `db-${dbCourse.id}`,
-                    name: dbCourse.name,
-                    subjects: [],
-                    lmsNotesStructure: [],
-                };
-                merged.push(storeCourse);
-            }
-
-            for (const dbSubject of dbCourse.subjects) {
-                let storeSubject = storeCourse.subjects.find(s =>
-                    s.name.toLowerCase().trim() === dbSubject.name.toLowerCase().trim()
-                );
-                if (!storeSubject) {
-                    storeSubject = { id: `db-${dbSubject.id}`, name: dbSubject.name, sections: [] };
-                    storeCourse.subjects.push(storeSubject);
-                }
-
-                for (const dbSection of dbSubject.sections) {
-                    let storeSection = storeSubject.sections.find(sec =>
-                        sec.name.toLowerCase().trim() === dbSection.name.toLowerCase().trim()
-                    );
-                    if (!storeSection) {
-                        storeSection = { id: `db-sec-${dbSection.id}`, name: dbSection.name, topics: [] };
-                        storeSubject.sections.push(storeSection);
-                    }
-
-                    // Add any DB topics that are missing from the store section
-                    for (const dbTopic of dbSection.topics) {
-                        const exists = storeSection.topics.some(t =>
-                            t.name.toLowerCase().trim() === dbTopic.name.toLowerCase().trim()
-                        );
-                        if (!exists) {
-                            storeSection.topics.push({
-                                id: `db-${dbTopic.id}`,
-                                name: dbTopic.name,
-                            });
-                        }
-                    }
-                }
-            }
-        }
-
-        return merged;
     }, [storeCoursesList, dbCourses, dbLoaded]);
 
     // Course selection state
@@ -722,51 +682,28 @@ export default function TeacherLMSNotes() {
         }
     }, []);
 
-    // Load the DB hierarchy once — builds both dbCourses (for sidebar) and dbTopicMap (for content fetch)
+    // Load hierarchy from lms_content (public endpoint — no auth needed)
     useEffect(() => {
-        fetch('/api/creator/hierarchy')
+        fetch('/api/lms/hierarchy')
             .then(r => r.json())
             .then(data => {
                 if (!data.success) return;
                 const map: Record<string, string> = {};
-                const courses: DbCourse[] = [];
 
                 for (const course of (data.courses || [])) {
-                    const dbSubjects: DbSubject[] = [];
-
                     for (const subject of (course.subjects || [])) {
-                        // Group topics by section name
-                        const sectionMap: Record<string, DbTopic[]> = {};
-                        for (const topic of (subject.topics || [])) {
-                            map[topic.name] = topic.id;
-                            const secName = topic.section || subject.name;
-                            if (!sectionMap[secName]) sectionMap[secName] = [];
-                            sectionMap[secName].push({
-                                id: topic.id,
-                                name: topic.name,
-                                section: secName,
-                                hasNotes: topic.hasNotes || false,
-                            });
+                        for (const version of (subject.versions || [])) {
+                            for (const section of (version.sections || [])) {
+                                for (const topic of (section.topics || [])) {
+                                    map[topic.name] = topic.id;
+                                }
+                            }
                         }
-
-                        const dbSections: DbSection[] = Object.entries(sectionMap).map(([secName, topics]) => ({
-                            id: `${subject.id}-${secName}`,
-                            name: secName,
-                            topics,
-                        }));
-
-                        dbSubjects.push({
-                            id: subject.id,
-                            name: subject.name,
-                            sections: dbSections,
-                        });
                     }
-
-                    courses.push({ id: course.id, name: course.name, subjects: dbSubjects });
                 }
 
                 setDbTopicMap(map);
-                setDbCourses(courses);
+                setDbCourses(data.courses || []);
                 setDbLoaded(true);
             })
             .catch(() => setDbLoaded(true));
@@ -786,7 +723,7 @@ export default function TeacherLMSNotes() {
             : dbTopicMap[currentTopic.name];
         if (!dbId) return;
         setLoadingDbNotes(true);
-        fetch(`/api/creator/topic-notes?topicId=${dbId}`)
+        fetch(`/api/lms/notes?topicId=${dbId}`)
             .then(r => r.json())
             .then(data => {
                 if (data.success && data.notes) {
@@ -817,7 +754,7 @@ export default function TeacherLMSNotes() {
     useEffect(() => {
         if (!selectedTopicId && availableSections.length > 0) {
             const firstSec = availableSections[0];
-            const firstTop = firstSec.topics.filter(t => t.generatedNotes)?.[0] || firstSec.topics?.[0];
+            const firstTop = firstSec.topics.filter(t => (t as any).generatedNotes || (t as any).hasNotes)?.[0] || firstSec.topics?.[0];
             if (firstTop) setSelectedTopicId(firstTop.id);
         }
     }, [selectedSubjectId, availableSections, selectedTopicId]);
@@ -825,7 +762,7 @@ export default function TeacherLMSNotes() {
     const toggleSection = (id: string) => setExpandedSections(p => ({ ...p, [id]: !p[id] }));
 
     // Prefer freshly-fetched DB notes over stale Zustand/localStorage cache
-    const storeNotes = currentTopic?.generatedNotes || {};
+    const storeNotes = (currentTopic as any)?.generatedNotes || {};
     const notes = Object.keys(dbNotes).length > 0 ? dbNotes : storeNotes;
 
     const contentMap = {
@@ -928,7 +865,7 @@ export default function TeacherLMSNotes() {
                 <div className="flex-1 overflow-y-auto p-4 space-y-1">
                     {(() => {
                         const allFlatTopics = availableSections.flatMap(section =>
-                            section.topics.filter(t => t.generatedNotes).map(topic => ({ ...topic, sectionName: section.name }))
+                            section.topics.filter(t => (t as any).generatedNotes || (t as any).hasNotes).map(topic => ({ ...topic, sectionName: section.name }))
                         );
                         const query = topicSearchQuery.trim().toLowerCase();
                         const filteredTopics = query

@@ -7,7 +7,7 @@ export default function FetchInterceptor() {
   useEffect(() => {
     const originalFetch = window.fetch;
     // Use env var for Cloud Run URL to avoid hardcoding
-    const CLOUD_RUN_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://mededuai-backend-945029424967.us-central1.run.app';
+    const CLOUD_RUN_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://mededuai-backend-3js7mh5u5a-uc.a.run.app';
 
     // ── Production Console Silencer ──
     // Prevents leaking debug info, object dumps, or sensitive internal state to browser logs.

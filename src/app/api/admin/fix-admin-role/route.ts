@@ -13,8 +13,8 @@ export async function POST(req: Request) {
     if (!sec.authorized) return sec.response;
 
     try {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummyurl.supabase.co';
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'dummykey';
 
         if (!supabaseUrl || !serviceRoleKey) {
             return NextResponse.json({ error: 'Missing environment variables' }, { status: 500 });

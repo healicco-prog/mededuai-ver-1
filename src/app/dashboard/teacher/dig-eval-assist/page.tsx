@@ -25,7 +25,7 @@ const COURSES = [
     { id: 'MS', name: 'MS', subjects: ['General Surgery', 'Orthopedics', 'Ophthalmology', 'ENT', 'Obstetrics & Gynecology', 'Anesthesiology'] },
 ];
 
-type Phase = 'setup' | 'generating-rubrics' | 'ready-for-scripts' | 'evaluating';
+type Phase = 'setup' | 'generating-rubrics' | 'ready-for-scripts' | 'evaluating' | 'results';
 
 interface ImageWithCrop {
     src: string;
@@ -45,6 +45,7 @@ interface EvaluatedScript {
     evaluation: string;
     approved: boolean;
     evaluationId: string | null;
+    status: 'evaluating' | 'completed' | 'failed';
 }
 
 export default function DigEvalAssistPage() {
@@ -263,71 +264,126 @@ export default function DigEvalAssistPage() {
         }
     };
 
-    const handleEvaluate = async () => {
+    const handleEvaluate = () => {
         if (!rollNumber.trim() || !studentName.trim() || answerImages.length === 0) {
             setError('Please enter Roll Number, Name, and at least one image.');
             return;
         }
         setError('');
-        setPhase('evaluating');
-        setStatusMessage('Processing answer script images...');
-        setShowCurrentResult(false);
-        try {
-            const processedImages = await Promise.all(
-                answerImages.map(img => img.preview || applyCropToImage(img.src, img.crop))
-            );
-            
-            setStatusMessage('AI reading handwriting and evaluating against rubric...');
-            const res = await fetch('/api/dig-eval-assist/evaluate-script', {
-                method: 'POST',
-                headers: await getAuthHeaders(),
-                body: JSON.stringify({
-                    rubricId, rubrics, question: question || '[See uploaded question images]',
-                    marksAllotted: marks, course, subject: subject === 'Other' ? customSubject : subject,
-                    answerImages: processedImages, rollNumber, studentName, userId,
-                }),
-            });
-            const data = await res.json();
-            if (data.success) {
-                setCurrentEvaluation(data.evaluation);
-                setCurrentMarksObtained(data.marksObtained || 0);
-                setCurrentPercentage(data.percentage || 0);
-                setCurrentEvalId(data.evaluationId || null);
-                setShowCurrentResult(true);
-                setPhase('ready-for-scripts');
-            } else {
-                setError(data.error || 'Evaluation failed');
-                setPhase('ready-for-scripts');
+        
+        const scriptId = `${Date.now()}-${rollNumber}`;
+        const newScript: EvaluatedScript = {
+            id: scriptId,
+            rollNumber,
+            studentName,
+            marksObtained: 0,
+            totalMarks: marks,
+            percentage: 0,
+            evaluation: 'Under AI Evaluation',
+            approved: true,
+            evaluationId: null,
+            status: 'evaluating'
+        };
+
+        // Save immediately to the results queue
+        setEvaluatedScripts(prev => [newScript, ...prev]);
+
+        // Capture current variables for background fetch closure
+        const capturedImages = [...answerImages];
+        const capturedRoll = rollNumber;
+        const capturedName = studentName;
+        const capturedQuestion = question;
+        const capturedMarks = marks;
+        const capturedCourse = course;
+        const capturedSubject = subject === 'Other' ? customSubject : subject;
+        const capturedRubricId = rubricId;
+        const capturedRubrics = rubrics;
+        const capturedUserId = userId;
+
+        // Immediately reset form so user can enter the next student script
+        setRollNumber('');
+        setStudentName('');
+        setAnswerImages([]);
+
+        // Perform evaluation in background asynchronously
+        (async () => {
+            try {
+                const processedImages = await Promise.all(
+                    capturedImages.map(img => img.preview || applyCropToImage(img.src, img.crop))
+                );
+                
+                const res = await fetch('/api/dig-eval-assist/evaluate-script', {
+                    method: 'POST',
+                    headers: await getAuthHeaders(),
+                    body: JSON.stringify({
+                        rubricId: capturedRubricId, 
+                        rubrics: capturedRubrics, 
+                        question: capturedQuestion || '[See uploaded question images]',
+                        marksAllotted: capturedMarks, 
+                        course: capturedCourse, 
+                        subject: capturedSubject,
+                        answerImages: processedImages, 
+                        rollNumber: capturedRoll, 
+                        studentName: capturedName, 
+                        userId: capturedUserId,
+                    }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    setEvaluatedScripts(prev => prev.map(item => item.id === scriptId ? {
+                        ...item,
+                        status: 'completed',
+                        evaluation: data.evaluation,
+                        marksObtained: data.marksObtained || 0,
+                        percentage: data.percentage || 0,
+                        evaluationId: data.evaluationId || null
+                    } : item));
+                } else {
+                    setEvaluatedScripts(prev => prev.map(item => item.id === scriptId ? {
+                        ...item,
+                        status: 'failed',
+                        evaluation: data.error || 'Evaluation failed'
+                    } : item));
+                }
+            } catch (err) {
+                setEvaluatedScripts(prev => prev.map(item => item.id === scriptId ? {
+                    ...item,
+                    status: 'failed',
+                    evaluation: 'Network error during evaluation.'
+                } : item));
             }
-        } catch {
-            setError('Network error during evaluation. Please try again.');
-            setPhase('ready-for-scripts');
-        }
+        })();
     };
 
     const handleApproveEvaluation = () => {
-        const newScript: EvaluatedScript = {
-            id: `${Date.now()}-${rollNumber}`,
-            rollNumber, studentName,
-            marksObtained: currentMarksObtained, totalMarks: marks,
-            percentage: currentPercentage, evaluation: currentEvaluation,
-            approved: true, evaluationId: currentEvalId,
-        };
-        setEvaluatedScripts(prev => [newScript, ...prev]);
-        setRollNumber(''); setStudentName(''); setAnswerImages([]); setShowCurrentResult(false);
+        // Unused in background workflow but kept for component backward compatibility
+        setShowCurrentResult(false);
     };
 
     const handleFullReset = () => {
+        if (phase !== 'setup' || evaluatedScripts.length > 0) {
+            if (!window.confirm('Are you sure you want to create a new exam? Current evaluation session data will be cleared.')) {
+                return;
+            }
+        }
         setPhase('setup'); setCourse(''); setSubject(''); setCustomSubject('');
         setQuestion(''); setQuestionImages([]); setMarks(10);
         setRubrics(''); setRubricId(null); setRollNumber(''); setStudentName('');
         setAnswerImages([]); setEvaluatedScripts([]); setError('');
+        try {
+            localStorage.removeItem('dig_eval_phase');
+            localStorage.removeItem('dig_eval_course');
+            localStorage.removeItem('dig_eval_subject');
+            localStorage.removeItem('dig_eval_question');
+            localStorage.removeItem('dig_eval_marks');
+        } catch (_) {}
     };
 
     const steps = [
-        { label: 'Configure', active: phase === 'setup', done: phase !== 'setup' },
-        { label: 'Preparing Rubrics', active: phase === 'generating-rubrics', done: ['ready-for-scripts', 'evaluating'].includes(phase) },
-        { label: 'Evaluate Scripts', active: phase === 'ready-for-scripts' || phase === 'evaluating', done: false },
+        { label: 'Configure', active: phase === 'setup', done: phase !== 'setup', onClick: () => { if (phase !== 'setup') setPhase('setup'); } },
+        { label: 'Preparing Rubrics', active: phase === 'generating-rubrics', done: ['ready-for-scripts', 'evaluating', 'results'].includes(phase) },
+        { label: 'Upload Scripts', active: phase === 'ready-for-scripts' || phase === 'evaluating', done: false, onClick: () => { if (['ready-for-scripts', 'results'].includes(phase)) setPhase('ready-for-scripts'); } },
+        { label: 'Results', active: phase === 'results', done: false, onClick: () => { if (['ready-for-scripts', 'results'].includes(phase)) setPhase('results'); } },
     ];
 
     return (
@@ -336,19 +392,29 @@ export default function DigEvalAssistPage() {
             <div className="relative mb-6 flex-shrink-0">
                 <div className="bg-gradient-to-r from-teal-950 via-emerald-900 to-cyan-900 rounded-3xl p-6 shadow-xl overflow-hidden relative">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-                    <div className="relative flex items-center gap-4">
-                        <div className="w-14 h-14 bg-gradient-to-br from-teal-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-teal-500/25">
-                            <ScanLine className="w-7 h-7 text-white" />
+                    <div className="relative flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                            <div className="w-14 h-14 bg-gradient-to-br from-teal-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-teal-500/25">
+                                <ScanLine className="w-7 h-7 text-white" />
+                            </div>
+                            <div>
+                                <h2 className="text-2xl font-bold text-white tracking-tight">Dig Evaluation Assist</h2>
+                                <p className="text-teal-300/80 text-sm font-medium">AI-powered answer script evaluation system</p>
+                            </div>
                         </div>
-                        <div>
-                            <h2 className="text-2xl font-bold text-white tracking-tight">Dig Evaluation Assist</h2>
-                            <p className="text-teal-300/80 text-sm font-medium">AI-powered answer script evaluation system</p>
-                        </div>
+                        {mounted && phase !== 'setup' && (
+                            <button
+                                onClick={handleFullReset}
+                                className="bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold text-sm px-4 py-2.5 rounded-xl shadow-lg backdrop-blur-sm flex items-center gap-2 transition-all hover:scale-105 shrink-0"
+                            >
+                                <Plus className="w-4 h-4 shrink-0" /> Create New Exam
+                            </button>
+                        )}
                     </div>
                     <div className="relative mt-5 flex items-center gap-2">
                         {mounted && steps.map((step, i) => (
                             <div key={i} className="flex items-center gap-2 flex-1">
-                                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${step.done ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : step.active ? 'bg-teal-500/30 text-teal-200 border border-teal-400/40 animate-pulse' : 'bg-white/5 text-white/40 border border-white/10'}`}>
+                                <div onClick={step.onClick} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${step.onClick ? 'cursor-pointer hover:scale-105' : ''} ${step.done ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : step.active ? 'bg-teal-500/30 text-teal-200 border border-teal-400/40 animate-pulse' : 'bg-white/5 text-white/40 border border-white/10'}`}>
                                     {step.done ? <CheckCircle className="w-3.5 h-3.5" /> : step.active ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <span className="w-3.5 h-3.5 rounded-full border-2 border-current inline-block" />}
                                     {step.label}
                                 </div>
@@ -531,25 +597,13 @@ export default function DigEvalAssistPage() {
                         )}
 
                         {evaluatedScripts.length > 0 && (
-                            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                                <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                                    <h4 className="text-sm font-bold text-slate-700">Evaluation History ({evaluatedScripts.length})</h4>
-                                </div>
-                                <div className="divide-y divide-slate-100 max-h-60 overflow-y-auto">
-                                    {evaluatedScripts.map(s => (
-                                        <div key={s.id} className="p-4 hover:bg-slate-50 cursor-pointer transition-colors" onClick={() => setExpandedScriptId(expandedScriptId === s.id ? null : s.id)}>
-                                            <div className="flex items-center justify-between">
-                                                <div className="font-bold text-slate-900 text-sm">{s.studentName} <span className="text-slate-400 ml-2">({s.rollNumber})</span></div>
-                                                <div className="text-emerald-600 font-bold">{s.marksObtained}/{s.totalMarks}</div>
-                                            </div>
-                                            {expandedScriptId === s.id && (
-                                                <div className="mt-3 p-4 bg-white rounded-xl border border-slate-100 prose prose-sm max-w-none shadow-inner">
-                                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{s.evaluation}</ReactMarkdown>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
+                            <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl px-5 py-3 flex items-center justify-between">
+                                <span className="text-xs text-emerald-800 font-medium">
+                                    Uploaded scripts are processing in the background.
+                                </span>
+                                <button onClick={() => setPhase('results')} className="text-xs font-bold text-teal-600 hover:text-teal-700 underline">
+                                    View Results Tab &rarr;
+                                </button>
                             </div>
                         )}
 
@@ -629,8 +683,119 @@ export default function DigEvalAssistPage() {
 
                                     <div className="pt-4 flex justify-end">
                                         <button onClick={handleEvaluate} disabled={!rollNumber || !studentName || answerImages.length === 0} className="bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-bold h-14 px-10 rounded-2xl shadow-lg shadow-teal-500/20 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50">
-                                            <Sparkles className="w-5 h-5" /> Start AI Evaluation
+                                            <Upload className="w-5 h-5" /> Upload Script for Evaluation
                                         </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* ── PHASE: RESULTS ── */}
+                {phase === 'results' && (
+                    <div className="space-y-6 animate-in fade-in duration-500">
+                        <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-3xl p-6 text-white shadow-xl flex items-center justify-between flex-wrap gap-4">
+                            <div>
+                                <h3 className="text-xl font-bold tracking-tight flex items-center gap-2">
+                                    <ClipboardList className="w-6 h-6 text-teal-400" /> Session Evaluation Results Overview
+                                </h3>
+                                <p className="text-slate-400 text-xs mt-1">Background batch tracking for uploaded student answer scripts</p>
+                            </div>
+                            <button onClick={() => setPhase('ready-for-scripts')} className="bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-md">
+                                &larr; Upload Next Script
+                            </button>
+                        </div>
+
+                        {evaluatedScripts.length === 0 ? (
+                            <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center shadow-sm">
+                                <div className="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <FileText className="w-8 h-8" />
+                                </div>
+                                <h4 className="text-base font-bold text-slate-800">No Student Scripts Uploaded Yet</h4>
+                                <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                                    Submit student answer scripts under the &ldquo;Upload Scripts&rdquo; tab. They will appear here instantly with live tracking.
+                                </p>
+                                <button onClick={() => setPhase('ready-for-scripts')} className="mt-5 inline-flex items-center gap-2 text-xs font-bold text-teal-600 bg-teal-50 px-4 py-2 rounded-xl hover:bg-teal-100 transition-colors">
+                                    Upload First Answer Script
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                                        <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">Total Uploaded</div>
+                                        <div className="text-2xl font-black text-slate-800 mt-1">{evaluatedScripts.length}</div>
+                                    </div>
+                                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                                        <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">Evaluations Completed</div>
+                                        <div className="text-2xl font-black text-emerald-600 mt-1">
+                                            {evaluatedScripts.filter(s => s.status === 'completed').length}
+                                        </div>
+                                    </div>
+                                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                                        <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">In Progress Queue</div>
+                                        <div className="text-2xl font-black text-amber-600 mt-1">
+                                            {evaluatedScripts.filter(s => s.status === 'evaluating').length}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                                    <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                                        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Student Roster & Scores</span>
+                                        <span className="text-xs text-slate-400">Click a student to view granular rubrics breakdown</span>
+                                    </div>
+                                    <div className="divide-y divide-slate-100">
+                                        {evaluatedScripts.map(s => (
+                                            <div key={s.id} className="p-5 hover:bg-slate-50/80 transition-colors">
+                                                <div className="flex items-center justify-between flex-wrap gap-4 cursor-pointer" onClick={() => setExpandedScriptId(expandedScriptId === s.id ? null : s.id)}>
+                                                    <div>
+                                                        <div className="font-bold text-slate-900 text-base">{s.studentName}</div>
+                                                        <div className="text-xs text-slate-400 font-medium">{s.rollNumber}</div>
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        {s.status === 'evaluating' ? (
+                                                            <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 animate-pulse shadow-sm">
+                                                                <Loader2 className="w-4 h-4 animate-spin text-amber-600" /> Under AI Evaluation
+                                                            </span>
+                                                        ) : s.status === 'failed' ? (
+                                                            <div className="flex items-center gap-3">
+                                                                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200 shadow-sm">
+                                                                    <AlertCircle className="w-4 h-4 text-red-600" /> Evaluation Failed
+                                                                </span>
+                                                                <span className="text-xs text-red-500 font-bold underline">
+                                                                    {expandedScriptId === s.id ? 'Hide Error' : 'View Error'}
+                                                                </span>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex items-center gap-3">
+                                                                <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm">
+                                                                    <CheckCircle className="w-4 h-4 text-emerald-600" /> Marks: <span className="text-emerald-600 font-black text-sm">{s.marksObtained}/{s.totalMarks}</span>
+                                                                </span>
+                                                                <span className="text-xs text-slate-400 font-bold underline">
+                                                                    {expandedScriptId === s.id ? 'Hide Details' : 'View Breakdown'}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {expandedScriptId === s.id && s.status !== 'evaluating' && (
+                                                    <div className="mt-4 pt-4 border-t border-slate-100">
+                                                        {s.status === 'failed' ? (
+                                                            <div className="bg-red-50/80 rounded-2xl p-4 border border-red-100 text-xs text-red-700 font-medium">
+                                                                {s.evaluation}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="bg-slate-50/80 rounded-2xl p-6 border border-slate-200/60 prose prose-sm max-w-none shadow-inner">
+                                                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{s.evaluation}</ReactMarkdown>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                             </div>

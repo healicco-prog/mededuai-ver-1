@@ -107,6 +107,43 @@ export default function EvaluationManagementSystem() {
         }
     }, [evaluatedStudents, backgroundQueue, step]);
 
+    const handleCreateNewExam = () => {
+        if (evaluatedStudents.length > 0 || backgroundQueue.length > 0 || step > 1) {
+            if (!window.confirm('Are you sure you want to create a new exam? Ongoing evaluations and unsaved session data will be cleared.')) {
+                return;
+            }
+        }
+        // Clear form state
+        setInstituteName('');
+        setLogoUrl('');
+        setCourse('');
+        setDepartment('');
+        setExamName('');
+        setSelectedPaperId('');
+        setQuestionPaperText('');
+        setIsPaperLocked(false);
+        setUploadedFile(null);
+        setParsedQuestions([]);
+        setParsedTotalMarks(0);
+        setStudentRoll('');
+        setStudentReg('');
+        setStudentName('');
+        setUploads({});
+        setCurrentQIndex(0);
+        setEvaluatedStudents([]);
+        setBackgroundQueue([]);
+        setReviewingStudentId(null);
+        setEditingMarks({});
+        
+        // Clear localStorage keys
+        localStorage.removeItem('ems_evaluated_students');
+        localStorage.removeItem('ems_background_queue');
+        localStorage.removeItem('ems_current_step');
+        
+        // Return to Step 1 (Create Exam form) as requested by the Create New Exam flow
+        setStep(1);
+    };
+
     const handleWordUpload = async (file: File) => {
         setUploadedFile(file);
         setIsParsingWord(true);
@@ -337,6 +374,14 @@ export default function EvaluationManagementSystem() {
                         <h2 className="text-3xl font-extrabold text-white tracking-tight">EMS — Essay Evaluation</h2>
                         <p className="text-rose-200/80 mt-1.5 font-medium">Gemini-Powered automatic exam grading based on approved rubrics.</p>
                     </div>
+                    {step > 1 && (
+                        <button
+                            onClick={handleCreateNewExam}
+                            className="bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold text-sm px-5 py-3 rounded-xl shadow-lg backdrop-blur-sm flex items-center gap-2 transition-all hover:scale-105 shrink-0"
+                        >
+                            <Plus className="w-4 h-4 shrink-0" /> Create New Exam
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -351,14 +396,24 @@ export default function EvaluationManagementSystem() {
                         { num: 5, title: 'Results' },
                     ].map((s) => (
                         <div key={s.num} className="flex items-center gap-2 md:gap-4 shrink-0">
-                            <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm shrink-0 ${step === s.num ? 'bg-indigo-600 text-white shadow-sm' :
-                                step > s.num ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-400'
+                            <button 
+                                onClick={() => { if (step > 1 && s.num <= step) setStep(s.num); }}
+                                disabled={step <= 1 || s.num > step}
+                                className="flex items-center gap-2 md:gap-4 text-left group focus:outline-none disabled:cursor-default"
+                            >
+                                <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm shrink-0 transition-transform ${
+                                    step === s.num ? 'bg-indigo-600 text-white shadow-sm ring-4 ring-indigo-100' :
+                                    step > s.num ? 'bg-indigo-100 text-indigo-600 group-hover:bg-indigo-200 group-hover:scale-105' : 'bg-slate-100 text-slate-400'
                                 }`}>
-                                {step > s.num ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : s.num}
-                            </div>
-                            <span className={`text-sm font-bold hidden md:block ${step >= s.num ? 'text-slate-800' : 'text-slate-400'}`}>
-                                {s.title}
-                            </span>
+                                    {step > s.num ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : s.num}
+                                </div>
+                                <span className={`text-sm font-bold hidden md:block transition-colors ${
+                                    step === s.num ? 'text-indigo-600' :
+                                    step > s.num ? 'text-slate-800 group-hover:text-indigo-600' : 'text-slate-400'
+                                }`}>
+                                    {s.title}
+                                </span>
+                            </button>
                             {s.num < 5 && <div className="w-4 md:w-12 h-0.5 bg-slate-200 shrink-0"></div>}
                         </div>
                     ))}
@@ -780,9 +835,12 @@ export default function EvaluationManagementSystem() {
                 {/* Step 2: Approve Rubric */}
                 {step === 2 && (
                     <div className="w-full space-y-6 animate-in slide-in-from-right duration-300 max-w-5xl mx-auto flex flex-col h-full">
-                        <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                            <h3 className="text-xl font-bold text-slate-800">Generated AI Rubrics</h3>
-                            <span className="bg-indigo-50 text-indigo-700 text-sm font-bold px-3 py-1 rounded-lg">Pending Approval</span>
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm shrink-0 mb-4">
+                            <button onClick={() => setStep(1)} className="flex items-center justify-center gap-2 text-slate-500 hover:text-slate-900 font-bold px-4 py-2 hover:bg-slate-50 rounded-lg transition-colors">
+                                <ChevronLeft className="w-5 h-5 shrink-0" /> Back to Create Exam
+                            </button>
+                            <h3 className="text-xl font-bold text-slate-800 text-center sm:text-left">Generated AI Rubrics</h3>
+                            <span className="bg-indigo-50 text-indigo-700 text-sm font-bold px-3 py-1 rounded-lg text-center">Pending Approval</span>
                         </div>
 
                         <div className="space-y-6 overflow-y-auto px-1 pb-4 flex-1">
@@ -824,11 +882,15 @@ export default function EvaluationManagementSystem() {
                 {/* Step 3: Upload Scripts */}
                 {step === 3 && (
                     <div className="w-full max-w-4xl mx-auto space-y-6 mt-6 animate-in slide-in-from-bottom duration-300">
-                        <div className="flex items-center justify-between mb-2">
-                            <div>
+                        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm shrink-0 mb-2">
+                            <button onClick={() => setStep(1)} className="flex items-center justify-center gap-2 text-slate-500 hover:text-slate-900 font-bold px-4 py-2 hover:bg-slate-50 rounded-lg transition-colors">
+                                <ChevronLeft className="w-5 h-5 shrink-0" /> Back to Create Exam
+                            </button>
+                            <div className="text-center sm:text-left">
                                 <h3 className="text-xl font-bold text-slate-800">Upload Student Answer Scripts</h3>
-                                <p className="text-slate-500 text-sm mt-1">Provide student details and upload answer sheets question by question.</p>
+                                <p className="text-slate-500 text-sm mt-0.5">Provide student details and upload answer sheets question by question.</p>
                             </div>
+                            <div className="hidden sm:block opacity-0 px-4">Spacer</div>
                         </div>
 
                         {/* Student Details */}
@@ -1027,6 +1089,9 @@ export default function EvaluationManagementSystem() {
                                         <p className="text-slate-500 text-sm">Real-time status of scripts being processed by AI.</p>
                                     </div>
                                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+                                        <button onClick={() => setStep(1)} className="w-full sm:w-auto bg-slate-100 text-slate-700 font-bold px-5 py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200 transition-all border border-slate-200/60">
+                                            <ChevronLeft className="w-5 h-5 shrink-0" /> Back to Create Exam
+                                        </button>
                                         <button onClick={() => setStep(3)} className="w-full sm:w-auto bg-indigo-600 text-white font-bold px-6 py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-md active:scale-95">
                                             <Plus className="w-5 h-5 shrink-0" /> Evaluate Next Student
                                         </button>
