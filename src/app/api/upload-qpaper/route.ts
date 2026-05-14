@@ -10,40 +10,56 @@ export async function POST(req: NextRequest) {
     if (!sec.authorized) return sec.response;
 
     try {
-        const formData = await req.formData();
-        const file = formData.get('file') as File | null;
+        const contentType = req.headers.get('content-type') || '';
+        let buffer: Buffer;
+        let fileName = 'document.pdf';
+        let mimeType = 'application/pdf';
 
-        if (!file) {
-            return NextResponse.json({ error: 'No file uploaded.' }, { status: 400 });
+        if (contentType.includes('application/json')) {
+            const body = await req.json();
+            if (!body.base64) {
+                return NextResponse.json({ error: 'No document payload provided.' }, { status: 400 });
+            }
+            fileName = body.fileName || 'document.pdf';
+            mimeType = body.mimeType || 'application/pdf';
+            const base64Data = body.base64.includes(',') ? body.base64.split(',')[1] : body.base64;
+            buffer = Buffer.from(base64Data, 'base64');
+        } else {
+            const formData = await req.formData();
+            const file = formData.get('file') as File | null;
+
+            if (!file) {
+                return NextResponse.json({ error: 'No file uploaded.' }, { status: 400 });
+            }
+            fileName = file.name || 'document.pdf';
+            mimeType = file.type || 'application/pdf';
+            const arrayBuffer = await file.arrayBuffer();
+            buffer = Buffer.from(arrayBuffer);
         }
 
-        const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-        const isWord = file.type.includes('word') || file.name.toLowerCase().endsWith('.docx') || file.name.toLowerCase().endsWith('.doc');
+        const isPdf = mimeType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf');
+        const isWord = mimeType.includes('word') || fileName.toLowerCase().endsWith('.docx') || fileName.toLowerCase().endsWith('.doc');
+        const isImage = mimeType.startsWith('image/') || fileName.toLowerCase().match(/\.(jpg|jpeg|png|heic|webp)$/);
 
-        // Allow PDF, Word, or Generic Application/Octet-Stream types from Android/Google Drive pickers
-        if (!isPdf && !isWord && !file.type.includes('application/')) {
-            return NextResponse.json({ error: 'Only PDF and Word (.docx / .doc) files are supported.' }, { status: 400 });
+        // Allow PDF, Word, Image (Camera capture), or Generic Application types from Android/Google Drive pickers
+        if (!isPdf && !isWord && !isImage && !mimeType.includes('application/')) {
+            return NextResponse.json({ error: 'Only PDF, Word, or Image files are supported.' }, { status: 400 });
         }
 
-        // Convert file to buffer
-        const arrayBuffer = await file.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-
-        // Attempt raw text extraction using mammoth if not explicitly a PDF
+        // Attempt raw text extraction using mammoth if explicitly Word document
         let rawText = '';
-        if (!isPdf) {
+        if (isWord) {
             try {
                 const result = await mammoth.extractRawText({ buffer });
                 rawText = result.value?.trim() || '';
             } catch (_) {
-                // Mammoth parsing fails on PDFs, .doc, or Google Drive wrappers.
-                // We gracefully fall back to native Gemini multimodal document ingestion.
+                // Fall back gracefully to multimodal understanding
             }
         }
 
         // Use Gemini to intelligently parse questions + marks
         const basePrompt = `You are an expert medical exam paper parser.
-Below is a university question paper provided either as extracted raw text or as an attached multimodal document.
+Below is a university question paper provided either as extracted raw text or as an attached multimodal document/image.
 Parse it accurately and extract ALL questions with their allocated marks.
 
 Rules:
@@ -69,9 +85,11 @@ Return this exact structure:
 
         const prompt = rawText 
             ? `${basePrompt}\n\nRaw question paper text:\n"""\n${rawText.substring(0, 8000)}\n"""`
-            : `${basePrompt}\n\nPlease analyze the attached document directly to extract all questions and allocated marks accurately.`;
+            : `${basePrompt}\n\nPlease analyze the attached document/image directly to extract all questions and allocated marks accurately.`;
 
-        const imagesOpt = rawText ? undefined : [`data:application/pdf;base64,${buffer.toString('base64')}`];
+        const mimePrefix = isImage ? mimeType : (isPdf ? 'application/pdf' : 'application/pdf');
+        const imagesOpt = rawText ? undefined : [`data:${mimePrefix};base64,${buffer.toString('base64')}`];
+
 
         const parsed = await generateJSON<{
             questions: { text: string; marks: number }[];

@@ -8,7 +8,6 @@ import ReactCrop, { type Crop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { GenerateView } from '../q-paper/GenerateView';
 
 export default function EvaluationManagementSystem() {
     const store = useQPaperStore();
@@ -22,7 +21,7 @@ export default function EvaluationManagementSystem() {
     const [course, setCourse] = useState('');
     const [department, setDepartment] = useState('');
     const [examName, setExamName] = useState('');
-    const [paperSource, setPaperSource] = useState<'qpaper' | 'generator' | 'upload'>('qpaper');
+    const [paperSource, setPaperSource] = useState<'qpaper' | 'upload'>('qpaper');
     const [selectedPaperId, setSelectedPaperId] = useState('');
     const [questionPaperText, setQuestionPaperText] = useState('');
     const [isPaperLocked, setIsPaperLocked] = useState(false);
@@ -151,9 +150,23 @@ export default function EvaluationManagementSystem() {
         setParsedQuestions([]);
 
         try {
-            const formData = new FormData();
-            formData.append('file', file);
-            const res = await fetch('/api/upload-qpaper', { method: 'POST', body: formData });
+            // Read file to Base64 first to guarantee mobile devices fully download virtual Google Drive files into memory
+            const base64String = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = () => reject(new Error("Failed to read file from storage"));
+                reader.readAsDataURL(file);
+            });
+
+            const res = await fetch('/api/upload-qpaper', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    base64: base64String,
+                    fileName: file.name || 'document.pdf',
+                    mimeType: file.type || 'application/pdf'
+                })
+            });
             const data = await res.json();
 
             if (!res.ok || !data.success) {
@@ -538,82 +551,54 @@ export default function EvaluationManagementSystem() {
                                 <label className="block text-xs font-bold text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2"><HelpCircle className="w-4 h-4 text-indigo-500" /> Add Question Paper</label>
                                 <div className="flex flex-col sm:flex-row gap-2 mb-4 bg-slate-100 p-1.5 rounded-xl w-full md:w-max">
                                     <button onClick={() => setPaperSource('qpaper')} className={`flex-1 px-4 py-2 rounded-lg text-sm font-bold transition-all text-center ${paperSource === 'qpaper' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-800'}`}>Select from Q-Paper Dev</button>
-                                    <button onClick={() => setPaperSource('generator')} className={`flex-1 px-4 py-2 rounded-lg text-sm font-bold transition-all text-center justify-center flex items-center gap-1 ${paperSource === 'generator' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-800'}`}><Sparkles className="w-4 h-4 shrink-0"/> Blueprint Generator</button>
                                     <button onClick={() => { setPaperSource('upload'); setUploadedFile(null); setParsedQuestions([]); setParseError(''); }} className={`flex-1 px-4 py-2 rounded-lg text-sm font-bold transition-all text-center justify-center flex items-center gap-1.5 ${paperSource === 'upload' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-500 hover:text-slate-800'}`}><Upload className="w-3.5 h-3.5 shrink-0"/> Upload Question Paper</button>
                                 </div>
-
-                                {paperSource === 'generator' && (
-                                    <div className="animate-in fade-in duration-300">
-                                        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 relative overflow-hidden">
-                                            <div className="absolute right-0 top-0 opacity-10 pt-4 pr-4">
-                                                <Sparkles className="w-24 h-24" />
-                                            </div>
-                                            <h3 className="text-xl font-bold text-indigo-900 mb-2">Create New Question Paper</h3>
-                                            <p className="text-indigo-700 font-medium mb-6 max-w-2xl text-sm">Design structured question papers with AI, mapping directly to your institution's formats. Once saved, they will automatically appear in your Q-Paper selector.</p>
-                                            
-                                            <div className="bg-white rounded-3xl p-4 shadow-sm border border-indigo-100/50">
-                                                <GenerateView 
-                                                    formats={store.formats} 
-                                                    onBack={() => setPaperSource('qpaper')} 
-                                                    onSaveComplete={(id) => {
-                                                        const paper = store.papers.find(p => p.id === id);
-                                                        if (paper) {
-                                                            setInstituteName(paper.instituteName);
-                                                            setLogoUrl(paper.logoUrl);
-                                                            setCourse(paper.course);
-                                                            setDepartment(paper.department);
-                                                            setExamName(paper.examName);
-                                                            const text = paper.questions.map(q => `${q.generatedContent}`).join('\n\n---\n\n');
-                                                            setQuestionPaperText(text);
-                                                            setSelectedPaperId(id);
-                                                            setPaperSource('qpaper');
-                                                        }
-                                                    }} 
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
 
                                 {/* ── Upload Word Paper Panel ── */}
                                 {paperSource === 'upload' && (
                                     <div className="animate-in fade-in duration-300 space-y-5">
                                         {/* Drop Zone */}
                                         {!uploadedFile && (
-                                            <div
-                                                onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
-                                                onDragLeave={() => setIsDragOver(false)}
-                                                onDrop={e => {
-                                                    e.preventDefault();
-                                                    setIsDragOver(false);
-                                                    const f = e.dataTransfer.files[0];
-                                                    if (f) handleWordUpload(f);
-                                                }}
-                                                onClick={() => wordFileRef.current?.click()}
-                                                className={`relative border-2 border-dashed rounded-3xl p-12 flex flex-col items-center justify-center gap-4 cursor-pointer transition-all select-none ${
-                                                    isDragOver
-                                                        ? 'border-emerald-500 bg-emerald-50 scale-[1.01]'
-                                                        : 'border-slate-300 bg-slate-50 hover:border-emerald-400 hover:bg-emerald-50/40'
-                                                }`}
-                                            >
-                                                <input
-                                                    ref={wordFileRef}
-                                                    type="file"
-                                                    accept=".pdf,application/pdf,.docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,application/*"
-                                                    className="hidden"
-                                                    onChange={e => { const f = e.target.files?.[0]; if (f) handleWordUpload(f); }}
-                                                />
-                                                <div className={`w-20 h-20 rounded-2xl flex items-center justify-center transition-colors ${
-                                                    isDragOver ? 'bg-emerald-100' : 'bg-slate-100'
-                                                }`}>
-                                                    <FileText className={`w-10 h-10 transition-colors ${
-                                                        isDragOver ? 'text-emerald-600' : 'text-slate-400'
-                                                    }`} />
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                {/* File / Drive Upload Option */}
+                                                <div
+                                                    onClick={() => wordFileRef.current?.click()}
+                                                    className="relative border-2 border-dashed border-slate-300 rounded-3xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-emerald-500 hover:bg-emerald-50/20 transition-all text-center group bg-white shadow-sm"
+                                                >
+                                                    <input
+                                                        ref={wordFileRef}
+                                                        type="file"
+                                                        accept=".pdf,application/pdf,.docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,application/*"
+                                                        className="hidden"
+                                                        onChange={e => { const f = e.target.files?.[0]; if (f) handleWordUpload(f); }}
+                                                    />
+                                                    <div className="w-16 h-16 rounded-2xl bg-slate-50 group-hover:bg-emerald-100 flex items-center justify-center transition-colors">
+                                                        <UploadCloud className="w-8 h-8 text-slate-400 group-hover:text-emerald-600 transition-colors" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-bold text-slate-800">Files & Google Drive</p>
+                                                        <p className="text-xs text-slate-500 mt-1">Upload PDF or Word documents directly from device storage or cloud</p>
+                                                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md mt-3 inline-block border border-emerald-100/50">PDF / Word</span>
+                                                    </div>
                                                 </div>
-                                                <div className="text-center">
-                                                    <p className="font-bold text-slate-800 text-lg">Drop your Word or PDF file here</p>
-                                                    <p className="text-slate-500 text-sm mt-1">or <span className="text-emerald-600 font-bold underline underline-offset-2">browse files</span></p>
-                                                    <p className="text-xs text-slate-400 mt-3 bg-slate-100 px-3 py-1.5 rounded-full inline-block">Supports .pdf, .docx, and .doc formats</p>
+
+                                                {/* Camera Photo Option */}
+                                                <div className="relative border-2 border-dashed border-slate-300 rounded-3xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-indigo-500 hover:bg-indigo-50/20 transition-all text-center group bg-white shadow-sm overflow-hidden">
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        capture="environment"
+                                                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                                                        onChange={e => { const f = e.target.files?.[0]; if (f) handleWordUpload(f); }}
+                                                    />
+                                                    <div className="w-16 h-16 rounded-2xl bg-slate-50 group-hover:bg-indigo-100 flex items-center justify-center transition-colors">
+                                                        <Camera className="w-8 h-8 text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-bold text-slate-800">Open Camera</p>
+                                                        <p className="text-xs text-slate-500 mt-1">Take a clear photo of your printed question paper pages</p>
+                                                        <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md mt-3 inline-block border border-indigo-100/50">Instant Capture</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         )}
