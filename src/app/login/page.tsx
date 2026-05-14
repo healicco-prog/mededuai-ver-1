@@ -38,12 +38,26 @@ export default function LoginPage() {
                 return;
             }
 
+            // ── Explicit First-Party Cookie Assignment ──
+            // Mobile browsers block cross-site Set-Cookie headers. Writing them natively via first-party
+            // document.cookie ensures Next.js middleware recognizes the authenticated session instantly.
+            if (data.role) {
+                document.cookie = `role=${encodeURIComponent(data.role)}; path=/; max-age=604800; SameSite=Lax`;
+            }
+
             // Persist session tokens directly into localStorage so the Supabase SDK
             // can pick them up on the next page WITHOUT making any extra network calls.
             if (data.session) {
                 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-                const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] ?? '';
+                const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] ?? 'yrelfdwkjtaidtoulwrj';
                 const storageKey = `sb-${projectRef}-auth-token`;
+                
+                if (data.session.access_token) {
+                    const tokenMaxAge = data.session.expires_in ?? 3600;
+                    document.cookie = `sb-access-token=${encodeURIComponent(data.session.access_token)}; path=/; max-age=${tokenMaxAge}; SameSite=Lax`;
+                    document.cookie = `${storageKey}=${encodeURIComponent(data.session.access_token)}; path=/; max-age=${tokenMaxAge}; SameSite=Lax`;
+                }
+
                 try {
                     localStorage.setItem(storageKey, JSON.stringify({
                         access_token: data.session.access_token,
@@ -58,8 +72,9 @@ export default function LoginPage() {
                 }
             }
 
-            // Redirect to the role-appropriate dashboard
-            router.push(data.redirectUrl || '/dashboard/student');
+            // Perform a clean native page redirect. This guarantees that Next.js Server Components and
+            // Edge Middleware natively read the fresh cookies from the browser's Document storage.
+            window.location.href = data.redirectUrl || '/dashboard/student';
         } catch (err: any) {
             setError('Network error. Please check your connection and try again.');
         } finally {
