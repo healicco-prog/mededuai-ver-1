@@ -599,7 +599,7 @@ export default function EvaluationManagementSystem() {
                                                 <input
                                                     ref={wordFileRef}
                                                     type="file"
-                                                    accept=".docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
+                                                    accept=".pdf,application/pdf,.docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,application/*"
                                                     className="hidden"
                                                     onChange={e => { const f = e.target.files?.[0]; if (f) handleWordUpload(f); }}
                                                 />
@@ -611,9 +611,9 @@ export default function EvaluationManagementSystem() {
                                                     }`} />
                                                 </div>
                                                 <div className="text-center">
-                                                    <p className="font-bold text-slate-800 text-lg">Drop your Word file here</p>
+                                                    <p className="font-bold text-slate-800 text-lg">Drop your Word or PDF file here</p>
                                                     <p className="text-slate-500 text-sm mt-1">or <span className="text-emerald-600 font-bold underline underline-offset-2">browse files</span></p>
-                                                    <p className="text-xs text-slate-400 mt-3 bg-slate-100 px-3 py-1.5 rounded-full inline-block">Supports .docx and .doc formats</p>
+                                                    <p className="text-xs text-slate-400 mt-3 bg-slate-100 px-3 py-1.5 rounded-full inline-block">Supports .pdf, .docx, and .doc formats</p>
                                                 </div>
                                             </div>
                                         )}

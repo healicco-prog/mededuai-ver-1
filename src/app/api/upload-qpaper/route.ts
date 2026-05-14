@@ -17,30 +17,34 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'No file uploaded.' }, { status: 400 });
         }
 
-        const allowedTypes = [
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'application/msword',
-        ];
-        if (!allowedTypes.includes(file.type) && !file.name.endsWith('.docx') && !file.name.endsWith('.doc')) {
-            return NextResponse.json({ error: 'Only Word (.docx / .doc) files are supported.' }, { status: 400 });
+        const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+        const isWord = file.type.includes('word') || file.name.toLowerCase().endsWith('.docx') || file.name.toLowerCase().endsWith('.doc');
+
+        // Allow PDF, Word, or Generic Application/Octet-Stream types from Android/Google Drive pickers
+        if (!isPdf && !isWord && !file.type.includes('application/')) {
+            return NextResponse.json({ error: 'Only PDF and Word (.docx / .doc) files are supported.' }, { status: 400 });
         }
 
         // Convert file to buffer
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
-        // Extract raw text using mammoth
-        const result = await mammoth.extractRawText({ buffer });
-        const rawText = result.value?.trim();
-
-        if (!rawText || rawText.length < 20) {
-            return NextResponse.json({ error: 'Could not extract readable text from the uploaded file. Please ensure it is a valid Word document.' }, { status: 422 });
+        // Attempt raw text extraction using mammoth if not explicitly a PDF
+        let rawText = '';
+        if (!isPdf) {
+            try {
+                const result = await mammoth.extractRawText({ buffer });
+                rawText = result.value?.trim() || '';
+            } catch (_) {
+                // Mammoth parsing fails on PDFs, .doc, or Google Drive wrappers.
+                // We gracefully fall back to native Gemini multimodal document ingestion.
+            }
         }
 
         // Use Gemini to intelligently parse questions + marks
-        const prompt = `You are an expert medical exam paper parser.
-Below is the raw text extracted from a Word document question paper.
-Parse it and extract ALL questions with their allocated marks.
+        const basePrompt = `You are an expert medical exam paper parser.
+Below is a university question paper provided either as extracted raw text or as an attached multimodal document.
+Parse it accurately and extract ALL questions with their allocated marks.
 
 Rules:
 - Each question may have sub-questions (a, b, c) — treat sub-questions as part of the parent question.
@@ -61,12 +65,13 @@ Return this exact structure:
   "course": "Detected course name if any, else empty string",
   "department": "Detected department if any, else empty string",
   "institution": "Detected institution name if any, else empty string"
-}
+}`;
 
-Raw question paper text:
-"""
-${rawText.substring(0, 8000)}
-"""`;
+        const prompt = rawText 
+            ? `${basePrompt}\n\nRaw question paper text:\n"""\n${rawText.substring(0, 8000)}\n"""`
+            : `${basePrompt}\n\nPlease analyze the attached document directly to extract all questions and allocated marks accurately.`;
+
+        const imagesOpt = rawText ? undefined : [`data:application/pdf;base64,${buffer.toString('base64')}`];
 
         const parsed = await generateJSON<{
             questions: { text: string; marks: number }[];
@@ -75,7 +80,7 @@ ${rawText.substring(0, 8000)}
             course: string;
             department: string;
             institution: string;
-        }>(prompt);
+        }>(prompt, { images: imagesOpt });
 
         if (!parsed.questions || !Array.isArray(parsed.questions) || parsed.questions.length === 0) {
             return NextResponse.json({ error: 'Could not identify any questions in the document. Please ensure the file contains a properly formatted question paper.' }, { status: 422 });
@@ -89,7 +94,7 @@ ${rawText.substring(0, 8000)}
             course: parsed.course || '',
             department: parsed.department || '',
             institution: parsed.institution || '',
-            rawText: rawText.substring(0, 2000), // preview only
+            rawText: rawText ? rawText.substring(0, 2000) : 'Extracted natively from PDF/Drive Document',
         });
 
     } catch (error: any) {

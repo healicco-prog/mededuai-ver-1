@@ -85,7 +85,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
  * Helper to convert base64 data URLs to Gemini's inlineData format
  */
 function formatImagePart(base64DataUrl: string) {
-    const match = base64DataUrl.match(/^data:(image\/\w+);base64,(.+)$/);
+    const match = base64DataUrl.match(/^data:([a-zA-Z0-9\/+.-]+);base64,(.+)$/);
     if (!match) return null;
     return {
         inlineData: {

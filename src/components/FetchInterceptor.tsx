@@ -6,8 +6,6 @@ import { supabase } from '@/lib/supabase';
 export default function FetchInterceptor() {
   useEffect(() => {
     const originalFetch = window.fetch;
-    // Use env var for Cloud Run URL to avoid hardcoding
-    const CLOUD_RUN_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://mededuai-backend-3js7mh5u5a-uc.a.run.app';
 
     // ── Production Console Silencer ──
     // Prevents leaking debug info, object dumps, or sensitive internal state to browser logs.
@@ -82,18 +80,8 @@ export default function FetchInterceptor() {
             console.error('FetchInterceptor: Error getting auth context', e);
         }
 
-        // In production, rewrite ALL /api/* requests to go directly to Cloud Run.
-        // This bypasses the unreliable Netlify proxy/edge layer entirely.
-        // Cloud Run CORS config already allows mededuai.com and mededuai.netlify.app.
-        // credentials:include is required so Cloud Run can set/read httpOnly cookies
-        // cross-origin (Supabase auth tokens).
-        const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-
-        if (!isLocalHost && CLOUD_RUN_URL && resource.startsWith('/api/')) {
-            resource = `${CLOUD_RUN_URL}${resource}`;
-        }
-
-        // Always include credentials so httpOnly cookies travel with every API call
+        // Always keep requests same-origin to ensure native cookie transport
+        // and eliminate mobile browser third-party tracking/fetch restrictions.
         config.credentials = config.credentials || 'include';
         config.headers = headers;
         args = [resource, config];
@@ -129,14 +117,7 @@ export default function FetchInterceptor() {
       async (event, session) => {
         if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.access_token) {
           try {
-            // Call Cloud Run directly (not via Netlify proxy) so the refreshed
-            // access token is written into httpOnly cookies on the backend.
-            const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const refreshUrl = (!isLocalHost && CLOUD_RUN_URL)
-              ? `${CLOUD_RUN_URL}/api/auth/refresh-token`
-              : '/api/auth/refresh-token';
-
-            await originalFetch(refreshUrl, {
+            await originalFetch('/api/auth/refresh-token', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               credentials: 'include',
