@@ -13,6 +13,8 @@ const ALLOWED_ORIGINS = [
 function isOriginAllowed(origin: string | null | undefined): boolean {
   if (!origin) return false;
   if (origin.startsWith('http://localhost')) return true;
+  if (origin.endsWith('.netlify.app')) return true;
+  if (origin.endsWith('.mededuai.com') || origin === 'https://mededuai.com') return true;
   return ALLOWED_ORIGINS.includes(origin);
 }
 

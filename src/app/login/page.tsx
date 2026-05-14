@@ -20,13 +20,9 @@ export default function LoginPage() {
         setError('');
 
         try {
-            // In production, call Cloud Run backend directly to avoid Netlify proxy timeouts
-            // and unreliable edge rewrites. Credentials:include is required so httpOnly
-            // auth cookies are written cross-origin from Cloud Run.
-            const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || '';
-            const loginUrl = BACKEND_URL
-                ? `${BACKEND_URL}/api/auth/login`
-                : '/api/auth/login';
+            // FetchInterceptor will automatically rewrite this to hit Cloud Run directly
+            // in production, attaching required headers and credentials: 'include'.
+            const loginUrl = '/api/auth/login';
 
             const res = await fetch(loginUrl, {
                 method: 'POST',

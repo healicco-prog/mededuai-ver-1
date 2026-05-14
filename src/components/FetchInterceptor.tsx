@@ -23,7 +23,8 @@ export default function FetchInterceptor() {
       let [resource, config] = args;
 
       // Check if it is an API request to our backend
-      if (typeof resource === 'string' && resource.startsWith('/api/')) {
+      const isApiRoute = typeof resource === 'string' && (resource.startsWith('/api/') || resource.includes('/api/'));
+      if (isApiRoute) {
         config = config || {};
         const headers = new Headers(config.headers || {});
 
@@ -88,7 +89,7 @@ export default function FetchInterceptor() {
         // cross-origin (Supabase auth tokens).
         const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-        if (!isLocalHost && CLOUD_RUN_URL) {
+        if (!isLocalHost && CLOUD_RUN_URL && resource.startsWith('/api/')) {
             resource = `${CLOUD_RUN_URL}${resource}`;
         }
 
