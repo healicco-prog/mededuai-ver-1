@@ -45,50 +45,55 @@ export default function FetchInterceptor() {
                 }
             }
 
-            // Fallback: direct localStorage lookup
+            // Fallback: direct localStorage lookup (handles v1 and v2 Supabase formats)
             if (!tokenSet && !headers.has('Authorization')) {
-                const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-                const projectRefMatch = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/);
-                const explicitKey = projectRefMatch ? `sb-${projectRefMatch[1]}-auth-token` : null;
+                const PROJECT_REF = 'yrelfdwkjtaidtoulwrj';
+                const keysToTry: string[] = [
+                    `sb-${PROJECT_REF}-auth-token`,
+                    'supabase.auth.token',
+                ];
 
-                let tokenData = explicitKey ? localStorage.getItem(explicitKey) : null;
-
-                if (!tokenData) {
-                  for (let i = 0; i < localStorage.length; i++) {
+                // Also scan all keys matching the sb-*-auth-token pattern
+                for (let i = 0; i < localStorage.length; i++) {
                     const k = localStorage.key(i);
-                    if (k && k.startsWith('sb-') && k.endsWith('-auth-token')) {
-                      tokenData = localStorage.getItem(k);
-                      break;
+                    if (k && k.startsWith('sb-') && k.endsWith('-auth-token') && !keysToTry.includes(k)) {
+                        keysToTry.push(k);
                     }
-                  }
                 }
 
-                if (tokenData) {
-                    const parsed = JSON.parse(tokenData);
-                    if (parsed?.access_token) {
-                        headers.set('Authorization', `Bearer ${parsed.access_token}`);
-                    }
+                for (const key of keysToTry) {
+                    const raw = localStorage.getItem(key);
+                    if (!raw) continue;
+                    try {
+                        const parsed = JSON.parse(raw);
+                        const token = parsed?.access_token
+                            || parsed?.currentSession?.access_token
+                            || parsed?.session?.access_token;
+                        if (token) {
+                            headers.set('Authorization', `Bearer ${token}`);
+                            tokenSet = true;
+                            break;
+                        }
+                    } catch (_) { continue; }
                 }
             }
         } catch (e) {
             console.error('FetchInterceptor: Error getting auth context', e);
         }
 
-        // Bypass Netlify proxy for AI-heavy routes only.
-        // Netlify has a strict 10s Serverless Function timeout which kills long-running
-        // Gemini AI requests. By rewriting the URL to directly target Cloud Run,
-        // the browser gets a 300s timeout instead.
-        //
-        // Auth routes MUST stay same-origin (via Netlify proxy) to avoid CORS errors.
-        // Cloud Run's ALLOWED_ORIGINS is restricted to mededuai.com only.
+        // In production, rewrite ALL /api/* requests to go directly to Cloud Run.
+        // This bypasses the unreliable Netlify proxy/edge layer entirely.
+        // Cloud Run CORS config already allows mededuai.com and mededuai.netlify.app.
+        // credentials:include is required so Cloud Run can set/read httpOnly cookies
+        // cross-origin (Supabase auth tokens).
         const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const isAuthRoute = resource.startsWith('/api/auth/');
 
-        // In production, rewrite non-auth API requests to directly hit Cloud Run
-        if (!isLocalHost && !isAuthRoute) {
+        if (!isLocalHost && CLOUD_RUN_URL) {
             resource = `${CLOUD_RUN_URL}${resource}`;
         }
 
+        // Always include credentials so httpOnly cookies travel with every API call
+        config.credentials = config.credentials || 'include';
         config.headers = headers;
         args = [resource, config];
       }
@@ -114,8 +119,41 @@ export default function FetchInterceptor() {
       return response;
     };
 
+    // ── Sync auth token to httpOnly cookies on every session event ──────────
+    // When Supabase silently refreshes the JWT (~every 55 min), this listener
+    // fires and posts the new token to /api/auth/refresh-token which writes it
+    // to httpOnly cookies. This keeps server-side cookie auth perpetually valid
+    // for API routes that don't receive an explicit Authorization header.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.access_token) {
+          try {
+            // Call Cloud Run directly (not via Netlify proxy) so the refreshed
+            // access token is written into httpOnly cookies on the backend.
+            const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const refreshUrl = (!isLocalHost && CLOUD_RUN_URL)
+              ? `${CLOUD_RUN_URL}/api/auth/refresh-token`
+              : '/api/auth/refresh-token';
+
+            await originalFetch(refreshUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({
+                access_token: session.access_token,
+                expires_in: session.expires_in,
+              }),
+            });
+          } catch (_) {
+            // Non-critical — API routes will fall back to Authorization header path
+          }
+        }
+      }
+    );
+
     return () => {
       window.fetch = originalFetch;
+      subscription.unsubscribe();
     };
   }, []);
 

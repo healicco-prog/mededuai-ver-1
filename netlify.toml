@@ -30,11 +30,14 @@
   # NEXT_PUBLIC_SUPABASE_ANON_KEY = (set in Netlify UI)
   # NEXT_PUBLIC_SITE_URL        = (set in Netlify UI)
 
-# ── Proxy: ALL /api/* requests → Cloud Run backend (CDN redirect, status 200) ──
-# This handles the API routing *at the Netlify CDN layer* as a fallback safety.
+# ── API Proxy → Cloud Run backend ─────────────────────────────────────────────
+# ARCHITECTURE NOTE: The browser FetchInterceptor calls Cloud Run DIRECTLY
+# (bypassing this redirect) so auth cookies work cross-origin (credentials:include).
+# This CDN redirect is a SAFETY FALLBACK only — e.g. for server-side fetches or
+# any request that doesn't go through the FetchInterceptor.
 [[redirects]]
   from   = "/api/*"
   to     = "https://mededuai-backend-3js7mh5u5a-uc.a.run.app/api/:splat"
   status = 200
   force  = true
-  headers = { X-Forwarded-Host = "mededuai.netlify.app" }
+  headers = { X-Forwarded-Host = "mededuai.netlify.app", X-Forwarded-Proto = "https", Cookie = "" }

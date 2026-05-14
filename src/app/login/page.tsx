@@ -20,11 +20,19 @@ export default function LoginPage() {
         setError('');
 
         try {
-            // All auth happens server-side to bypass ISP-level DNS blocks on Supabase
-            const res = await fetch('/api/auth/login', {
+            // In production, call Cloud Run backend directly to avoid Netlify proxy timeouts
+            // and unreliable edge rewrites. Credentials:include is required so httpOnly
+            // auth cookies are written cross-origin from Cloud Run.
+            const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || '';
+            const loginUrl = BACKEND_URL
+                ? `${BACKEND_URL}/api/auth/login`
+                : '/api/auth/login';
+
+            const res = await fetch(loginUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password }),
+                credentials: 'include',
             });
 
             const data = await res.json();
@@ -36,7 +44,6 @@ export default function LoginPage() {
 
             // Persist session tokens directly into localStorage so the Supabase SDK
             // can pick them up on the next page WITHOUT making any extra network calls.
-            // This avoids the ISP-blocked supabase.auth.setSession() network call.
             if (data.session) {
                 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
                 const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] ?? '';
@@ -58,8 +65,7 @@ export default function LoginPage() {
             // Redirect to the role-appropriate dashboard
             router.push(data.redirectUrl || '/dashboard/student');
         } catch (err: any) {
-            console.error('Login error:', err);
-            setError('An unexpected error occurred. Please try again.');
+            setError('Network error. Please check your connection and try again.');
         } finally {
             setLoading(false);
         }
