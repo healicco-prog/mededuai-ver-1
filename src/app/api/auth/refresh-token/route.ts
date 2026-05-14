@@ -1,27 +1,51 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
 
 /**
  * POST /api/auth/refresh-token
- * Receives a Supabase refresh_token from the browser and exchanges it for a
- * fresh access_token server-side — bypassing any ISP-level blocks on the
- * Supabase API endpoint that would prevent the browser from refreshing directly.
+ *
+ * Two modes:
+ *
+ * 1. refresh_token in body  →  Exchange refresh token for new session (server-side,
+ *    bypasses ISP-level blocks on the Supabase API endpoint), then write fresh
+ *    access token to httpOnly cookies.
+ *
+ * 2. access_token in body   →  Client already has a fresh token (from SDK
+ *    onAuthStateChange). Just sync it to the httpOnly cookies so server-side
+ *    API routes can read it without an Authorization header.
  */
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { refresh_token } = body;
+        const { refresh_token, access_token: incomingToken, expires_in } = body;
 
+        // ── Mode 2: token-sync (no Supabase round-trip needed) ──────────────────
+        if (incomingToken && !refresh_token) {
+            if (incomingToken.split('.').length !== 3) {
+                return NextResponse.json({ error: 'Invalid token format' }, { status: 400 });
+            }
+            const maxAge = typeof expires_in === 'number' ? expires_in : 3600;
+            const cookieStore = await cookies();
+            const opts = {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                path: '/',
+                sameSite: 'lax' as const,
+                maxAge,
+            };
+            cookieStore.set('sb-access-token', incomingToken, opts);
+            cookieStore.set('sb-yrelfdwkjtaidtoulwrj-auth-token', incomingToken, opts);
+            return NextResponse.json({ success: true, mode: 'sync' });
+        }
+
+        // ── Mode 1: refresh_token exchange ───────────────────────────────────────
         if (!refresh_token) {
-            return NextResponse.json({ error: 'refresh_token is required' }, { status: 400 });
+            return NextResponse.json({ error: 'refresh_token or access_token is required' }, { status: 400 });
         }
 
         const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL  || 'https://dummyurl.supabase.co';
         const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'dummykey';
-
-        if (!supabaseUrl || !supabaseAnon) {
-            return NextResponse.json({ error: 'Supabase env vars not configured' }, { status: 500 });
-        }
 
         // Server-side client — unaffected by browser ISP blocks on Supabase
         const supabase = createClient(supabaseUrl, supabaseAnon, {
@@ -37,6 +61,18 @@ export async function POST(req: Request) {
                 { status: 401 }
             );
         }
+
+        // Write fresh token to httpOnly cookies
+        const cookieStore = await cookies();
+        const cookieOpts = {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            path: '/',
+            sameSite: 'lax' as const,
+            maxAge: data.session.expires_in ?? 3600,
+        };
+        cookieStore.set('sb-access-token', data.session.access_token, cookieOpts);
+        cookieStore.set('sb-yrelfdwkjtaidtoulwrj-auth-token', data.session.access_token, cookieOpts);
 
         return NextResponse.json({
             access_token:  data.session.access_token,

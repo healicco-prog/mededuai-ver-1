@@ -636,6 +636,10 @@ export default function LMSCreatorAdmin() {
 
     const handleStartBatch = async () => {
         if (!engineCourse || !engineSubject || engineSelectedTopics.length === 0) return;
+        if (isBatchRunning) {
+            setBatchMessage({ type: 'info', text: 'A batch generation is already running in the background.' });
+            return;
+        }
 
         batchAbortRef.current = false;
         setIsBatchRunning(true);
@@ -691,6 +695,7 @@ export default function LMSCreatorAdmin() {
         //    batches don't fail at the 1-hour Supabase JWT expiry mark.
         //    We pre-emptively refresh every 30 minutes.
         let lastTokenRefresh = Date.now();
+        let consecutiveErrors = 0;
 
         while (!batchAbortRef.current) {
             try {
@@ -724,36 +729,53 @@ export default function LMSCreatorAdmin() {
                 const processData = await processRes.json();
 
                 if (!processData.success) {
-                    setBatchMessage({ type: 'error', text: `Processing error: ${processData.error}` });
-                    break;
+                    consecutiveErrors += 1;
+                    console.warn(`[Batch Loop] Server returned success:false (${consecutiveErrors}/10):`, processData.error);
+                    if (consecutiveErrors > 10) {
+                        setBatchMessage({ type: 'error', text: `Processing halted after 10 consecutive errors: ${processData.error}` });
+                        break;
+                    }
+                    setBatchMessage({ type: 'info', text: `⚠️ Temporary server issue. Retrying automatically in 5s (${consecutiveErrors}/10)…` });
+                    await new Promise(r => setTimeout(r, 5000));
+                    continue;
                 }
 
-                // ── If a topic was completed, hydrate local state so UI shows tick ──
+                // Reset consecutive errors on successful server interaction
+                consecutiveErrors = 0;
+
+                // ── If another worker claimed the job concurrently, poll again immediately ──
+                if (processData.skippedClaim) {
+                    await new Promise(r => setTimeout(r, 500));
+                    continue;
+                }
+
+                // ── Hydrate local state globally across all courses/subjects so UI shows tick ──
                 if (processData.generatedNotes && processData.clientTopicId) {
-                    setCoursesList(prev => prev.map(c => {
-                        if (c.id !== engineCourse?.id) return c;
-                        return {
-                            ...c, subjects: c.subjects.map(s => {
-                                if (s.id !== engineSubject?.id) return s;
-                                return {
-                                    ...s, sections: s.sections.map(sec => ({
-                                        ...sec, topics: sec.topics.map(t =>
-                                            t.id === processData.clientTopicId
-                                                ? { ...t, generatedNotes: processData.generatedNotes }
-                                                : t
-                                        )
-                                    }))
-                                };
-                            })
-                        };
-                    }));
+                    setCoursesList(prev => prev.map(c => ({
+                        ...c,
+                        subjects: c.subjects.map(s => ({
+                            ...s,
+                            sections: s.sections.map(sec => ({
+                                ...sec,
+                                topics: sec.topics.map(t =>
+                                    t.id === processData.clientTopicId
+                                        ? { ...t, generatedNotes: processData.generatedNotes }
+                                        : t
+                                )
+                            }))
+                        }))
+                    })));
                 }
 
                 // ── Refresh status display ──
                 await refreshBatchStatus(targetBatchId);
 
+                if (processData.status === 'failed') {
+                    console.warn(`[Batch Loop] Topic "${processData.topicName || 'unknown'}" generation failed. Continuing to next topic.`);
+                }
+
                 if (processData.done) {
-                    setBatchMessage({ type: 'success', text: `🎉 All ${batchJobs.length || engineSelectedTopics.length} topics generated and saved to database!` });
+                    setBatchMessage({ type: 'success', text: `🎉 Batch completed! All available topics have been processed.` });
                     break;
                 }
 
@@ -761,9 +783,18 @@ export default function LMSCreatorAdmin() {
                 await new Promise(r => setTimeout(r, 3000));
 
             } catch (loopErr: any) {
-                if (loopErr.name === 'AbortError') break;
-                setBatchMessage({ type: 'error', text: `Loop error: ${loopErr.message}` });
-                break;
+                if (batchAbortRef.current || loopErr.name === 'AbortError') break;
+                
+                consecutiveErrors += 1;
+                console.error(`[Batch Loop] Network/parse error (${consecutiveErrors}/10):`, loopErr.message);
+                
+                if (consecutiveErrors > 10) {
+                    setBatchMessage({ type: 'error', text: `Queue stopped after 10 consecutive connection errors: ${loopErr.message}` });
+                    break;
+                }
+                
+                setBatchMessage({ type: 'info', text: `📶 Connection fluctuation. Retrying automatically in 5s (${consecutiveErrors}/10)…` });
+                await new Promise(r => setTimeout(r, 5000));
             }
         }
 
@@ -787,6 +818,10 @@ export default function LMSCreatorAdmin() {
     };
 
     const handleResumeBatch = async () => {
+        if (isBatchRunning) {
+            setBatchMessage({ type: 'info', text: 'A batch generation is already actively running.' });
+            return;
+        }
         let resumeId = batchId;
         if (!resumeId) {
             try { resumeId = localStorage.getItem('mededuai_last_batch_id'); } catch (_) {}

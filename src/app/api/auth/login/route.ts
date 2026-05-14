@@ -108,13 +108,17 @@ export async function POST(req: Request) {
 
         // ── Supabase access token cookie (httpOnly, same lifetime as JWT ~1hr) ──
         if (authData.session?.access_token) {
-            cookieStore.set('sb-access-token', authData.session.access_token, {
+            const tokenCookieOpts = {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 path: '/',
-                sameSite: 'lax',
+                sameSite: 'lax' as const,
                 maxAge: authData.session.expires_in ?? 3600,
-            });
+            };
+            // Write both cookie naming conventions so authMiddleware can find it
+            // regardless of which Supabase SDK version wrote the original token.
+            cookieStore.set('sb-access-token', authData.session.access_token, tokenCookieOpts);
+            cookieStore.set('sb-yrelfdwkjtaidtoulwrj-auth-token', authData.session.access_token, tokenCookieOpts);
         }
 
         return NextResponse.json({

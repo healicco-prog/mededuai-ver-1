@@ -70,6 +70,11 @@ export async function POST(req: Request) {
             ');',
             'DROP POLICY IF EXISTS read_lms ON public.lms_content;',
             'CREATE POLICY read_lms ON public.lms_content FOR SELECT USING (true);',
+            '',
+            '-- 6. Explicit API Visibility Grants (Secure-by-Default Rollout)',
+            'GRANT SELECT ON public.lms_content TO anon;',
+            'GRANT SELECT, INSERT, UPDATE, DELETE ON public.lms_content TO authenticated;',
+            'GRANT ALL ON public.lms_content TO service_role;',
         ].join('\n');
 
         // Check which required columns are missing

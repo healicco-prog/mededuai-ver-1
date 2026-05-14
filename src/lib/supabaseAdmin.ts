@@ -44,14 +44,19 @@ export function getSupabaseAdmin(): SupabaseClient {
         }
     }
 
-    if (!url || !keyToUse) {
-        throw new Error('[getSupabaseAdmin] Missing Supabase URL or key');
+    // ── Non-throwing fallback: if no key is configured (e.g. cold Cloud Run
+    // startup before secrets are injected), return a client pointed at the
+    // correct project with a dummy key.  auth.getUser() will return an error
+    // that the caller (verifyAuth) can safely handle rather than crashing.
+    const resolvedKey = keyToUse || anonKey || 'no-key-configured';
+    if (!keyToUse && !anonKey) {
+        console.warn('[getSupabaseAdmin] No Supabase key found — auth will rely on local JWT fallback.');
     }
 
     // Always use the correct MedEduAI-1 URL regardless of env var
     const resolvedUrl = url.includes(MEDEDUAI_PROJECT_REF) ? url : MEDEDUAI_URL;
 
-    return createClient(resolvedUrl, keyToUse, {
+    return createClient(resolvedUrl, resolvedKey, {
         auth: { autoRefreshToken: false, persistSession: false },
     });
 }
@@ -62,10 +67,12 @@ export function getSupabaseAdmin(): SupabaseClient {
  */
 export function getSupabaseForAuth(): SupabaseClient {
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    // Always returns a usable client; falls back gracefully without throwing.
+    const resolvedKey = anonKey || 'no-anon-key-configured';
     if (!anonKey) {
-        return getSupabaseAdmin(); // fall back to admin client
+        console.warn('[getSupabaseForAuth] NEXT_PUBLIC_SUPABASE_ANON_KEY not set — auth will rely on local JWT fallback.');
     }
-    return createClient(MEDEDUAI_URL, anonKey, {
+    return createClient(MEDEDUAI_URL, resolvedKey, {
         auth: { autoRefreshToken: false, persistSession: false },
     });
 }

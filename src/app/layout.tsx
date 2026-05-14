@@ -17,6 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://mededuai.com"),
   title: "MedEduAI – AI-Powered Medical Education Platform",
   description: "The all-in-one AI web portal for MBBS, BDS, and Nursing students. Viva simulator, AI notes, MCQ generator and more.",
   manifest: "/manifest.json",

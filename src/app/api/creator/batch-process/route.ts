@@ -43,22 +43,21 @@ export async function POST(req: Request) {
             .eq('status', 'processing')
             .lt('updated_at', staleThreshold);
 
-        // Find next pending job
-        const { data: job, error: fetchErr } = await supabase
+        // Find pending candidates
+        const { data: candidates, error: fetchErr } = await supabase
             .from('creator_jobs')
             .select('*')
             .eq('batch_id', batchId)
             .eq('status', 'pending')
             .order('created_at', { ascending: true })
-            .limit(1)
-            .maybeSingle();
+            .limit(5);
 
         if (fetchErr) {
             return NextResponse.json({ success: false, error: fetchErr.message }, { status: 500 });
         }
 
         // No pending jobs — check if batch is fully done
-        if (!job) {
+        if (!candidates || candidates.length === 0) {
             const { data: remaining } = await supabase
                 .from('creator_jobs')
                 .select('status')
@@ -67,12 +66,29 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: true, done: true, allCompleted: allDone });
         }
 
-        // Claim the job
-        await supabase
-            .from('creator_jobs')
-            .update({ status: 'processing', attempt_count: (job.attempt_count || 0) + 1, updated_at: new Date().toISOString() })
-            .eq('id', job.id);
+        // Atomically try to claim a job from the candidates
+        let claimedJob = null;
+        for (const cand of candidates) {
+            const { data: updatedRows } = await supabase
+                .from('creator_jobs')
+                .update({ status: 'processing', attempt_count: (cand.attempt_count || 0) + 1, updated_at: new Date().toISOString() })
+                .eq('id', cand.id)
+                .eq('status', 'pending')
+                .select()
+                .maybeSingle();
 
+            if (updatedRows) {
+                claimedJob = updatedRows;
+                break;
+            }
+        }
+
+        if (!claimedJob) {
+            // Another serverless worker simultaneously claimed all candidates. Return skippedClaim so client safely retries.
+            return NextResponse.json({ success: true, done: false, skippedClaim: true });
+        }
+
+        const job = claimedJob;
         console.log(`[Batch Process] Processing job ${job.id} — "${job.topic_name}" (batch: ${batchId})`);
 
         // ── Step 2: Generate content ──
@@ -91,7 +107,23 @@ export async function POST(req: Request) {
                 .from('creator_jobs')
                 .update({ status: 'failed', error_message: errMsg, updated_at: new Date().toISOString() })
                 .eq('id', job.id);
-            return NextResponse.json({ success: false, done: false, jobId: job.id, topicName: job.topic_name, status: 'failed', error: errMsg });
+
+            const { count: remainingCount } = await supabase
+                .from('creator_jobs')
+                .select('id', { count: 'exact', head: true })
+                .eq('batch_id', batchId)
+                .eq('status', 'pending');
+
+            return NextResponse.json({
+                success: true,
+                done: (remainingCount || 0) === 0,
+                jobId: job.id,
+                clientTopicId: job.client_topic_id,
+                topicName: job.topic_name,
+                status: 'failed',
+                error: errMsg,
+                remaining: remainingCount || 0,
+            });
         }
 
         if (!genResult.success || !genResult.generatedNotes) {
@@ -100,7 +132,23 @@ export async function POST(req: Request) {
                 .from('creator_jobs')
                 .update({ status: 'failed', error_message: errMsg, updated_at: new Date().toISOString() })
                 .eq('id', job.id);
-            return NextResponse.json({ success: false, done: false, jobId: job.id, topicName: job.topic_name, status: 'failed', error: errMsg });
+
+            const { count: remainingCount } = await supabase
+                .from('creator_jobs')
+                .select('id', { count: 'exact', head: true })
+                .eq('batch_id', batchId)
+                .eq('status', 'pending');
+
+            return NextResponse.json({
+                success: true,
+                done: (remainingCount || 0) === 0,
+                jobId: job.id,
+                clientTopicId: job.client_topic_id,
+                topicName: job.topic_name,
+                status: 'failed',
+                error: errMsg,
+                remaining: remainingCount || 0,
+            });
         }
 
         const { generatedNotes } = genResult;
@@ -141,6 +189,7 @@ export async function POST(req: Request) {
                 success: true,
                 done: (remainingCount || 0) === 0,
                 jobId: job.id,
+                clientTopicId: job.client_topic_id,
                 topicName: job.topic_name,
                 status: 'completed',
                 saveWarning: saveErr.message,
