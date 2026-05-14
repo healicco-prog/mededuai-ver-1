@@ -3,10 +3,17 @@
 
 import { createClient } from '@supabase/supabase-js';
 
+import 'dotenv/config';
+
 const supabaseAdmin = createClient(
-  'https://yrelfdwkjtaidtoulwrj.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyZWxmZHdranRhaWR0b3Vsd3JqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzEwNTc4NCwiZXhwIjoyMDg4NjgxNzg0fQ.YFqGcueb4VKoMUyIfpgiw7pXIKlYjeSp7ajdMp2NVlY'
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://yrelfdwkjtaidtoulwrj.supabase.co',
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
+
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.error("Error: SUPABASE_SERVICE_ROLE_KEY is required.");
+  process.exit(1);
+}
 
 const UNLIMITED = 999999999;
 

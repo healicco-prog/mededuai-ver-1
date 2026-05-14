@@ -122,6 +122,7 @@ coverage/
 *.db
 tmp/
 temp/
+scratch/
 *keys*.json
 *keys*.txt
 keys_out.txt

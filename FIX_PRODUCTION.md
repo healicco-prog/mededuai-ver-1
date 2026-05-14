@@ -9,9 +9,9 @@ The save button fails because Cloud Run is verifying your login token against th
 ```bash
 gcloud run services update mededuai-backend \
   --region=us-central1 \
-  --update-env-vars="SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyZWxmZHdranRhaWR0b3Vsd3JqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzEwNTc4NCwiZXhwIjoyMDg4NjgxNzg0fQ.YFqGcueb4VKoMUyIfpgiw7pXIKlYjeSp7ajdMp2NVlY" \
+  --update-env-vars="SUPABASE_SERVICE_ROLE_KEY=<YOUR_SERVICE_ROLE_KEY_HERE>" \
   --update-env-vars="NEXT_PUBLIC_SUPABASE_URL=https://yrelfdwkjtaidtoulwrj.supabase.co" \
-  --update-env-vars="NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyZWxmZHdranRhaWR0b3Vsd3JqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxMDU3ODQsImV4cCI6MjA4ODY4MTc4NH0.FpFw_TINjRTeSRK54PFa-NoLa5R9ctx8y5h4_wmoBfk"
+  --update-env-vars="NEXT_PUBLIC_SUPABASE_ANON_KEY=<YOUR_ANON_KEY_HERE>"
 ```
 
 After this command completes (~30 seconds), **click "Save N Notes to DB" again** — it should work immediately.
@@ -50,7 +50,7 @@ Go to: https://app.netlify.com → Your site → Site settings → Environment v
 
 Add/update:
 - `NEXT_PUBLIC_SUPABASE_URL` = `https://yrelfdwkjtaidtoulwrj.supabase.co`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyZWxmZHdranRhaWR0b3Vsd3JqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxMDU3ODQsImV4cCI6MjA4ODY4MTc4NH0.FpFw_TINjRTeSRK54PFa-NoLa5R9ctx8y5h4_wmoBfk`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` = `<YOUR_ANON_KEY_HERE>`
 - `NEXT_PUBLIC_ADMIN_SECRET` = `mededuai-superadmin-2024`
 
 ---
@@ -74,12 +74,12 @@ gcloud builds submit \
   --config=cloudbuild.yaml \
   --substitutions=\
 _NEXT_PUBLIC_SUPABASE_URL="https://yrelfdwkjtaidtoulwrj.supabase.co",\
-_NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyZWxmZHdranRhaWR0b3Vsd3JqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxMDU3ODQsImV4cCI6MjA4ODY4MTc4NH0.FpFw_TINjRTeSRK54PFa-NoLa5R9ctx8y5h4_wmoBfk",\
-_SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyZWxmZHdranRhaWR0b3Vsd3JqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzEwNTc4NCwiZXhwIjoyMDg4NjgxNzg0fQ.YFqGcueb4VKoMUyIfpgiw7pXIKlYjeSp7ajdMp2NVlY",\
+_NEXT_PUBLIC_SUPABASE_ANON_KEY="<YOUR_ANON_KEY_HERE>",\
+_SUPABASE_SERVICE_ROLE_KEY="<YOUR_SERVICE_ROLE_KEY_HERE>",\
 _NEXT_PUBLIC_SITE_URL="https://mededuai.netlify.app",\
 _ALLOWED_ORIGINS="https://www.mededuai.com,https://mededuai.com,https://mededuai.netlify.app",\
-_GEMINI_API_KEY="AIzaSyC6Oo5mTCxphLc6p4QkKxsqx9QdOoyuBxQ",\
-_RESEND_API_KEY="re_6QfYAbdJ_Nme12TLYW2xZqYcNi4WXxjMn",\
+_GEMINI_API_KEY="<YOUR_GEMINI_API_KEY_HERE>",\
+_RESEND_API_KEY="<YOUR_RESEND_API_KEY_HERE>",\
 _ADMIN_SECRET="mededuai-superadmin-2024"
 ```
 
