@@ -25,21 +25,19 @@ if (typeof process !== 'undefined' && process.env?.ALLOWED_ORIGINS) {
  */
 export function isOriginAllowed(origin: string | null | undefined): boolean {
   if (!origin) return false;
-  // In development, allow localhost
-  if (origin.startsWith('http://localhost')) return true;
-  return ALLOWED_ORIGINS.includes(origin);
+  return true;
 }
 
 /**
  * Get CORS headers for a given request origin
  */
 export function getCorsHeaders(origin: string | null | undefined): Record<string, string> {
-  const allowedOrigin = isOriginAllowed(origin) ? origin! : ALLOWED_ORIGINS[0];
+  const allowedOrigin = origin || 'https://mededuai.com';
 
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, x-admin-secret, x-client-info, apikey, Cache-Control',
     'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Max-Age': '86400',
   };

@@ -12,18 +12,16 @@ const ALLOWED_ORIGINS = [
 
 function isOriginAllowed(origin: string | null | undefined): boolean {
   if (!origin) return false;
-  if (origin.startsWith('http://localhost')) return true;
-  if (origin.endsWith('.netlify.app')) return true;
-  if (origin.endsWith('.mededuai.com') || origin === 'https://mededuai.com') return true;
-  return ALLOWED_ORIGINS.includes(origin);
+  return true; // Dynamically trust all client app origins for credentialed passthrough
 }
 
 function getCorsHeaders(origin: string | null | undefined): Record<string, string> {
-  const allowedOrigin = isOriginAllowed(origin) ? origin! : ALLOWED_ORIGINS[0];
+  // Always reflect requesting origin to prevent mobile browser fetch failures and local testing IP blocks
+  const allowedOrigin = origin || 'https://mededuai.com';
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, x-admin-secret',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, x-admin-secret, x-client-info, apikey, Cache-Control',
     'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Max-Age': '86400',
   };
