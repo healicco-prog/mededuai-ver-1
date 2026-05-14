@@ -699,10 +699,12 @@ export default function StudentLMSNotes() {
                         // Add any DB topics that are missing from the current section,
                         // preserving hasNotes so the sidebar filter can include them.
                         for (const dbTopic of dbSection.topics) {
-                            const exists = storeSection.topics.some(t =>
+                            const existingTopic = storeSection.topics.find(t =>
                                 t.name.toLowerCase().trim() === dbTopic.name.toLowerCase().trim()
                             );
-                            if (!exists) {
+                            if (existingTopic) {
+                                (existingTopic as any).hasNotes = true;
+                            } else {
                                 storeSection.topics.push({
                                     id: `db-${dbTopic.id}`,
                                     name: dbTopic.name,
@@ -867,7 +869,7 @@ export default function StudentLMSNotes() {
             ?.flatMap((s: any) => s.topics ?? [])
             .find((t: any) => t.hasNotes);
         if (firstTopicWithNotes) {
-            setSelectedTopicId(`db-${firstTopicWithNotes.id}`);
+            setSelectedTopicId(firstTopicWithNotes.id);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dbLoaded, coursesList]);

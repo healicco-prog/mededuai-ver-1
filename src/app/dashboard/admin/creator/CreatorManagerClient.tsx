@@ -936,25 +936,6 @@ export default function LMSCreatorAdmin() {
     const [forceSaveMessage, setForceSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
     // ── Direct Supabase save (bypasses Cloud Run entirely) ─────────────────
-    // resolveOrCreate: look up a row by matchFields, create it if missing
-    const resolveOrCreate = async (
-        table: string,
-        matchFields: Record<string, string>,
-        insertFields: Record<string, string>
-    ): Promise<string | null> => {
-        let query = (supabase.from(table) as any).select('id').limit(1);
-        for (const [k, v] of Object.entries(matchFields)) query = query.eq(k, v);
-        const { data: existing } = await query.maybeSingle();
-        if (existing?.id) return existing.id;
-        const { data: created, error } = await (supabase.from(table) as any)
-            .insert(insertFields).select('id').single();
-        if (error || !created?.id) {
-            console.error(`[DirectSave] insert into ${table} failed:`, error?.message);
-            return null;
-        }
-        return created.id;
-    };
-
     const handleForceSaveToDb = async () => {
         if (!engineCourse || !engineSubject || !engineSection) return;
 
@@ -976,114 +957,41 @@ export default function LMSCreatorAdmin() {
         let failedCount = 0;
         let lastError = '';
 
-        // ── Resolve course + subject IDs once (shared across all topic saves) ──
-        // DB schema: courses → subjects → topics (section stored as TEXT in topics.section)
-        // There is NO separate 'sections' table.
-        // We write DIRECTLY to Supabase from the browser — bypasses Cloud Run auth entirely.
-        let courseId: string | null = null;
-        let subjectId: string | null = null;
-        try {
-            courseId = await resolveOrCreate(
-                'courses', { name: engineCourse.name }, { name: engineCourse.name }
-            );
-            if (courseId) subjectId = await resolveOrCreate(
-                'subjects',
-                { name: engineSubject.name, course_id: courseId },
-                { name: engineSubject.name, course_id: courseId }
-            );
-        } catch (e: any) {
-            console.warn('[DirectSave] Could not resolve course/subject:', e.message);
-        }
-
         for (let i = 0; i < topicsToSave.length; i++) {
             const t = topicsToSave[i];
             setForceSaveProgress(Math.round(((i) / topicsToSave.length) * 100));
             try {
-                if (!subjectId) throw new Error('Could not resolve subject in DB');
+                const headers = await fetchAuthHeaders();
+                const res = await fetch('/api/creator/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...headers,
+                    },
+                    body: JSON.stringify({
+                        courseName: engineCourse.name,
+                        subjectName: engineSubject.name,
+                        sectionName: engineSection.name,
+                        topicName: t.name,
+                        generatedNotes: t.generatedNotes!,
+                        version: engineVersion,
+                    }),
+                });
 
-                // Resolve/create topic — section stored as text column, not FK
-                const { data: existingTopic } = await supabase
-                    .from('topics')
-                    .select('id')
-                    .eq('name', t.name)
-                    .eq('subject_id', subjectId)
-                    .maybeSingle();
-
-                let topicId: string | null = existingTopic?.id || null;
-                if (!topicId) {
-                    const { data: newTopic, error: topicErr } = await supabase
-                        .from('topics')
-                        .insert({ name: t.name, subject_id: subjectId, section: engineSection.name })
-                        .select('id')
-                        .single();
-                    if (topicErr || !newTopic?.id) throw new Error(`Could not create topic: ${topicErr?.message}`);
-                    topicId = newTopic.id;
+                const data = await res.json();
+                if (!res.ok || !data.success) {
+                    throw new Error(data.error || 'Server error saving content');
                 }
-                if (!topicId) throw new Error('Could not resolve topic in DB');
-
-                // Build lms_content payload
-                const notes = t.generatedNotes!;
-
-                const lmsPayload: Record<string, any> = {
-                    topic_id: topicId,
-                    last_generated_at: new Date().toISOString(),
-                    // ── Denormalized metadata ──
-                    version: engineVersion,
-                    course: engineCourse.name,
-                    subject: engineSubject.name,
-                    section: engineSection.name,
-                    topic: t.name,
-                    // ── Content columns ──
-                    introduction: notes.l1 || null,
-                    detailed_notes: notes.l2 || null,
-                    summary: notes.l3 || null,
-                    flashcards: notes.l9 || null,
-                };
-                // Add marks columns (use standardised column names matching lms_content schema)
-                if (notes.l4) lmsPayload['marks_10_questions'] = notes.l4;
-                if (notes.l5) lmsPayload['marks_5_questions'] = notes.l5;
-                if (notes.l6) lmsPayload['marks_3_reasoning'] = notes.l6;
-                if (notes.l7) lmsPayload['marks_2_case_mcqs'] = notes.l7;
-                if (notes.l8) lmsPayload['marks_1_mcqs'] = notes.l8;
-
-                // Check if existing row exists
-                const { data: existingLms } = await supabase
-                    .from('lms_content').select('id').eq('topic_id', topicId).maybeSingle();
-
-                let saveError: any = null;
-                if (existingLms?.id) {
-                    const { error } = await supabase.from('lms_content').update(lmsPayload).eq('id', existingLms.id);
-                    saveError = error;
-                } else {
-                    const { error } = await supabase.from('lms_content').insert(lmsPayload);
-                    // If extended columns missing, retry with core columns only
-                    if (error?.message?.includes('column') || error?.message?.includes('does not exist')) {
-                        const corePayload = {
-                            topic_id: topicId,
-                            last_generated_at: lmsPayload.last_generated_at,
-                            introduction: lmsPayload.introduction,
-                            detailed_notes: lmsPayload.detailed_notes,
-                            summary: lmsPayload.summary,
-                            flashcards: lmsPayload.flashcards,
-                        };
-                        const { error: coreErr } = await supabase.from('lms_content').insert(corePayload);
-                        saveError = coreErr;
-                    } else {
-                        saveError = error;
-                    }
-                }
-
-                if (saveError) throw new Error(saveError.message);
 
                 savedCount++;
-
             } catch (err: any) {
                 failedCount++;
                 lastError = err.message;
-                console.warn(`[DirectSave] ⚠️ Failed "${t.name}":`, err.message);
+                console.warn(`[ForceSave] ⚠️ Failed "${t.name}":`, err.message);
             }
             if (i < topicsToSave.length - 1) await new Promise(r => setTimeout(r, 200));
         }
+
         setForceSaveProgress(100);
         setIsForceSaving(false);
 
@@ -1092,9 +1000,7 @@ export default function LMSCreatorAdmin() {
         } else {
             setForceSaveMessage({
                 type: savedCount > 0 ? 'success' : 'error',
-                text: savedCount > 0
-                    ? `Saved ${savedCount} topic(s). ${failedCount} failed — ${lastError || 'please retry.'}`
-                    : `Saved ${savedCount} topic(s). ${failedCount} failed — ${lastError || 'please retry.'}`
+                text: `Saved ${savedCount} topic(s). ${failedCount} failed — ${lastError || 'please retry.'}`
             });
         }
         setTimeout(() => setForceSaveMessage(null), 10000);

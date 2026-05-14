@@ -11,6 +11,8 @@ import { NextResponse } from 'next/server';
 import { checkSecurity } from '@/lib/apiSecurity';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 export const maxDuration = 15;
 
 export async function GET(req: Request) {

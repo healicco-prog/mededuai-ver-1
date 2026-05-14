@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { checkSecurity } from '@/lib/apiSecurity';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 /**
  * GET /api/creator/load?courseName=MBBS&subjectName=Pharmacology&sectionName=General Pharmacology
  *
