@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const isNetlify = process.env.NETLIFY === 'true';
-const CLOUD_RUN_URL = 'https://mededuai-backend-3js7mh5u5a-uc.a.run.app';
+const CLOUD_RUN_URL = 'https://mededuai-backend-mfz5ejaqaa-uc.a.run.app';
 
 const nextConfig = {
   // standalone output is for Cloud Run Docker (node server.js).
@@ -13,7 +13,7 @@ const nextConfig = {
         {
           source: '/api/:path*',
           // Destination points to the new Cloud Run backend
-          destination: 'https://mededuai-backend-3js7mh5u5a-uc.a.run.app/api/:path*',
+          destination: 'https://mededuai-backend-mfz5ejaqaa-uc.a.run.app/api/:path*',
         },
       ];
     }
