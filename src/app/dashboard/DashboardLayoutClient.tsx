@@ -252,6 +252,20 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                 </div>
 
                 <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto w-full">
+                    {/* User Profile in Sidebar */}
+                    <div className="mb-6 px-3 bg-slate-50 rounded-xl p-4 border border-slate-100">
+                        <div className="text-sm font-bold text-slate-900 leading-tight mb-1.5 truncate" title={userName}>
+                            {mounted ? (userName || <span className="text-slate-400 font-normal italic text-xs">Loading...</span>) : <div className="h-4 w-24 bg-slate-200 animate-pulse rounded" />}
+                        </div>
+                        <p className="text-xs text-slate-500 font-medium leading-tight mb-2 truncate" title={userEmail}>
+                            {mounted ? (userEmail || <span className="text-slate-300">—</span>) : <div className="h-3 w-32 bg-slate-200 animate-pulse rounded inline-block" />}
+                        </p>
+                        <div className="flex items-center gap-1.5">
+                            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider leading-none">{roleDisplayLabel}</p>
+                            {mounted && <span className={`text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md leading-none ${getPlanBadgeColor(planTier)}`}>{planTier}</span>}
+                        </div>
+                    </div>
+
                     {showControlPanelButton && (
                         <Link
                             href="/contrl-panl"
