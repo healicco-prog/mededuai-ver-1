@@ -56,6 +56,12 @@ function classifyGenerationError(rawMsg: string): { retryable: boolean; cleanMes
         // a freshly-recovered model. After MAX_ATTEMPTS the outer guard fails it.
         return { retryable: true, cleanMessage: 'All AI models were busy — will retry automatically.' };
     }
+    if (lower.includes('api_key_suspended') || lower.includes('suspended')) {
+        return { retryable: false, cleanMessage: 'Gemini API key is suspended. Please update GEMINI_API_KEY in Cloud Run.' };
+    }
+    if (lower.includes('spending cap') || lower.includes('spend cap')) {
+        return { retryable: false, cleanMessage: 'AI Project spending cap exceeded. Please increase cap in AI Studio.' };
+    }
     return { retryable: false, cleanMessage: msg.slice(0, 240) };
 }
 
@@ -105,6 +111,9 @@ async function handleGenerationFailure(
         .eq('batch_id', batchId)
         .eq('status', 'pending');
 
+    const isRateLimit = cleanMessage.includes('rate limit') || cleanMessage.includes('exhausted');
+    const isDaily = cleanMessage.includes('per_model_per_day');
+
     return NextResponse.json({
         success: true,
         done: (remainingCount || 0) === 0,
@@ -113,6 +122,8 @@ async function handleGenerationFailure(
         topicName: job.topic_name,
         status: willRetry ? 'pending' : 'failed',
         willRetry,
+        isRateLimit,
+        isDaily,
         attemptCount,
         error: cleanMessage,
         remaining: remainingCount || 0,

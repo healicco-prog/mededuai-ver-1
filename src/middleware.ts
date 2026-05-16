@@ -12,7 +12,13 @@ const ALLOWED_ORIGINS = [
 
 function isOriginAllowed(origin: string | null | undefined): boolean {
   if (!origin) return false;
-  return true; // Dynamically trust all client app origins for credentialed passthrough
+  
+  // For local development, allow localhost and 127.0.0.1
+  if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+    return true;
+  }
+
+  return ALLOWED_ORIGINS.includes(origin);
 }
 
 function getCorsHeaders(origin: string | null | undefined): Record<string, string> {

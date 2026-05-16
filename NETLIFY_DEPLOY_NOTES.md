@@ -12,7 +12,7 @@ Go to **Site Settings > Environment variables** and add ONLY these public-safe v
 
 | Key | Value | Purpose |
 |:--- |:--- |:--- |
-| `NEXT_PUBLIC_BACKEND_URL` | `https://mededuai-backend-3js7mh5u5a-uc.a.run.app` | Targets the Cloud Run backend |
+| `NEXT_PUBLIC_BACKEND_URL` | `https://mededuai-backend-434817580915.us-central1.run.app` | Targets the Cloud Run backend |
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://yrelfdwkjtaidtoulwrj.supabase.co` | Public Supabase URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJhbG...` | Public Supabase Anon Key |
 | `NEXT_PUBLIC_SITE_URL` | `https://mededuai.com` | Your custom frontend domain |

@@ -25,7 +25,13 @@ if (typeof process !== 'undefined' && process.env?.ALLOWED_ORIGINS) {
  */
 export function isOriginAllowed(origin: string | null | undefined): boolean {
   if (!origin) return false;
-  return true;
+  
+  // For local development, allow localhost and 127.0.0.1
+  if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+    return true;
+  }
+
+  return ALLOWED_ORIGINS.includes(origin);
 }
 
 /**

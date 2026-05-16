@@ -43,20 +43,9 @@ steps:
           --cpu=2 \
           --min-instances=1 \
           --max-instances=10 \
-          --timeout=300 \
+          --timeout=900 \
           --concurrency=80 \
-          --set-env-vars="NODE_ENV=production" \
-          --set-env-vars="GOOGLE_CLOUD_PROJECT=$PROJECT_ID" \
-          --set-env-vars="GOOGLE_CLOUD_LOCATION=us-central1" \
-          --set-env-vars="NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL}" \
-          --set-env-vars="NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY}" \
-          --set-env-vars="NEXT_PUBLIC_SITE_URL=${_NEXT_PUBLIC_SITE_URL}" \
-          --set-env-vars="^@^ALLOWED_ORIGINS=https://www.mededuai.com,https://mededuai.com,https://mededuai.netlify.app" \
-          --set-env-vars="SUPABASE_SERVICE_ROLE_KEY=${_SUPABASE_SERVICE_ROLE_KEY}" \
-          --set-env-vars="RESEND_API_KEY=${_RESEND_API_KEY}" \
-          --set-env-vars="GEMINI_API_KEY=${_GEMINI_API_KEY}" \
-          --set-env-vars="CRON_SECRET=${_CRON_SECRET}" \
-          --set-env-vars="ADMIN_SECRET=${_ADMIN_SECRET}"
+          --set-env-vars="^;^NODE_ENV=production;GOOGLE_CLOUD_PROJECT=$PROJECT_ID;GOOGLE_CLOUD_LOCATION=us-central1;NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL};NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY};NEXT_PUBLIC_SITE_URL=${_NEXT_PUBLIC_SITE_URL};ALLOWED_ORIGINS=https://www.mededuai.com,https://mededuai.com,https://mededuai.netlify.app;SUPABASE_SERVICE_ROLE_KEY=${_SUPABASE_SERVICE_ROLE_KEY};RESEND_API_KEY=${_RESEND_API_KEY};GEMINI_API_KEY=${_GEMINI_API_KEY};CRON_SECRET=${_CRON_SECRET};ADMIN_SECRET=${_ADMIN_SECRET}"
 
 images:
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/mededuai-backend'

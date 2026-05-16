@@ -829,6 +829,24 @@ export default function LMSCreatorAdmin() {
                     console.warn(`[Batch Loop] Topic "${processData.topicName || 'unknown'}" generation failed. Continuing to next topic.`);
                 }
 
+                if (processData.isDaily) {
+                    setBatchMessage({
+                        type: 'error',
+                        text: `🛑 Daily AI Quota Exhausted. Please enable billing (Pay-as-you-go) in Google AI Studio or wait for the quota to reset (approx. 17 hours).`,
+                    });
+                    setBatchStatus('idle');
+                    break;
+                }
+
+                if (processData.isRateLimit && processData.status === 'pending') {
+                    setBatchMessage({
+                        type: 'info',
+                        text: `⏳ AI Rate Limit hit. Cooling down for 45s to clear quota... (will resume automatically)`,
+                    });
+                    await new Promise(r => setTimeout(r, 45_000));
+                    continue;
+                }
+
                 if (processData.done) {
                     setBatchMessage({ type: 'success', text: `🎉 Batch completed! All available topics have been processed.` });
                     break;

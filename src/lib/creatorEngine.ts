@@ -12,18 +12,19 @@ export const DELIM_START = '===SECTION_START:';
 export const DELIM_END = '===SECTION_END===';
 
 // ── Threshold: sections requesting this many or more items get their own dedicated API call ──
-export const DEDICATED_CALL_THRESHOLD = 3;
+export const DEDICATED_CALL_THRESHOLD = 5;
 
 // ── "Best Gemini model" chain for Content Creator Intelligence ──
-// Pro is tried first for highest content quality. If Pro is overloaded (429/503)
-// we fall back to Flash so the batch keeps moving, then return to Pro on the
-// next retry. Other callers (rubric eval, answer restructure) keep their own
-// flash-first defaults — this chain is creator-specific.
+// Flash is tried first: its RPM/TPM ceilings are ~10× Pro's at every tier, it
+// supports thinkingBudget:0 (5–15s vs 90s+ per call), and finishes well inside
+// Cloud Run's 900s budget. Pro is kept as a higher-quality fallback for the
+// rare topic Flash struggles with. This ordering is what keeps a long batch
+// alive when one model's per-minute quota window starts squeezing.
 const CREATOR_MODELS = [
-    'gemini-2.5-pro',
     'gemini-2.5-flash',
     'gemini-2.5-pro',
     'gemini-2.5-flash',
+    'gemini-2.5-pro',
 ];
 
 // Pro + thinking on long creator prompts can run 90-150s. The default 120s

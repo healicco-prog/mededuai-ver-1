@@ -66,7 +66,7 @@ const MODELS = {
 // Errors that warrant retrying the SAME model (transient)
 const RETRYABLE_CODES = new Set([429, 503, 502, 504, 500]);
 
-// Errors that mean the model is GONE (deprecated/removed) — skip immediately
+// Errors that mean the model is GONE (deprecated/removed) OR the API key is restricted/suspended
 // Common HTTP status codes to skip model and try next immediately
 const PERMANENT_SKIP_CODES = new Set([404, 400, 401, 403]);
 
@@ -80,6 +80,36 @@ const SAFETY_SETTINGS = [
 
 /** Sleep helper */
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// ─── Proactive RPM Throttle ─────────────────────────────────────────────
+// Prevents the creator batch from blowing through Gemini's per-minute quota
+// and triggering the 429-retry storm that left jobs stuck at "AI rate limit
+// hit". A simple sliding-window limiter: track timestamps of the last N calls
+// and, before issuing a new one, wait until the oldest call is >60s old.
+//
+// Default: 8 RPM (safe under Tier 1 Pro's 15 RPM ceiling even with 2 Cloud Run instances).
+// Override via env: GEMINI_MAX_RPM=N.
+//
+// Module-scope state: shared across all generateWithFallback callers in this
+// Node process. On Cloud Run with concurrency=80 this throttles per-instance,
+// which matches how Google meters quota (per-API-key, regardless of instance).
+const GEMINI_MAX_RPM = parseInt(process.env.GEMINI_MAX_RPM || '8', 10);
+const _callTimestamps: number[] = [];
+async function throttleRPM(): Promise<void> {
+    if (GEMINI_MAX_RPM <= 0) return;
+    const now = Date.now();
+    // Drop timestamps older than 60s
+    while (_callTimestamps.length > 0 && now - _callTimestamps[0] > 60_000) {
+        _callTimestamps.shift();
+    }
+    if (_callTimestamps.length >= GEMINI_MAX_RPM) {
+        const waitMs = 60_000 - (now - _callTimestamps[0]) + 250; // small buffer
+        console.log(`[MedEduAI AI] ⏳ RPM throttle: ${_callTimestamps.length}/${GEMINI_MAX_RPM} calls in last 60s, waiting ${Math.round(waitMs / 1000)}s…`);
+        await sleep(waitMs);
+        return throttleRPM(); // re-check after wait
+    }
+    _callTimestamps.push(Date.now());
+}
 
 /**
  * Helper to convert base64 data URLs to Gemini's inlineData format
@@ -144,8 +174,13 @@ export async function generateWithFallback(
     const contents: any[] = [{ role: 'user', parts }];
 
     // ── Base config (model-agnostic) ──
+    // maxOutputTokens 16384 is enough for the largest single creator section
+    // (10-mark essays + flashcards top out around 8–12k tokens). The earlier
+    // value of 65536 was wasting output-TPM headroom against per-minute quotas
+    // — Gemini meters the *requested* max in many quota paths, so oversized
+    // budgets trigger 429s long before real output is generated.
     const baseConfig: Record<string, any> = {
-        maxOutputTokens: 65536,
+        maxOutputTokens: 16384,
         safetySettings: SAFETY_SETTINGS,
     };
     if (options?.jsonMode) baseConfig.responseMimeType = 'application/json';
@@ -172,6 +207,10 @@ export async function generateWithFallback(
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
+                // Proactive throttle: block here if we're at the RPM ceiling so
+                // we never burn an attempt on a guaranteed 429.
+                await throttleRPM();
+
                 const ai = getAI();
                 // ── New SDK shape: ai.models.generateContent({...}) ──
                 // Wrap in a per-call timeout so the whole creator batch never
@@ -214,20 +253,30 @@ export async function generateWithFallback(
                 }
 
                 // Timeouts on a model that hung mid-response → treat as transient
+                const errorMsg = e?.message ?? '';
+                const isDailyLimit = errorMsg.includes('per_model_per_day');
                 const isTimeout = typeof e?.message === 'string' && e.message.includes('GEMINI_CALL_TIMEOUT');
-                const isRetryable = isTimeout
+                
+                const isRetryable = !isDailyLimit && (
+                    isTimeout
                     || RETRYABLE_CODES.has(httpCode)
-                    || e?.message?.includes('503')
-                    || e?.message?.includes('UNAVAILABLE')
-                    || e?.message?.includes('429')
-                    || e?.message?.includes('RESOURCE_EXHAUSTED')
-                    || e?.message?.includes('DEADLINE_EXCEEDED');
+                    || errorMsg.includes('503')
+                    || errorMsg.includes('UNAVAILABLE')
+                    || errorMsg.includes('429')
+                    || errorMsg.includes('RESOURCE_EXHAUSTED')
+                    || errorMsg.includes('DEADLINE_EXCEEDED')
+                );
 
                 console.warn(
-                    `[MedEduAI AI] model=${model} attempt=${attempt} failed — httpCode=${httpCode} retryable=${isRetryable} — ${e.message}`
+                    `[MedEduAI AI] model=${model} attempt=${attempt} failed — httpCode=${httpCode} retryable=${isRetryable} — ${errorMsg}`
                 );
 
                 if (!isRetryable || PERMANENT_SKIP_CODES.has(httpCode)) {
+                    const isSuspended = httpCode === 403 || errorMsg.includes('suspended') || errorMsg.includes('Permission denied');
+                    if (isSuspended) {
+                        console.error(`[MedEduAI AI] 🛑 CRITICAL: API Key appears suspended or restricted (403). Failing fast.`);
+                        throw new Error('API_KEY_SUSPENDED: The Gemini API key has been suspended or restricted by Google.');
+                    }
                     console.error(`[MedEduAI AI] Permanent error (${httpCode}) on model=${model}, skipping to next model.`);
                     break;
                 }

@@ -5,12 +5,12 @@ Get-Content .env.local | ForEach-Object {
     }
 }
 
-$NEXT_PUBLIC_SITE_URL = "https://mededuai-backend-3js7mh5u5a-uc.a.run.app"
+$SITE_URL = if ($envVars['NEXT_PUBLIC_SITE_URL']) { $envVars['NEXT_PUBLIC_SITE_URL'] } else { "https://mededuai.com" }
 
 $substitutions = @(
     "_NEXT_PUBLIC_SUPABASE_URL=$($envVars['NEXT_PUBLIC_SUPABASE_URL'])",
     "_NEXT_PUBLIC_SUPABASE_ANON_KEY=$($envVars['NEXT_PUBLIC_SUPABASE_ANON_KEY'])",
-    "_NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL",
+    "_NEXT_PUBLIC_SITE_URL=$SITE_URL",
     "_SUPABASE_SERVICE_ROLE_KEY=$($envVars['SUPABASE_SERVICE_ROLE_KEY'])",
     "_RESEND_API_KEY=$($envVars['RESEND_API_KEY'])",
     "_GEMINI_API_KEY=$($envVars['GEMINI_API_KEY'])",
