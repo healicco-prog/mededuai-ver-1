@@ -687,6 +687,35 @@ export default function LMSCreatorAdmin() {
         }
     };
 
+    const refreshBatchStatus = async (targetBatchId: string) => {
+        try {
+            const statusRes = await fetch(`/api/creator/batch-status?batchId=${targetBatchId}`, {
+                headers: await fetchAuthHeaders(),
+            });
+            const statusData = await statusRes.json();
+            if (statusData.success) {
+                setBatchJobs(statusData.jobs || []);
+                const { completed, failed, total, pending, processing, jobs } = statusData;
+                if (!statusData.isDone) {
+                    // Surface the topic Gemini is currently working on so users see
+                    // live activity even during multi-minute Pro generations.
+                    const active = (jobs || []).find((j: any) => j.status === 'processing');
+                    const activeLabel = active ? ` · 🧠 ${active.topicName}` : '';
+                    setBatchMessage({ type: 'info', text: `⏳ ${completed} done, ${failed} failed, ${pending + processing} remaining / ${total}${activeLabel}` });
+                } else if (failed > 0) {
+                    // Terminal state with failures — replace any stale success
+                    // banner so the user is steered toward the failure-reasons list.
+                    setBatchMessage({
+                        type: 'error',
+                        text: `⚠️ Batch finished — ${completed} done, ${failed} failed of ${total}. Expand "Show failure reasons" below to diagnose, then click "Retry Failed".`,
+                    });
+                } else if (completed === total && total > 0) {
+                    setBatchMessage({ type: 'success', text: `🎉 Batch completed — all ${total} topics generated.` });
+                }
+            }
+        } catch (_) { /* ignore poll errors */ }
+    };
+
     const runBatchProcessingLoop = async (targetBatchId: string) => {
         batchAbortRef.current = false;
         setIsBatchRunning(true);
@@ -697,6 +726,20 @@ export default function LMSCreatorAdmin() {
         let lastTokenRefresh = Date.now();
         let consecutiveErrors = 0;
 
+        // ── Parallel status poller ──────────────────────────────────────────
+        // The batch-process call can take 3-5 min per topic on Pro. Without
+        // an independent poller, the UI sits frozen on the stale message
+        // while work is actually happening server-side. This interval refreshes
+        // the per-job status panel every 8s so users always see live progress
+        // (which topic is processing, completed/failed counters, etc.).
+        const statusPollInterval = setInterval(() => {
+            if (batchAbortRef.current) return;
+            refreshBatchStatus(targetBatchId).catch(() => { /* ignore poll errors */ });
+        }, 8000);
+        // Kick off an immediate first poll so the UI populates without waiting 8s.
+        refreshBatchStatus(targetBatchId).catch(() => {});
+
+        try {
         while (!batchAbortRef.current) {
             try {
                 // ── Pre-emptive JWT refresh every 30 minutes to outlive the 1h Supabase
@@ -749,6 +792,18 @@ export default function LMSCreatorAdmin() {
                     continue;
                 }
 
+                // ── A job is stuck `processing` (Cloud Run probably killed it
+                //    mid-flight). The server will reclaim it via stale recovery;
+                //    back off briefly so we don't busy-poll. ──
+                if (processData.waitingForStaleRecovery) {
+                    setBatchMessage({
+                        type: 'info',
+                        text: `⏱️ Waiting for a stuck job to recover (${processData.processingCount || 1} processing)…`,
+                    });
+                    await new Promise(r => setTimeout(r, 15_000));
+                    continue;
+                }
+
                 // ── Hydrate local state globally across all courses/subjects so UI shows tick ──
                 if (processData.generatedNotes && processData.clientTopicId) {
                     setCoursesList(prev => prev.map(c => ({
@@ -797,24 +852,42 @@ export default function LMSCreatorAdmin() {
                 await new Promise(r => setTimeout(r, 5000));
             }
         }
+        } finally {
+            clearInterval(statusPollInterval);
+            // One final refresh so the panel reflects the terminal state.
+            refreshBatchStatus(targetBatchId).catch(() => {});
+        }
 
         setIsBatchRunning(false);
     };
 
-    const refreshBatchStatus = async (targetBatchId: string) => {
+    const handleRetryFailed = async () => {
+        if (isBatchRunning) return;
+        const targetId = batchId || (typeof localStorage !== 'undefined' ? localStorage.getItem('mededuai_last_batch_id') : null);
+        if (!targetId) {
+            setBatchMessage({ type: 'error', text: 'No batch to retry — start a new batch first.' });
+            return;
+        }
         try {
-            const statusRes = await fetch(`/api/creator/batch-status?batchId=${targetBatchId}`, {
-                headers: await fetchAuthHeaders(),
+            const res = await fetch('/api/creator/batch-retry', {
+                method: 'POST',
+                headers: await fetchAuthHeaders(true),
+                body: JSON.stringify({ batchId: targetId }),
             });
-            const statusData = await statusRes.json();
-            if (statusData.success) {
-                setBatchJobs(statusData.jobs || []);
-                const { completed, failed, total, pending, processing } = statusData;
-                if (!statusData.isDone) {
-                    setBatchMessage({ type: 'info', text: `⏳ Processing… ${completed} done, ${failed} failed, ${pending + processing} remaining / ${total} total` });
-                }
+            const data = await res.json();
+            if (!data.success) {
+                setBatchMessage({ type: 'error', text: data.error || 'Failed to reset jobs.' });
+                return;
             }
-        } catch (_) { /* ignore poll errors */ }
+            if (data.resetCount === 0) {
+                setBatchMessage({ type: 'info', text: 'No failed jobs to retry.' });
+                return;
+            }
+            setBatchMessage({ type: 'info', text: `↻ Retrying ${data.resetCount} failed job(s)…` });
+            await runBatchProcessingLoop(targetId);
+        } catch (err: any) {
+            setBatchMessage({ type: 'error', text: `Retry error: ${err.message}` });
+        }
     };
 
     const handleResumeBatch = async () => {
@@ -2013,6 +2086,26 @@ export default function LMSCreatorAdmin() {
                                                 <span className="text-[10px] font-semibold text-red-600">❌ {batchJobs.filter(j => j.status === 'failed').length} failed</span>
                                             )}
                                         </div>
+
+                                        {/* ── Per-topic failure details ── */}
+                                        {batchJobs.filter(j => j.status === 'failed').length > 0 && (
+                                            <details
+                                                className="mt-2 group"
+                                                open={!isBatchRunning && batchJobs.filter(j => j.status === 'failed').length > 0}
+                                            >
+                                                <summary className="text-[10px] font-bold text-red-600 cursor-pointer hover:text-red-700 select-none">
+                                                    Show failure reasons ({batchJobs.filter(j => j.status === 'failed').length})
+                                                </summary>
+                                                <div className="mt-1.5 space-y-1 max-h-32 overflow-y-auto pr-1">
+                                                    {batchJobs.filter(j => j.status === 'failed').map(j => (
+                                                        <div key={j.id} className="text-[10px] bg-red-50 border border-red-100 rounded px-2 py-1">
+                                                            <div className="font-semibold text-red-700 truncate" title={j.topicName}>{j.topicName}</div>
+                                                            <div className="text-red-600/80 leading-snug">{j.errorMessage || 'Unknown error'}</div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </details>
+                                        )}
                                     </div>
                                 )}
 
@@ -2048,14 +2141,27 @@ export default function LMSCreatorAdmin() {
                                             Pause
                                         </button>
                                     ) : (
-                                        <button
-                                            onClick={handleResumeBatch}
-                                            disabled={isBatchRunning || isGenerating}
-                                            className="px-3 py-2 bg-violet-50 text-violet-700 font-bold text-xs rounded-lg border border-violet-300 hover:bg-violet-100 transition-colors disabled:opacity-40"
-                                            title="Resume the last batch (persisted in DB)"
-                                        >
-                                            Resume
-                                        </button>
+                                        <>
+                                            <button
+                                                onClick={handleResumeBatch}
+                                                disabled={isBatchRunning || isGenerating}
+                                                className="px-3 py-2 bg-violet-50 text-violet-700 font-bold text-xs rounded-lg border border-violet-300 hover:bg-violet-100 transition-colors disabled:opacity-40"
+                                                title="Resume the last batch (persisted in DB)"
+                                            >
+                                                Resume
+                                            </button>
+                                            {batchJobs.filter(j => j.status === 'failed').length > 0 && (
+                                                <button
+                                                    onClick={handleRetryFailed}
+                                                    disabled={isBatchRunning || isGenerating}
+                                                    className="px-3 py-2 bg-red-50 text-red-700 font-bold text-xs rounded-lg border border-red-300 hover:bg-red-100 transition-colors disabled:opacity-40 flex items-center gap-1"
+                                                    title="Reset all failed jobs to pending and resume processing"
+                                                >
+                                                    <RotateCcw className="w-3 h-3" />
+                                                    Retry Failed
+                                                </button>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             </div>

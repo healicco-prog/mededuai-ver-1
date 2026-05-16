@@ -500,7 +500,7 @@ export default function DigEvalAssistPage() {
                                             {[5, 10, 15, 20].map(m => (
                                                 <button key={m} onClick={() => setMarks(m)} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${marks === m ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-slate-600 border-slate-200 hover:bg-emerald-50'}`}>{m}M</button>
                                             ))}
-                                            <input type="number" value={marks} onChange={e => setMarks(parseInt(e.target.value) || 1)} className="w-16 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 text-xs font-bold text-center" />
+                                            <input type="number" value={marks} onChange={e => setMarks(parseFloat(e.target.value) || 1)} className="w-16 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 text-xs font-bold text-center" />
                                         </div>
                                     </div>
                                     <button onClick={handleGenerateRubrics} disabled={!course || (!question.trim() && questionImages.length === 0)} className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold h-12 px-8 rounded-xl shadow-lg shadow-emerald-500/25 flex items-center gap-2 hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-50">

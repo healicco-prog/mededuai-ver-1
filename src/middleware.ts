@@ -129,3 +129,4 @@ export const config = {
 
 // Backwards-compat alias (middleware.ts still runs in Next.js 16 with deprecation warning)
 export { proxy as middleware };
+

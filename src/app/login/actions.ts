@@ -38,3 +38,4 @@ export async function setRoleCookieAndGetRedirectUrl(role: string) {
     
     return dashboardMap[frontendRole] || `/dashboard/${frontendRole}`;
 }
+

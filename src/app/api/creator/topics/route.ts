@@ -34,3 +34,4 @@ Please generate a list of ${count || 10} new, distinct textbook-level topics tha
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
+

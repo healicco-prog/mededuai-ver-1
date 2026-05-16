@@ -202,3 +202,4 @@ export function getFeatureSlugFromPath(pathname: string): string | null {
 
   return pathToSlug[lastSegment] || null;
 }
+

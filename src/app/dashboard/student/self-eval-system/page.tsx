@@ -123,11 +123,10 @@ export default function SelfEvalSystemPage() {
 
     // ── Apply crop to image using canvas ──
     const applyCropToImage = (src: string, crop: CropState): Promise<string> => {
+        const MAX_DIM = 1280;
         return new Promise((resolve) => {
             const img = new window.Image();
             img.onload = () => {
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d')!;
                 const cropLeft = (crop.left / 100) * img.width;
                 const cropTop = (crop.top / 100) * img.height;
                 const cropRight = (crop.right / 100) * img.width;
@@ -135,9 +134,17 @@ export default function SelfEvalSystemPage() {
                 const w = img.width - cropLeft - cropRight;
                 const h = img.height - cropTop - cropBottom;
                 if (w <= 0 || h <= 0) { resolve(src); return; }
-                canvas.width = w;
-                canvas.height = h;
-                ctx.drawImage(img, cropLeft, cropTop, w, h, 0, 0, w, h);
+
+                let ratio = 1;
+                if (w > MAX_DIM || h > MAX_DIM) {
+                    ratio = Math.min(MAX_DIM / w, MAX_DIM / h);
+                }
+
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d')!;
+                canvas.width = w * ratio;
+                canvas.height = h * ratio;
+                ctx.drawImage(img, cropLeft, cropTop, w, h, 0, 0, canvas.width, canvas.height);
                 resolve(canvas.toDataURL('image/jpeg', 0.85));
             };
             img.src = src;

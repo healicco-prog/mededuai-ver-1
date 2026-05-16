@@ -11,8 +11,44 @@ export default function Step1Institution({ store }: { store: any }) {
     const handleLogo = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
+
         const reader = new FileReader();
-        reader.onload = () => setLogoUrl(reader.result as string);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    setLogoUrl(event.target?.result as string);
+                    return;
+                }
+
+                // Max dimension for logo
+                const MAX_DIMENSION = 512;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_DIMENSION) {
+                        height *= MAX_DIMENSION / width;
+                        width = MAX_DIMENSION;
+                    }
+                } else {
+                    if (height > MAX_DIMENSION) {
+                        width *= MAX_DIMENSION / height;
+                        height = MAX_DIMENSION;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                setLogoUrl(compressedDataUrl);
+            };
+            img.src = event.target?.result as string;
+        };
         reader.readAsDataURL(file);
     };
 

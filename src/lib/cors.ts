@@ -42,3 +42,4 @@ export function getCorsHeaders(origin: string | null | undefined): Record<string
     'Access-Control-Max-Age': '86400',
   };
 }
+

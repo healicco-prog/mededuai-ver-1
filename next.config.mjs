@@ -7,6 +7,14 @@ const nextConfig = {
   // Explicitly trigger this ONLY when STANDALONE_BUILD=1 is set (which is true in your Dockerfile).
   ...(process.env.STANDALONE_BUILD === '1' ? { output: 'standalone' } : {}),
 
+
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '50mb',
+    },
+    middlewareClientMaxBodySize: '50mb',
+  },
+
   async rewrites() {
     if (isNetlify) {
       return [

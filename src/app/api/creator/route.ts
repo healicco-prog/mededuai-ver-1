@@ -7,7 +7,7 @@ import { generateTopicContent } from '@/lib/creatorEngine';
 // (text + dedicated sections + grouped sections + top-up rounds) can take up to
 // 4-5 min with thinking disabled. Keep at 300 for Vercel compatibility;
 // Cloud Run has no hard limit and will use the full 300s budget.
-export const maxDuration = 300;
+export const maxDuration = 900;
 
 export async function POST(req: Request) {
     const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin'] });
@@ -49,3 +49,4 @@ export async function POST(req: Request) {
         });
     }
 }
+

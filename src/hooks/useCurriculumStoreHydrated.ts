@@ -30,3 +30,4 @@ export function useCurriculumStoreHydrated(): boolean {
 
     return mounted;
 }
+

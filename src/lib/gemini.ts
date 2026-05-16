@@ -143,18 +143,17 @@ export async function generateWithFallback(
 
     const contents: any[] = [{ role: 'user', parts }];
 
-    // ── Output token limits ──
-    const config: Record<string, any> = {
+    // ── Base config (model-agnostic) ──
+    const baseConfig: Record<string, any> = {
         maxOutputTokens: 65536,
         safetySettings: SAFETY_SETTINGS,
     };
-    if (options?.jsonMode) config.responseMimeType = 'application/json';
-    // Disable thinking tokens to reduce latency (especially for batch operations).
-    // gemini-2.5-flash supports thinkingBudget:0 to skip reasoning steps.
+    if (options?.jsonMode) baseConfig.responseMimeType = 'application/json';
+
+    // Whether the caller wants thinking tokens disabled. Only honoured for
+    // models that actually support thinkingBudget:0 — Pro models REQUIRE
+    // thinking mode and reject thinkingBudget:0 with HTTP 400 INVALID_ARGUMENT.
     const shouldDisableThinking = options?.disableThinking !== false;
-    if (shouldDisableThinking) {
-        config.thinkingConfig = { thinkingBudget: 0 };
-    }
 
     const maxRetries = options?.maxRetries ?? 4;
     const timeoutMs = options?.timeoutMs ?? 120000;
@@ -162,6 +161,15 @@ export async function generateWithFallback(
     let lastError: Error | null = null;
 
     for (const model of models) {
+        // ── Per-model config: only flash variants accept thinkingBudget:0 ──
+        const supportsThinkingBudgetZero = /flash/i.test(model) && !/flash-thinking/i.test(model);
+        const config: Record<string, any> = { ...baseConfig };
+        if (shouldDisableThinking && supportsThinkingBudgetZero) {
+            config.thinkingConfig = { thinkingBudget: 0 };
+        }
+        // For Pro / thinking-required models we deliberately omit thinkingConfig
+        // so the SDK uses the model's default budget. Setting 0 here would 400.
+
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 const ai = getAI();
@@ -479,3 +487,4 @@ ${roughDraft}
 
     return generateText(prompt);
 }
+

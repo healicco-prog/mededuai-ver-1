@@ -40,4 +40,4 @@
   to     = "https://mededuai-backend-mfz5ejaqaa-uc.a.run.app/api/:splat"
   status = 200
   force  = true
-  headers = { X-Forwarded-Host = "mededuai.netlify.app", X-Forwarded-Proto = "https", Cookie = "" }
+  headers = { X-Forwarded-Host = "mededuai.netlify.app", X-Forwarded-Proto = "https" }

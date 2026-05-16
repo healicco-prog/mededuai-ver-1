@@ -84,3 +84,4 @@ export async function getAuthHeaders(forceRefresh = false): Promise<Record<strin
     }
     return headers;
 }
+

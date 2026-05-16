@@ -439,10 +439,38 @@ function LogbookView({ store, instId, student, allotments, electives, sessions }
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (!files) return;
-        Array.from(files).forEach(file => {
-            const reader = new FileReader();
-            reader.onload = () => setReflImages(prev => [...prev, reader.result as string]);
-            reader.readAsDataURL(file);
+
+        const compressImage = (file: File): Promise<string> => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new window.Image();
+                    img.src = event.target?.result as string;
+                    img.onload = () => {
+                        const MAX_DIM = 1280;
+                        let ratio = 1;
+                        if (img.width > MAX_DIM || img.height > MAX_DIM) {
+                            ratio = Math.min(MAX_DIM / img.width, MAX_DIM / img.height);
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.width * ratio;
+                        canvas.height = img.height * ratio;
+                        const ctx = canvas.getContext('2d');
+                        if (ctx) {
+                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                            resolve(canvas.toDataURL('image/jpeg', 0.8));
+                        } else {
+                            resolve(img.src);
+                        }
+                    };
+                };
+            });
+        };
+
+        Array.from(files).forEach(async file => {
+            const compressedUrl = await compressImage(file);
+            setReflImages(prev => [...prev, compressedUrl]);
         });
     };
 

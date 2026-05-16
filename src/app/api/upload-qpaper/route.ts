@@ -120,3 +120,4 @@ Return this exact structure:
         return NextResponse.json({ error: `Processing failed: ${error.message}` }, { status: 500 });
     }
 }
+

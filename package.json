@@ -34,7 +34,12 @@
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.4",
     "xlsx": "^0.18.5",
-    "zustand": "^5.0.11"
+    "zustand": "^5.0.11",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "lucide-react": "0.471.0",
+    "jspdf": "^4.2.1",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "@types/node": "^20.19.39",
@@ -43,13 +48,8 @@
     "autoprefixer": "^10.5.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.15",
-    "jspdf": "^4.2.1",
-    "lucide-react": "0.471.0",
-    "pg": "^8.20.0",
     "postcss-load-config": "^6.0.1",
-    "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1",
-    "sharp": "^0.34.5",
+    "pg": "^8.20.0",
     "typescript": "5.9.3"
   },
   "optionalDependencies": {

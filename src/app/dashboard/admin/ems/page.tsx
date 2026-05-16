@@ -243,14 +243,20 @@ export default function EvaluationManagementSystem() {
                     
                     if (!images || images.length === 0) continue;
 
+                    const questionText = mockQuestions[qIdx];
+                    // Robust regex: matches [10 Marks], (10 Marks), 10 Marks, 10M, [10M], etc. Supports decimals.
+                    const marksMatch = questionText.match(/(?:\[|\()?\s*(\d+(?:\.\d+)?)\s*(?:Marks?|M)\s*(?:\]|\))?/i);
+                    // Use parsedQuestions as secondary source if index matches, else regex, else 10 as absolute last resort
+                    const parsedMarks = marksMatch ? parseFloat(marksMatch[1]) : (parsedQuestions[qIdx]?.marks || 10);
+
                     // Real API call
                     const res = await fetch('/api/dig-eval-assist/evaluate-script', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             rubrics: 'Standard evaluation based on accuracy, structure and depth.', // Default or from store
-                            question: mockQuestions[qIdx],
-                            marksAllotted: 10, // Default or parsed
+                            question: questionText,
+                            marksAllotted: parsedMarks, // Default or parsed
                             answerImages: images,
                             rollNumber: student.roll,
                             studentName: student.name,
@@ -296,12 +302,38 @@ export default function EvaluationManagementSystem() {
         const files = Array.from(e.target.files as FileList);
         if (files.length === 0) return;
 
-        const base64Files = await Promise.all(
-            files.map(file => new Promise<string>((resolve) => {
+        const compressImage = (file: File): Promise<string> => {
+            return new Promise((resolve, reject) => {
                 const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result as string);
                 reader.readAsDataURL(file);
-            }))
+                reader.onload = (event) => {
+                    const img = new window.Image();
+                    img.src = event.target?.result as string;
+                    img.onload = () => {
+                        const MAX_DIM = 1280;
+                        let ratio = 1;
+                        if (img.width > MAX_DIM || img.height > MAX_DIM) {
+                            ratio = Math.min(MAX_DIM / img.width, MAX_DIM / img.height);
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.width * ratio;
+                        canvas.height = img.height * ratio;
+                        const ctx = canvas.getContext('2d');
+                        if (ctx) {
+                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                            resolve(canvas.toDataURL('image/jpeg', 0.8));
+                        } else {
+                            resolve(event.target?.result as string); // fallback
+                        }
+                    };
+                    img.onerror = (error) => reject(error);
+                };
+                reader.onerror = (error) => reject(error);
+            });
+        };
+
+        const base64Files = await Promise.all(
+            files.map(file => compressImage(file))
         );
 
         setUploads(prev => ({
@@ -349,12 +381,19 @@ export default function EvaluationManagementSystem() {
 
         let csvContent = "data:text/csv;charset=utf-8,";
 
-        const qHeaders = mockQuestions.map((_, i) => `Q${i + 1}`).join(",");
-        csvContent += `Roll No,Student Name,Total Marks,Status,${qHeaders}\n`;
+        // Pre-calculate max marks for each question for headers
+        const qMaxMarks = mockQuestions.map((q, idx) => {
+            const marksMatch = q.match(/(?:\[|\()?\s*(\d+(?:\.\d+)?)\s*(?:Marks?|M)\s*(?:\]|\))?/i);
+            return marksMatch ? parseFloat(marksMatch[1]) : (parsedQuestions[idx]?.marks || 10);
+        });
+
+        const qHeaders = mockQuestions.map((_, i) => `Q${i + 1} (Max ${qMaxMarks[i]})`).join(",");
+        csvContent += `Roll No,Student Name,Marks Obtained,Max Marks,Percentage,Status,${qHeaders}\n`;
 
         evaluatedStudents.forEach(student => {
-            const qMarks = mockQuestions.map((_, i) => student.breakdown && student.breakdown[i] !== undefined ? student.breakdown[i] : 0).join(",");
-            const row = `"${student.roll}","${student.name}",${student.marks},${student.status},${qMarks}`;
+            const individualMarks = mockQuestions.map((_, i) => student.breakdown && student.breakdown[i] !== undefined ? student.breakdown[i] : 0).join(",");
+            const percentage = parsedTotalMarks > 0 ? ((student.marks / parsedTotalMarks) * 100).toFixed(2) : 0;
+            const row = `"${student.roll}","${student.name}",${student.marks},${parsedTotalMarks},${percentage}%,${student.status},${individualMarks}`;
             csvContent += row + "\n";
         });
 
@@ -675,9 +714,9 @@ export default function EvaluationManagementSystem() {
                                                                             value={q.marks} 
                                                                             onChange={(e) => {
                                                                                 const newQ = [...parsedQuestions];
-                                                                                newQ[idx].marks = Number(e.target.value.replace(/[^0-9]/g, '')) || 0;
+                                                                                newQ[idx].marks = parseFloat(e.target.value.replace(/[^0-9.]/g, '')) || 0;
                                                                                 setParsedQuestions(newQ);
-                                                                                setParsedTotalMarks(newQ.reduce((sum, item) => sum + (Number(item.marks) || 0), 0));
+                                                                                setParsedTotalMarks(newQ.reduce((sum, item) => sum + (parseFloat(item.marks.toString()) || 0), 0));
                                                                                 const paperText = newQ.map((qItem) => `**${qItem.qNum || 'Q'}. [${qItem.marks} Marks]**\n\n${qItem.text}`).join('\n\n---\n\n');
                                                                                 setQuestionPaperText(paperText);
                                                                             }}
@@ -715,9 +754,9 @@ export default function EvaluationManagementSystem() {
                                                                         value={q.marks} 
                                                                         onChange={(e) => {
                                                                             const newQ = [...parsedQuestions];
-                                                                            newQ[idx].marks = Number(e.target.value.replace(/[^0-9]/g, '')) || 0;
+                                                                            newQ[idx].marks = parseFloat(e.target.value.replace(/[^0-9.]/g, '')) || 0;
                                                                             setParsedQuestions(newQ);
-                                                                            setParsedTotalMarks(newQ.reduce((sum, item) => sum + (Number(item.marks) || 0), 0));
+                                                                            setParsedTotalMarks(newQ.reduce((sum, item) => sum + (parseFloat(item.marks.toString()) || 0), 0));
                                                                             const paperText = newQ.map((qItem) => `**${qItem.qNum || 'Q'}. [${qItem.marks} Marks]**\n\n${qItem.text}`).join('\n\n---\n\n');
                                                                             setQuestionPaperText(paperText);
                                                                         }}
@@ -1023,20 +1062,24 @@ export default function EvaluationManagementSystem() {
                                 </div>
 
                                 <div className="space-y-8 px-2 pb-8">
-                                    {mockQuestions.map((q, idx) => (
+                                    {mockQuestions.map((q, idx) => {
+                                        const marksMatch = q.match(/(?:\[|\()?\s*(\d+(?:\.\d+)?)\s*(?:Marks?|M)\s*(?:\]|\))?/i);
+                                        const qMarks = marksMatch ? parseFloat(marksMatch[1]) : (parsedQuestions[idx]?.marks || 10);
+                                        
+                                        return (
                                         <div key={idx} className="bg-white border text-slate-800 border-slate-200 shadow-md rounded-3xl p-8 flex flex-col md:flex-row gap-8 items-stretch transform transition-all hover:border-indigo-200 relative overflow-hidden">
                                             <div className="md:w-1/2 flex flex-col">
                                                 <div className="flex justify-between items-center mb-4">
                                                     <h4 className="font-black text-slate-900 text-xl flex items-center gap-2"><div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-sm">Q{idx + 1}</div></h4>
-                                                    <span className="bg-slate-100 text-slate-500 font-bold px-3 py-1 rounded-lg text-xs tracking-widest uppercase">Max 10 Marks</span>
+                                                    <span className="bg-slate-100 text-slate-500 font-bold px-3 py-1 rounded-lg text-xs tracking-widest uppercase">Max {qMarks} Marks</span>
                                                 </div>
                                                 <div className="text-sm text-slate-700 bg-slate-50 p-6 rounded-2xl border border-slate-100 leading-relaxed font-medium flex-1"><ReactMarkdown remarkPlugins={[remarkGfm]}>{q}</ReactMarkdown></div>
 
                                                 <div className="mt-8 bg-indigo-50/50 p-6 rounded-2xl border-2 border-indigo-100 group focus-within:border-indigo-500 transition-colors">
                                                     <label className="block text-xs font-black text-indigo-700 uppercase tracking-widest mb-3 flex items-center gap-2"><Sparkles className="w-4 h-4" /> AI Suggested Marks</label>
                                                     <div className="flex items-center gap-4">
-                                                        <input type="number" min="0" max="10" value={editingMarks[idx] !== undefined ? editingMarks[idx] : 0} onChange={e => setEditingMarks(prev => ({ ...prev, [idx]: parseFloat(e.target.value) || 0 }))} className="w-24 text-3xl font-black text-slate-900 px-4 py-3 rounded-xl bg-white border border-indigo-200 outline-none focus:ring-4 focus:ring-indigo-100 text-center transition-shadow shadow-sm" />
-                                                        <span className="text-slate-400 font-bold text-xl">/ 10</span>
+                                                        <input type="number" min="0" max={qMarks} value={editingMarks[idx] !== undefined ? editingMarks[idx] : 0} onChange={e => setEditingMarks(prev => ({ ...prev, [idx]: parseFloat(e.target.value) || 0 }))} className="w-24 text-3xl font-black text-slate-900 px-4 py-3 rounded-xl bg-white border border-indigo-200 outline-none focus:ring-4 focus:ring-indigo-100 text-center transition-shadow shadow-sm" />
+                                                        <span className="text-slate-400 font-bold text-xl">/ {qMarks}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1060,7 +1103,8 @@ export default function EvaluationManagementSystem() {
                                                 )}
                                             </div>
                                         </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         ) : (
@@ -1106,8 +1150,11 @@ export default function EvaluationManagementSystem() {
                                                     </div>
                                                     {student.status === 'evaluated' ? (
                                                         <div className="text-right">
-                                                            <span className="text-2xl font-black text-indigo-600">{student.marks}</span>
-                                                            <span className="text-xs text-slate-400 font-bold block">Total Marks</span>
+                                                            <div className="flex flex-col items-end">
+                                                                <span className="text-2xl font-black text-indigo-600">{student.marks}</span>
+                                                                <div className="h-px w-full bg-slate-200 my-1" />
+                                                                <span className="text-xs font-bold text-slate-400">{parsedTotalMarks || 0} Max</span>
+                                                            </div>
                                                         </div>
                                                     ) : student.status === 'evaluating' ? (
                                                         <div className="flex flex-col items-end">

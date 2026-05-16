@@ -34,7 +34,13 @@ export default function LoginPage() {
             const data = await res.json();
 
             if (!res.ok) {
-                setError(data.error || 'Login failed. Please check your credentials.');
+                const raw = (data.error || '').toString();
+                const cryptic = /^(fetch failed|failed to fetch|networkerror|typeerror|load failed)$/i.test(raw.trim())
+                    || /enotfound|econnreset|etimedout|getaddrinfo|und_err/i.test(raw);
+                const friendly = cryptic || !raw
+                    ? 'Authentication service is temporarily unavailable. Please check your connection and try again in a moment.'
+                    : raw;
+                setError(friendly);
                 return;
             }
 

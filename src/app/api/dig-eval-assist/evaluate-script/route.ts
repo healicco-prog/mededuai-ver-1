@@ -5,8 +5,8 @@ import { createClient } from '@supabase/supabase-js';
 
 function getSupabase() {
     return createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummyurl.supabase.co',
-        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'dummykey'
+        process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || 'https://dummyurl.supabase.co',
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'dummykey'
     );
 }
 
@@ -79,9 +79,9 @@ Be thorough, fair, and constructive. Award marks based strictly on the rubric.`;
         });
 
         // Extract marks from the response
-        const marksMatch = evaluationResult.match(/Marks Awarded:\s*(\d+(?:\.\d+)?)\s*\/\s*(\d+)/);
+        const marksMatch = evaluationResult.match(/Marks Awarded:\s*(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/);
         const marksObtained = marksMatch ? parseFloat(marksMatch[1]) : 0;
-        const totalMarks = marksMatch ? parseInt(marksMatch[2]) : marksAllotted;
+        const totalMarks = marksMatch ? parseFloat(marksMatch[2]) : marksAllotted;
         const percentage = totalMarks > 0 ? Math.round((marksObtained / totalMarks) * 100 * 100) / 100 : 0;
 
         // Save to Supabase
@@ -129,3 +129,4 @@ Be thorough, fair, and constructive. Award marks based strictly on the rubric.`;
         }, { status: 500 });
     }
 }
+

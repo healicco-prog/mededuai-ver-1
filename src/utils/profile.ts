@@ -29,3 +29,4 @@ export async function fetchUserRole(userId: string, supabaseClient: SupabaseClie
   }
   return null;
 }
+

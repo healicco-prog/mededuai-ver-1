@@ -29,9 +29,9 @@ function getJwtRef(jwt: string): string | null {
  * Falls back to the anon key if the service role key points to a stale project.
  */
 export function getSupabaseAdmin(): SupabaseClient {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || MEDEDUAI_URL;
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || MEDEDUAI_URL;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
 
     // Detect stale project: if the service key encodes a different project ref
     // (e.g. Cloud Run env vars not yet updated), fall back to anon key.
@@ -66,7 +66,7 @@ export function getSupabaseAdmin(): SupabaseClient {
  * auth.getUser(token) works with both anon and service role keys.
  */
 export function getSupabaseForAuth(): SupabaseClient {
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
     // Always returns a usable client; falls back gracefully without throwing.
     const resolvedKey = anonKey || 'no-anon-key-configured';
     if (!anonKey) {
@@ -76,3 +76,4 @@ export function getSupabaseForAuth(): SupabaseClient {
         auth: { autoRefreshToken: false, persistSession: false },
     });
 }
+

@@ -182,3 +182,4 @@ export async function GET() {
         meta: { usedFallback, topicCount: rows.length },
     });
 }
+

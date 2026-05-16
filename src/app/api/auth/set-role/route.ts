@@ -37,3 +37,4 @@ export async function POST(req: Request) {
         return NextResponse.json({ redirectUrl: '/dashboard/student', role: 'student' });
     }
 }
+

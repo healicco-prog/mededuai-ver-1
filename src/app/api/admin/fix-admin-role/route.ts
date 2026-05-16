@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     if (!sec.authorized) return sec.response;
 
     try {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummyurl.supabase.co';
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || 'https://dummyurl.supabase.co';
         const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'dummykey';
 
         if (!supabaseUrl || !serviceRoleKey) {
@@ -65,3 +65,4 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
     }
 }
+

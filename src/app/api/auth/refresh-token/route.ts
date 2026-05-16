@@ -44,8 +44,8 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'refresh_token or access_token is required' }, { status: 400 });
         }
 
-        const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL  || 'https://dummyurl.supabase.co';
-        const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'dummykey';
+        const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || 'https://dummyurl.supabase.co';
+        const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'dummykey';
 
         // Server-side client — unaffected by browser ISP blocks on Supabase
         const supabase = createClient(supabaseUrl, supabaseAnon, {
@@ -85,3 +85,4 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: err?.message || 'Internal error' }, { status: 500 });
     }
 }
+

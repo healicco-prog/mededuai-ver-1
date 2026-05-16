@@ -50,3 +50,4 @@ export async function updateUserRole(userId: string, newRole: string) {
 
   return { success: true };
 }
+

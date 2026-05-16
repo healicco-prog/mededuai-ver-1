@@ -5,7 +5,7 @@
  *   - /api/creator/batch-process/route.ts  (server-side background batch)
  */
 
-import { generateText } from '@/lib/gemini';
+import { generateWithFallback } from '@/lib/gemini';
 
 // ── Delimiter constants ──
 export const DELIM_START = '===SECTION_START:';
@@ -13,6 +13,33 @@ export const DELIM_END = '===SECTION_END===';
 
 // ── Threshold: sections requesting this many or more items get their own dedicated API call ──
 export const DEDICATED_CALL_THRESHOLD = 3;
+
+// ── "Best Gemini model" chain for Content Creator Intelligence ──
+// Pro is tried first for highest content quality. If Pro is overloaded (429/503)
+// we fall back to Flash so the batch keeps moving, then return to Pro on the
+// next retry. Other callers (rubric eval, answer restructure) keep their own
+// flash-first defaults — this chain is creator-specific.
+const CREATOR_MODELS = [
+    'gemini-2.5-pro',
+    'gemini-2.5-flash',
+    'gemini-2.5-pro',
+    'gemini-2.5-flash',
+];
+
+// Pro + thinking on long creator prompts can run 90-150s. The default 120s
+// Gemini call timeout was firing mid-think and the retry-on-timeout path then
+// burned all attempts on the same hard limit. 240s comfortably fits Pro and
+// the batch-process route still has 60s of headroom under maxDuration=300s.
+const CREATOR_GEMINI_TIMEOUT_MS = 240_000;
+
+async function creatorGenerate(prompt: string): Promise<string> {
+    return generateWithFallback(prompt, {
+        jsonMode: false,
+        preferredModels: CREATOR_MODELS,
+        disableThinking: true,
+        timeoutMs: CREATOR_GEMINI_TIMEOUT_MS,
+    });
+}
 
 export interface GenerateTopicParams {
     courseName: string;
@@ -284,7 +311,7 @@ You are generating notes for BSc Nursing students. Your content must be:
         prompt += `IMPORTANT: You MUST generate ALL content for ALL sections listed above. Do NOT skip any section. Do NOT truncate. Complete EVERY section fully before outputting the next.\n`;
         prompt += `IMPORTANT: Respect the WRITING FORMAT for each section. If a word count is specified, you MUST reach that word count. If a quantity is specified, you MUST generate that exact number of items.`;
         console.log(`[Creator Engine] [${chunkLabel}] Generating ${items.length} section(s) for "${topicName}"…`);
-        const rawText = await generateText(prompt, undefined, true);
+        const rawText = await creatorGenerate(prompt);
         console.log(`[Creator Engine] [${chunkLabel}] Raw output length: ${rawText.length} chars`);
         return parseDelimitedSections(rawText, items);
     };
@@ -321,7 +348,7 @@ You are generating notes for BSc Nursing students. Your content must be:
                 `\nCRITICAL: Start numbering from ${actualCount + 1}. Generate EXACTLY ${missingCount} additional items. This is round ${round} of top-up — you MUST complete all ${missingCount} items this time.\n` +
                 `REMEMBER: Use the EXACT delimiter format.`;
             try {
-                const topUpRaw = await generateText(topUpPrompt, undefined, true);
+                const topUpRaw = await creatorGenerate(topUpPrompt);
                 const topUpParsed = parseDelimitedSections(topUpRaw, [item]);
                 const topUpContent = topUpParsed[item.id] || '';
                 if (topUpContent.length > 10) {
@@ -387,3 +414,4 @@ You are generating notes for BSc Nursing students. Your content must be:
 
     return { success: true, generatedNotes };
 }
+

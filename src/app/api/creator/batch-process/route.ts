@@ -16,7 +16,108 @@ import { checkSecurity } from '@/lib/apiSecurity';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { generateTopicContent } from '@/lib/creatorEngine';
 
-export const maxDuration = 300;
+export const maxDuration = 900;
+
+// Total attempts (including the first) a job gets before being permanently marked failed.
+const MAX_ATTEMPTS = 3;
+
+/**
+ * Classifies a generation error so transient ones (Gemini 429/503, timeouts,
+ * empty responses, exhausted-model-chain) can be retried automatically, while
+ * permanent ones (safety filter, parse failure) fail fast with a clean message.
+ */
+function classifyGenerationError(rawMsg: string): { retryable: boolean; cleanMessage: string } {
+    const msg = (rawMsg || '').toString();
+    const lower = msg.toLowerCase();
+
+    if (lower.includes('content_blocked_by_safety') || lower.includes('safety') || lower.includes('prohibited')) {
+        return { retryable: false, cleanMessage: 'Blocked by AI safety filter — content cannot be generated for this topic.' };
+    }
+    if (lower.includes('could not be parsed') || lower.includes('parse')) {
+        return { retryable: false, cleanMessage: 'AI output could not be parsed into the expected section structure.' };
+    }
+    if (lower.includes('invalid_argument') || lower.includes('budget 0 is invalid')) {
+        return { retryable: false, cleanMessage: 'AI model configuration mismatch — please contact support.' };
+    }
+    if (lower.includes('gemini_call_timeout') || lower.includes('deadline_exceeded') || lower.includes('timeout')) {
+        return { retryable: true, cleanMessage: 'Generation timed out — will retry automatically.' };
+    }
+    if (lower.includes('429') || lower.includes('resource_exhausted') || lower.includes('quota') || lower.includes('rate')) {
+        return { retryable: true, cleanMessage: 'AI rate limit hit — will retry automatically.' };
+    }
+    if (lower.includes('503') || lower.includes('502') || lower.includes('504') || lower.includes('unavailable')) {
+        return { retryable: true, cleanMessage: 'AI service temporarily unavailable — will retry automatically.' };
+    }
+    if (lower.includes('empty_response_from_ai') || lower.includes('empty response')) {
+        return { retryable: true, cleanMessage: 'AI returned an empty response — will retry automatically.' };
+    }
+    if (lower.includes('all ai models exhausted') || lower.includes('models exhausted')) {
+        // First time we hit this we still retry once — the next attempt might land on
+        // a freshly-recovered model. After MAX_ATTEMPTS the outer guard fails it.
+        return { retryable: true, cleanMessage: 'All AI models were busy — will retry automatically.' };
+    }
+    return { retryable: false, cleanMessage: msg.slice(0, 240) };
+}
+
+/**
+ * Handles a generation failure: if the error is transient and the job hasn't
+ * exhausted MAX_ATTEMPTS, returns the job to the `pending` queue so the next
+ * batch-process tick picks it up. Otherwise marks it permanently `failed`
+ * with a cleaned-up error message. Always returns a JSON response so the
+ * outer route can simply `return await handleGenerationFailure(...)`.
+ */
+async function handleGenerationFailure(
+    supabase: ReturnType<typeof getSupabaseAdmin>,
+    batchId: string,
+    job: any,
+    rawError: string
+) {
+    const { retryable, cleanMessage } = classifyGenerationError(rawError);
+    const attemptCount = job.attempt_count || 1;
+    const willRetry = retryable && attemptCount < MAX_ATTEMPTS;
+
+    if (willRetry) {
+        const retryMessage = `${cleanMessage} (attempt ${attemptCount}/${MAX_ATTEMPTS})`;
+        await supabase
+            .from('creator_jobs')
+            .update({
+                status: 'pending',
+                error_message: retryMessage,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', job.id);
+        console.warn(`[Batch Process] ↻ Retrying "${job.topic_name}" (attempt ${attemptCount}/${MAX_ATTEMPTS}): ${cleanMessage}`);
+    } else {
+        await supabase
+            .from('creator_jobs')
+            .update({
+                status: 'failed',
+                error_message: cleanMessage,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', job.id);
+        console.error(`[Batch Process] ✗ Permanently failed "${job.topic_name}" after ${attemptCount} attempt(s): ${cleanMessage}`);
+    }
+
+    const { count: remainingCount } = await supabase
+        .from('creator_jobs')
+        .select('id', { count: 'exact', head: true })
+        .eq('batch_id', batchId)
+        .eq('status', 'pending');
+
+    return NextResponse.json({
+        success: true,
+        done: (remainingCount || 0) === 0,
+        jobId: job.id,
+        clientTopicId: job.client_topic_id,
+        topicName: job.topic_name,
+        status: willRetry ? 'pending' : 'failed',
+        willRetry,
+        attemptCount,
+        error: cleanMessage,
+        remaining: remainingCount || 0,
+    });
+}
 
 export async function POST(req: Request) {
     const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin'] });
@@ -34,8 +135,10 @@ export async function POST(req: Request) {
         // We do a select + update in sequence. In low-concurrency superadmin use this is safe.
         // For higher concurrency, a DB function with FOR UPDATE SKIP LOCKED would be better.
 
-        // First, recover any stale "processing" jobs (stuck > 10 min = server crashed mid-job)
-        const staleThreshold = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+        // Recover any stale "processing" jobs (stuck > 4 min — slightly over the
+        // 300s maxDuration so a Cloud-Run-killed job becomes claimable again
+        // quickly instead of leaving the batch limping for the full 10 min).
+        const staleThreshold = new Date(Date.now() - 4 * 60 * 1000).toISOString();
         await supabase
             .from('creator_jobs')
             .update({ status: 'pending', updated_at: new Date().toISOString() })
@@ -56,13 +159,29 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: fetchErr.message }, { status: 500 });
         }
 
-        // No pending jobs — check if batch is fully done
+        // No pending jobs. The batch is only truly done when nothing is still
+        // `processing` either — otherwise a job killed mid-flight by Cloud Run
+        // would let the client loop exit prematurely while the stale-recovery
+        // query hasn't yet had time to reset it to pending.
         if (!candidates || candidates.length === 0) {
             const { data: remaining } = await supabase
                 .from('creator_jobs')
                 .select('status')
                 .eq('batch_id', batchId);
-            const allDone = remaining?.every(j => j.status === 'completed' || j.status === 'failed');
+            const processingCount = remaining?.filter(j => j.status === 'processing').length || 0;
+            const allDone = remaining?.every(j => j.status === 'completed' || j.status === 'failed') ?? false;
+
+            if (!allDone && processingCount > 0) {
+                // Tell the client to wait a bit before polling again — stale
+                // recovery will reclaim the stuck job on a future tick.
+                return NextResponse.json({
+                    success: true,
+                    done: false,
+                    waitingForStaleRecovery: true,
+                    processingCount,
+                });
+            }
+
             return NextResponse.json({ success: true, done: true, allCompleted: allDone });
         }
 
@@ -102,53 +221,11 @@ export async function POST(req: Request) {
                 lmsStructure: job.lms_structure || [],
             });
         } catch (genErr: any) {
-            const errMsg = genErr?.message || 'Generation error';
-            await supabase
-                .from('creator_jobs')
-                .update({ status: 'failed', error_message: errMsg, updated_at: new Date().toISOString() })
-                .eq('id', job.id);
-
-            const { count: remainingCount } = await supabase
-                .from('creator_jobs')
-                .select('id', { count: 'exact', head: true })
-                .eq('batch_id', batchId)
-                .eq('status', 'pending');
-
-            return NextResponse.json({
-                success: true,
-                done: (remainingCount || 0) === 0,
-                jobId: job.id,
-                clientTopicId: job.client_topic_id,
-                topicName: job.topic_name,
-                status: 'failed',
-                error: errMsg,
-                remaining: remainingCount || 0,
-            });
+            return await handleGenerationFailure(supabase, batchId, job, genErr?.message || 'Generation error');
         }
 
         if (!genResult.success || !genResult.generatedNotes) {
-            const errMsg = genResult.error || 'Generation returned no content';
-            await supabase
-                .from('creator_jobs')
-                .update({ status: 'failed', error_message: errMsg, updated_at: new Date().toISOString() })
-                .eq('id', job.id);
-
-            const { count: remainingCount } = await supabase
-                .from('creator_jobs')
-                .select('id', { count: 'exact', head: true })
-                .eq('batch_id', batchId)
-                .eq('status', 'pending');
-
-            return NextResponse.json({
-                success: true,
-                done: (remainingCount || 0) === 0,
-                jobId: job.id,
-                clientTopicId: job.client_topic_id,
-                topicName: job.topic_name,
-                status: 'failed',
-                error: errMsg,
-                remaining: remainingCount || 0,
-            });
+            return await handleGenerationFailure(supabase, batchId, job, genResult.error || 'Generation returned no content');
         }
 
         const { generatedNotes } = genResult;
@@ -353,3 +430,4 @@ async function saveTopicToDb({
         await supabase.from('assessments').insert(assessmentsToInsert);
     }
 }
+

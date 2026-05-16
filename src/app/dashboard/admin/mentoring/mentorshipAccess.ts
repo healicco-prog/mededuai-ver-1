@@ -75,3 +75,4 @@ export function syncMenteeEmails(mentees: { email: string; name: string; type: '
         .map(m => ({ email: m.email, role: m.type, name: m.name }));
     setApprovedEmails([...nonMenteeEntries, ...menteeEntries]);
 }
+

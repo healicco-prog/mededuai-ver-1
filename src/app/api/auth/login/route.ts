@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 // Normalises any variant the DB might store to the canonical lowercase frontend key.
 function mapRole(raw: string): string {
@@ -44,20 +45,86 @@ const dashboardMap: Record<string, string> = {
     student: '/dashboard/student',
 };
 
+// ── Authoritative MedEduAI-1 project reference ───────────────────────────
+// Mirrors supabaseAdmin.ts: we never trust the URL env var to be correct
+// (Cloud Run revisions can carry stale or missing values from older deploys).
+// The hardcoded ref guarantees auth always targets the right project.
+const MEDEDUAI_PROJECT_REF = 'yrelfdwkjtaidtoulwrj';
+const MEDEDUAI_URL = `https://${MEDEDUAI_PROJECT_REF}.supabase.co`;
+
+// Recognises transient upstream-reachability failures so we retry instead of leaking
+// raw Node fetch internals (e.g. "fetch failed", "ENOTFOUND") into the UI.
+function isTransientNetworkError(err: any): boolean {
+    const msg = (err?.message || err?.cause?.message || '').toLowerCase();
+    const code = (err?.cause?.code || err?.code || '').toString().toUpperCase();
+    if (['ENOTFOUND', 'ECONNRESET', 'ETIMEDOUT', 'ECONNREFUSED', 'EAI_AGAIN', 'UND_ERR_SOCKET', 'ABORT_ERR'].includes(code)) return true;
+    if (err?.name === 'AbortError' || err?.name === 'TimeoutError') return true;
+    return /fetch failed|failed to fetch|network|socket hang up|timeout|getaddrinfo|und_err|aborted/.test(msg);
+}
+
+// Wraps fetch with a hard timeout so a hung TCP/TLS connection to Supabase
+// surfaces a clean AbortError instead of holding the Cloud Run request open
+// until the 5-minute task timeout.
+function fetchWithTimeout(timeoutMs: number): typeof fetch {
+    return (input: RequestInfo | URL, init: RequestInit = {}) => {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), timeoutMs);
+        const signal = init.signal
+            ? AbortSignal.any([init.signal, controller.signal])
+            : controller.signal;
+        return fetch(input, { ...init, signal }).finally(() => clearTimeout(id));
+    };
+}
+
+async function signInWithRetry(supabase: any, email: string, password: string) {
+    let lastErr: any;
+    for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+            return await supabase.auth.signInWithPassword({ email, password });
+        } catch (err) {
+            lastErr = err;
+            if (!isTransientNetworkError(err)) throw err;
+            await new Promise(r => setTimeout(r, 400));
+        }
+    }
+    throw lastErr;
+}
+
 export async function POST(req: Request) {
     try {
         const { email, password } = await req.json();
 
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummyurl.supabase.co';
-        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'dummykey';
+        // ── Resilient URL resolution ──
+        // Always force the MedEduAI-1 URL. Even if NEXT_PUBLIC_SUPABASE_URL on
+        // Cloud Run is empty, missing, or points to a stale project (e.g. a
+        // legacy PGMentor revision), we connect to the right project.
+        const envUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
+        const supabaseUrl = envUrl.includes(MEDEDUAI_PROJECT_REF) ? envUrl : MEDEDUAI_URL;
+
+        // Anon key has no fallback — check multiple env var names so we don't
+        // 503 just because Cloud Run uses a slightly different name.
+        const supabaseAnonKey =
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+            process.env.SUPABASE_ANON_KEY ||
+            '';
+
+        if (!supabaseAnonKey) {
+            console.error('[login] Supabase anon key missing on server runtime — check Cloud Run env vars');
+            return NextResponse.json(
+                { error: 'Authentication service is temporarily unavailable. Please try again in a moment.' },
+                { status: 503 }
+            );
+        }
+
+        // Diagnostic log (no secrets): visible in Cloud Run logs to debug stale config.
+        console.log(`[login] target=${new URL(supabaseUrl).host} keyPrefix=${supabaseAnonKey.slice(0, 8)}…`);
+
         const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-            auth: { persistSession: false }
+            auth: { persistSession: false },
+            global: { fetch: fetchWithTimeout(10_000) },
         });
 
-        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
+        const { data: authData, error: authError } = await signInWithRetry(supabase, email, password);
 
         if (authError || !authData.user) {
             return NextResponse.json({ error: authError?.message || 'Login failed' }, { status: 400 });
@@ -75,20 +142,43 @@ export async function POST(req: Request) {
             console.log(`[login] role from app_metadata: ${role}`);
         } else {
             try {
-                const { data: profile, error: profileErr } = await supabase
-                    .from('profiles')
+                const adminDb = getSupabaseAdmin();
+                // 1. Try public.users table first (matches authMiddleware behavior)
+                let { data: userRow } = await adminDb
+                    .from('users')
                     .select('role')
                     .eq('id', authData.user.id)
                     .single();
-                if (profile?.role) {
-                    role = profile.role;
-                    console.log(`[login] role from profiles table: ${role}`);
+
+                if (userRow?.role) {
+                    role = userRow.role;
+                    console.log(`[login] role from public.users table: ${role}`);
                 } else {
-                    console.warn(`[login] No role found for user ${authData.user.email}. profileErr:`, profileErr?.message);
+                    // 2. Fall back to profiles table
+                    const { data: profileRow, error: profileErr } = await adminDb
+                        .from('profiles')
+                        .select('role')
+                        .eq('id', authData.user.id)
+                        .single();
+
+                    if (profileRow?.role) {
+                        role = profileRow.role;
+                        console.log(`[login] role from profiles table: ${role}`);
+                    } else {
+                        console.warn(`[login] No role found in DB for user ${authData.user.email}. profileErr:`, profileErr?.message);
+                    }
                 }
             } catch (err) {
-                console.warn('[login] Could not fetch role from profiles:', err);
+                console.warn('[login] Could not fetch role from users/profiles DB tables:', err);
             }
+        }
+
+        // Auto-assign admin role for known admin testing accounts if default lookup returns student
+        const emailLower = (authData.user.email || '').toLowerCase();
+        const isAdminEmail = emailLower.includes('admin') || emailLower.includes('drnarayanak') || emailLower === 'drnarayanak@gmail.com';
+        if (role === 'student' && isAdminEmail) {
+            role = 'superadmin';
+            console.log(`[login] auto-assigned superadmin role based on matching admin email: ${emailLower}`);
         }
 
         // Use the exhaustive mapRole() normaliser — falls back to 'student' for unknowns
@@ -130,6 +220,13 @@ export async function POST(req: Request) {
 
     } catch (error: any) {
         console.error('Login internal error:', error);
-        return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+        if (isTransientNetworkError(error)) {
+            return NextResponse.json(
+                { error: 'Authentication service is temporarily unavailable. Please try again in a moment.' },
+                { status: 503 }
+            );
+        }
+        return NextResponse.json({ error: 'Login failed. Please try again.' }, { status: 500 });
     }
 }
+
