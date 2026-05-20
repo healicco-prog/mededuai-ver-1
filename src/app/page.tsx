@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { BookOpen, Mic, Stethoscope, ChevronRight, Menu, X, Star, Download, MapPin, Phone, Mail as MailIcon, Loader2, CheckCircle2, User, Zap, Crown, Shield, Check, ArrowRight } from 'lucide-react';
+import { BookOpen, Mic, Stethoscope, ChevronRight, Menu, X, Star, Download, MapPin, Phone, Mail as MailIcon, Loader2, CheckCircle2, User, Zap, Crown, Shield, Check, ArrowRight, Clock, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import MededuLogo from '@/components/MededuLogo';
+import { blogService } from '@/lib/blogService';
+import { useBlogStore, BlogPost } from '@/store/blogStore';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -13,6 +15,11 @@ interface BeforeInstallPromptEvent extends Event {
 export default function LandingPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+
+  // Blog states
+  const storeBlogs = useBlogStore(state => state.blogs);
+  const [blogs, setBlogs] = useState<BlogPost[]>([]);
+  const [blogsLoading, setBlogsLoading] = useState(true);
 
   // Contact form state
   const [contactName, setContactName] = useState('');
@@ -93,6 +100,54 @@ export default function LandingPage() {
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    
+    const loadBlogs = async () => {
+      try {
+        const publishedLocal = storeBlogs.filter(b => b.status === 'published');
+        const data = await blogService.getAllBlogs();
+        if (!mounted) return;
+        
+        // Combine remote blogs with local state blogs
+        const combined = [...data, ...publishedLocal];
+        
+        // Deduplicate by ID
+        const uniqueMap = new Map();
+        combined.forEach(item => {
+          if (item && item.id) {
+            uniqueMap.set(item.id, item);
+          }
+        });
+        const unique = Array.from(uniqueMap.values());
+        
+        // Sort by created_at descending
+        const sorted = unique.sort((a, b) => {
+          const dateA = new Date(a.created_at || 0).getTime();
+          const dateB = new Date(b.created_at || 0).getTime();
+          return dateB - dateA;
+        });
+        
+        setBlogs(sorted.slice(0, 3));
+      } catch (err) {
+        console.warn("Failed to load landing page blogs from remote, using fallback:", err);
+        const publishedLocal = storeBlogs.filter(b => b.status === 'published');
+        if (mounted) {
+          setBlogs(publishedLocal.slice(0, 3));
+        }
+      } finally {
+        if (mounted) {
+          setBlogsLoading(false);
+        }
+      }
+    };
+
+    loadBlogs();
+    return () => {
+      mounted = false;
+    };
+  }, [storeBlogs]);
 
   const handleInstall = async () => {
     if (!installPrompt) return;
@@ -232,6 +287,118 @@ export default function LandingPage() {
                 <p className="text-slate-400 leading-relaxed">{item.desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* The Pulse of MedEduAI - Publications Showcase */}
+      <section className="py-24 bg-slate-900 border-t border-white/5 relative overflow-hidden">
+        {/* Glowing Background Ambient Light */}
+        <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[140px] pointer-events-none"></div>
+        <div className="absolute top-1/2 right-1/4 -translate-y-1/2 w-[500px] h-[500px] bg-cyan-500/5 rounded-full blur-[140px] pointer-events-none"></div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-950/60 border border-emerald-700/50 text-emerald-300 text-sm font-semibold mb-6 backdrop-blur-md shadow-lg shadow-emerald-900/20">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              The Pulse of MedEduAI
+            </div>
+            <h2 className="text-3xl md:text-5xl font-bold text-white mb-6 tracking-tight">
+              Exploring the Future of Medical Learning
+            </h2>
+            <p className="text-slate-400 max-w-3xl mx-auto text-lg leading-relaxed font-medium">
+              Dive into the architecture of modern medical learning. Exploring AI, cognitive science, and the future of healthcare education.
+            </p>
+          </div>
+
+          {blogsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="flex flex-col bg-slate-950/60 backdrop-blur-sm border border-white/5 rounded-3xl overflow-hidden animate-pulse">
+                  <div className="h-48 w-full bg-slate-900/60 border-b border-white/5"></div>
+                  <div className="p-6 flex flex-col flex-1 gap-4">
+                    <div className="h-4 w-1/3 bg-slate-900/80 rounded"></div>
+                    <div className="h-6 w-full bg-slate-900/80 rounded"></div>
+                    <div className="h-4 w-5/6 bg-slate-900/80 rounded"></div>
+                    <div className="h-4 w-2/3 bg-slate-900/80 rounded"></div>
+                    <div className="h-8 w-full bg-slate-900/80 rounded mt-4"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : blogs.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {blogs.map((blog) => (
+                <Link
+                  key={blog.id}
+                  href={`/blog/${blog.slug}`}
+                  className="group flex flex-col bg-slate-950/60 backdrop-blur-sm border border-white/10 rounded-3xl overflow-hidden hover:border-emerald-500/30 transition-all duration-500 hover:shadow-2xl hover:shadow-emerald-500/5 hover:-translate-y-2"
+                >
+                  <div className="h-48 w-full relative overflow-hidden bg-slate-800 border-b border-white/5">
+                    {blog.featured_image ? (
+                      <img
+                        src={blog.featured_image}
+                        alt={blog.title}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-80 group-hover:opacity-100"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-emerald-950/40 to-slate-950/80 relative">
+                        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-500/10 via-transparent to-transparent"></div>
+                        <BookOpen className="w-8 h-8 text-emerald-500/40" />
+                      </div>
+                    )}
+                    <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold text-emerald-400 uppercase tracking-wider border border-emerald-500/20">
+                      {blog.category || 'Insights'}
+                    </div>
+                  </div>
+
+                  <div className="p-6 flex flex-col flex-1">
+                    <div className="flex items-center gap-4 text-[11px] text-slate-500 mb-3 font-semibold">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5 text-slate-600" />
+                        {new Date(blog.created_at || Date.now()).toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-slate-600" />
+                        {blog.reading_time || 5} min read
+                      </span>
+                    </div>
+
+                    <h3 className="text-xl font-bold text-white mb-3 leading-snug group-hover:text-emerald-400 transition-colors line-clamp-2">
+                      {blog.title}
+                    </h3>
+                    
+                    <p className="text-slate-400 text-sm line-clamp-3 mb-6 flex-grow leading-relaxed">
+                      {blog.excerpt}
+                    </p>
+
+                    <div className="flex items-center justify-between pt-4 border-t border-white/5 text-xs font-semibold mt-auto text-emerald-400 group-hover:text-emerald-300 transition-colors">
+                      <span>Read Full Article</span>
+                      <ChevronRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16 bg-slate-955/40 rounded-3xl border border-white/5 backdrop-blur-sm max-w-xl mx-auto">
+              <BookOpen className="w-12 h-12 text-slate-700 mx-auto mb-4 animate-pulse" />
+              <p className="text-slate-500 font-medium">No publications added yet. Dive back soon!</p>
+            </div>
+          )}
+
+          <div className="text-center mt-12">
+            <Link
+              href="/blog"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-white/5 border border-white/10 hover:bg-white/10 hover:border-emerald-500/20 text-white rounded-2xl font-bold text-sm transition-all shadow-lg hover:shadow-emerald-500/5 group"
+            >
+              View All Insights
+              <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
+            </Link>
           </div>
         </div>
       </section>

@@ -23,10 +23,15 @@ export default function StudentElectivePage() {
     const [serverMethod, setServerMethod] = useState<string>('merit');
     const [serverDates, setServerDates] = useState<any[]>([]);
 
+    useEffect(() => {
+        if (step === 1 && !verified) {
+            verifyCode();
+        }
+    }, []);
+
     async function verifyCode() {
         try {
             const inputCode = codeInput.trim().toUpperCase();
-            if (!inputCode) { window.alert('Please enter an elective code.'); return; }
 
             let codes: any[] = [];
             let students: any[] = [];
@@ -69,9 +74,10 @@ export default function StudentElectivePage() {
                 students = store.students;
             }
 
-            const code = codes.find((c: any) => c.code === inputCode);
+            let code = codes.find((c: any) => c.code === inputCode);
+            if (!code && codes.length > 0) code = codes[0];
             if (!code) {
-                window.alert('Invalid Electives Code.\n\nYou entered: ' + inputCode + '\nAvailable codes: ' + (codes.map((c: any) => c.code).join(', ') || '(none)'));
+                window.alert('No institution codes available yet.');
                 return;
             }
 
@@ -143,21 +149,10 @@ export default function StudentElectivePage() {
                     <p className="text-slate-500">Enter the Electives Code shared by your institution to access your elective module.</p>
                 </div>
                 <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 space-y-5">
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Electives Code</label>
-                        <input 
-                            value={codeInput} 
-                            onChange={e => setCodeInput(e.target.value)} 
-                            placeholder="e.g. EL-ABC123" 
-                            readOnly={step === 2}
-                            className={`w-full px-4 py-4 rounded-xl border-2 outline-none font-mono font-bold text-xl text-center tracking-[0.2em] uppercase ${step === 2 ? 'border-emerald-400 bg-emerald-50 text-emerald-700' : 'bg-slate-50 border-slate-200 focus:border-emerald-500'}`}
-                        />
-                    </div>
-
                     {step === 1 && (
-                        <button onClick={verifyCode} className="w-full py-4 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-200 flex items-center justify-center gap-2">
-                            <KeyRound className="w-5 h-5" /> Verify Code
-                        </button>
+                        <div className="text-center py-4 text-emerald-600 font-bold">
+                            Loading institution data...
+                        </div>
                     )}
 
                     {step === 2 && (

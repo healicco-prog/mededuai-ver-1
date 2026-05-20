@@ -18,6 +18,8 @@ export interface SubscriptionInfo {
   payment_failure_count: number;
 }
 
+import { isEmailApproved } from '@/app/dashboard/admin/mentoring/mentorshipAccess';
+
 // ── Plan pricing (in paise for Razorpay) ─────────────────
 export const PLAN_CONFIG = {
   free: {
@@ -36,7 +38,7 @@ export const PLAN_CONFIG = {
     pricePaise: 20000,
     tokensPerMonth: 50000,
     trialDays: 0,
-    description: 'LMS Notes & Mentorship MS for Students',
+    description: 'LMS Notes & Creator for Students',
     audience: 'Students Only',
     color: 'blue',
   },
@@ -44,7 +46,7 @@ export const PLAN_CONFIG = {
     name: 'Standard',
     priceINR: 500,
     pricePaise: 50000,
-    tokensPerMonth: 100000,
+    tokensPerMonth: 10000, // standard tokens
     trialDays: 0,
     description: 'All Learning + Teaching features',
     audience: 'Students & Teachers',
@@ -78,7 +80,7 @@ export const FEATURE_ACCESS: Record<string, PlanTier[]> = {
   // LEARNING features
   'lms-notes':             ['free', 'basic', 'standard', 'premium', 'enterprise'],
   'notes-creator':         ['free', 'basic', 'standard', 'premium', 'enterprise'],
-  'mentorship-ms':         ['free', 'basic', 'standard', 'premium', 'enterprise'],
+  'mentorship-ms':         ['enterprise'],
   'elective-ms':           ['enterprise'],
   'ai-mentor':             ['standard', 'premium', 'enterprise'],
   'viva-simulator':        ['standard', 'premium', 'enterprise'],
@@ -114,8 +116,20 @@ export function canAccessFeature(
   featureSlug: string,
   planTier: PlanTier,
   billingStatus: BillingStatus,
-  trialEndDate: string
+  trialEndDate: string,
+  email?: string
 ): { allowed: boolean; requiredPlan: PlanTier | null } {
+  // 1. Enterprise/Mentorship features logic
+  if (['mentorship-ms', 'mentoring-ms', 'elective-ms', 'logbook-ms'].includes(featureSlug)) {
+    if (planTier === 'enterprise') {
+      return { allowed: true, requiredPlan: null };
+    }
+    if (email && isEmailApproved(email)) {
+      return { allowed: true, requiredPlan: null };
+    }
+    return { allowed: false, requiredPlan: 'enterprise' };
+  }
+
   const allowedPlans = FEATURE_ACCESS[featureSlug];
 
   // If feature isn't mapped, allow by default (safe fallback)
@@ -123,7 +137,7 @@ export function canAccessFeature(
 
   // During active trial, allow all non-enterprise features
   if (billingStatus === 'trialing' && new Date(trialEndDate) > new Date()) {
-    if (featureSlug !== 'elective-ms' && featureSlug !== 'mentoring-ms' && featureSlug !== 'logbook-ms') {
+    if (featureSlug !== 'elective-ms' && featureSlug !== 'mentoring-ms' && featureSlug !== 'logbook-ms' && featureSlug !== 'mentorship-ms') {
       return { allowed: true, requiredPlan: null };
     }
   }

@@ -48,7 +48,7 @@ export default function LoginPage() {
             // Mobile browsers block cross-site Set-Cookie headers. Writing them natively via first-party
             // document.cookie ensures Next.js middleware recognizes the authenticated session instantly.
             if (data.role) {
-                document.cookie = `role=${encodeURIComponent(data.role)}; path=/; max-age=604800; SameSite=Lax`;
+                document.cookie = `role=${encodeURIComponent(data.role)}; path=/; max-age=31536000; SameSite=Lax`;
             }
 
             // Persist session tokens directly into localStorage so the Supabase SDK

@@ -1,4 +1,5 @@
 import { getSupabaseAdmin, getSupabaseForAuth } from './supabaseAdmin';
+import { ADMIN_SESSION_COOKIE, verifyAdminSession } from './adminSessionCookie';
 
 // ── Hardcoded MedEduAI-1 project reference (matches supabaseAdmin.ts) ─────────
 const MEDEDUAI_PROJECT_REF = 'yrelfdwkjtaidtoulwrj';
@@ -161,6 +162,22 @@ export async function verifyAuth(req: Request) {
         }
     }
 
+    // ── Try D: Long-lived HMAC-signed admin session cookie ──
+    // Last resort when every Supabase path has failed (token missing, expired,
+    // service unreachable). Cookie was issued at login, signed with ADMIN_SECRET,
+    // and lives 30 days — survives the 1h Supabase JWT expiry so admins don't
+    // get bounced to 401 mid-session.
+    try {
+        const signed = cookies[ADMIN_SESSION_COOKIE];
+        const payload = verifyAdminSession(signed);
+        if (payload) {
+            console.log('[AuthMiddleware] Verified via signed admin session cookie ✓');
+            return syntheticAdmin(payload.id, payload.email, payload.role);
+        }
+    } catch (sigErr: any) {
+        console.warn('[AuthMiddleware] Signed-session fallback failed:', sigErr?.message);
+    }
+
     console.warn('[AuthMiddleware] All auth methods failed. token present:', !!token);
     return null;
 }
@@ -234,13 +251,6 @@ export async function verifyAuthAndRole(req: Request) {
         // DB lookup failed — fall through to metadata checks
     }
 
-    // ── 2.5 Auto-grant administrative access for testing admin emails ──
-    const emailLower = (user.email || '').toLowerCase();
-    const isAdminEmail = emailLower.includes('admin') || emailLower.includes('drnarayanak') || emailLower === 'drnarayanak@gmail.com';
-    if (isAdminEmail) {
-        console.log(`[AuthMiddleware] Auto-assigned superadmin role based on matching admin email: ${emailLower}`);
-        return { user, role: 'superadmin' };
-    }
 
     // ── 3. Fall back to user_metadata / app_metadata ──
     const metaRole = (user as any).user_metadata?.role

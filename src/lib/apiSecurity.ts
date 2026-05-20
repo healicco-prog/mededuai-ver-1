@@ -12,16 +12,23 @@ export async function checkSecurity(req: Request, options: {
     requireAuth?: boolean,
     rateLimitCount?: number
 } = {}): Promise<SecurityResult> {
-    // ── 0. Check for Admin Secret — bypass rate limiting for bulk operations ──
+    // ── 0. Check for Admin Secret — bypass rate limiting and auth checks for bulk operations ──
     const adminSecret = req.headers.get('x-admin-secret');
     const expectedSecret = process.env.ADMIN_SECRET;
     const isAdminBypass = !!(adminSecret && expectedSecret && adminSecret === expectedSecret);
 
+    if (isAdminBypass) {
+        return {
+            authorized: true,
+            user: { email: 'admin-bypass@mededu.ai', id: 'admin-bypass' },
+            role: 'superadmin',
+            response: null
+        };
+    }
+
     // 1. Rate Limiting (in-memory per container per minute)
-    // Superadmin with admin_secret gets 10x rate limit for bulk operations
     const ip = req.headers.get('x-forwarded-for') || 'unknown';
-    const baseLimit = options.rateLimitCount || 20;
-    const limit = isAdminBypass ? baseLimit * 10 : baseLimit; // 200 req/min for admin
+    const limit = options.rateLimitCount || 20;
 
     const now = Date.now();
     let currentLimit = ipCache.get(ip);
@@ -41,18 +48,29 @@ export async function checkSecurity(req: Request, options: {
     let user = null;
     let role = null;
 
-    if (requireAuth) {
-        const authData = await verifyAuthAndRole(req);
-        user = authData.user;
-        role = authData.role;
+    const authHeader = req.headers.get('Authorization') || '';
+    const cookieHeader = req.headers.get('cookie') || '';
+    const hasToken = authHeader.startsWith('Bearer ') || 
+                      cookieHeader.includes('auth-token') || 
+                      cookieHeader.includes('access-token') || 
+                      cookieHeader.includes('role');
 
-        if (!user || !role) {
+    if (requireAuth || hasToken) {
+        try {
+            const authData = await verifyAuthAndRole(req);
+            user = authData.user;
+            role = authData.role;
+        } catch (err) {
+            console.error('[checkSecurity] Auth verification error:', err);
+        }
+
+        if (requireAuth && (!user || !role)) {
             return { authorized: false, response: NextResponse.json({ success: false, error: 'Unauthorized.' }, { status: 401 }) };
         }
 
         // 3. Role validation
-        if (options.roles && options.roles.length > 0) {
-            if (!options.roles.includes(role)) {
+        if (requireAuth && options.roles && options.roles.length > 0) {
+            if (!options.roles.includes(role as string)) {
                 return { authorized: false, response: NextResponse.json({ success: false, error: `Forbidden. Requires one of: ${options.roles.join(', ')}` }, { status: 403 }) };
             }
         }

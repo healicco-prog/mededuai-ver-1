@@ -4,7 +4,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
     Building2, UploadCloud, BookOpen, KeyRound, Plus, Download, Trash2, Edit3, CheckCircle2,
     Save, FileUp, Users, GraduationCap, Search, MoreVertical, X, AlertCircle, Copy,
-    ChevronRight, Sparkles, School, Mail, Phone, User, Briefcase
+    ChevronRight, Sparkles, School, Mail, Phone, User, Briefcase,
+    UserCheck, ListChecks, ClipboardList, Construction
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import * as XLSX from 'xlsx';
@@ -148,7 +149,7 @@ export default function CreateInstitutionPage() {
     const [studentUploadYear, setStudentUploadYear] = useState('');
 
     /* ── General ── */
-    const [activeTab, setActiveTab] = useState<'details' | 'departments' | 'faculty' | 'students'>('details');
+    const [activeTab, setActiveTab] = useState<'details' | 'departments' | 'faculty' | 'students' | 'mentoring' | 'elective' | 'logbook'>('details');
 
     /* ── Load from localStorage ── */
     useEffect(() => {
@@ -390,6 +391,9 @@ export default function CreateInstitutionPage() {
         { key: 'departments' as const, label: 'Departments', icon: Building2, count: departments.length },
         { key: 'faculty' as const, label: 'Faculty', icon: Users, count: facultyList.length },
         { key: 'students' as const, label: 'Students', icon: GraduationCap, count: students.length },
+        { key: 'mentoring' as const, label: 'Mentoring MS', icon: UserCheck, count: undefined as number | undefined },
+        { key: 'elective' as const, label: 'Elective MS', icon: ListChecks, count: undefined as number | undefined },
+        { key: 'logbook' as const, label: 'LogBook MS', icon: ClipboardList, count: undefined as number | undefined },
     ];
 
     return (
@@ -409,7 +413,7 @@ export default function CreateInstitutionPage() {
                             </div>
                             <span className="px-3 py-1 bg-white/10 backdrop-blur-sm border border-white/15 rounded-full text-[10px] font-bold text-indigo-300 uppercase tracking-[0.2em]">Super Admin</span>
                         </div>
-                        <h2 className="text-4xl font-black text-white tracking-tight leading-tight">Create Institution</h2>
+                        <h2 className="text-4xl font-black text-white tracking-tight leading-tight">Institution Onboarding</h2>
                         <p className="text-slate-400 mt-3 font-medium max-w-xl text-[15px] leading-relaxed">Set up institutions centrally with departments, faculty, and student rosters — all in one place.</p>
                     </div>
                     {saved && instName && (
@@ -808,6 +812,66 @@ export default function CreateInstitutionPage() {
                                 </div>
                             )}
                         </div>
+                    </div>
+                </SectionCard>
+            )}
+
+            {/* ═══════ MENTORING MS TAB ═══════ */}
+            {activeTab === 'mentoring' && (
+                <SectionCard title="Mentoring MS" subtitle="Mentorship management system configuration" icon={UserCheck} gradient="from-orange-500 to-amber-500">
+                    <div className="flex flex-col items-center justify-center py-16 text-center gap-5">
+                        <div className="w-20 h-20 bg-orange-50 border-2 border-dashed border-orange-200 rounded-3xl flex items-center justify-center">
+                            <Construction className="w-9 h-9 text-orange-400" />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-black text-slate-800 mb-2">Mentoring MS</h3>
+                            <p className="text-slate-500 font-medium max-w-sm text-sm leading-relaxed">
+                                Configure mentorship groups, assign mentors to students, and manage mentoring schedules for this institution.
+                            </p>
+                        </div>
+                        <span className="inline-flex items-center gap-2 px-4 py-2 bg-orange-100 text-orange-700 rounded-full text-xs font-black uppercase tracking-widest">
+                            <Sparkles className="w-3.5 h-3.5" /> Coming Soon
+                        </span>
+                    </div>
+                </SectionCard>
+            )}
+
+            {/* ═══════ ELECTIVE MS TAB ═══════ */}
+            {activeTab === 'elective' && (
+                <SectionCard title="Elective MS" subtitle="Elective management system configuration" icon={ListChecks} gradient="from-sky-500 to-cyan-500">
+                    <div className="flex flex-col items-center justify-center py-16 text-center gap-5">
+                        <div className="w-20 h-20 bg-sky-50 border-2 border-dashed border-sky-200 rounded-3xl flex items-center justify-center">
+                            <Construction className="w-9 h-9 text-sky-400" />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-black text-slate-800 mb-2">Elective MS</h3>
+                            <p className="text-slate-500 font-medium max-w-sm text-sm leading-relaxed">
+                                Set up elective subjects, manage seat allocation, and allow students to register for elective modules within this institution.
+                            </p>
+                        </div>
+                        <span className="inline-flex items-center gap-2 px-4 py-2 bg-sky-100 text-sky-700 rounded-full text-xs font-black uppercase tracking-widest">
+                            <Sparkles className="w-3.5 h-3.5" /> Coming Soon
+                        </span>
+                    </div>
+                </SectionCard>
+            )}
+
+            {/* ═══════ LOGBOOK MS TAB ═══════ */}
+            {activeTab === 'logbook' && (
+                <SectionCard title="LogBook MS" subtitle="Logbook management system configuration" icon={ClipboardList} gradient="from-rose-500 to-pink-500">
+                    <div className="flex flex-col items-center justify-center py-16 text-center gap-5">
+                        <div className="w-20 h-20 bg-rose-50 border-2 border-dashed border-rose-200 rounded-3xl flex items-center justify-center">
+                            <Construction className="w-9 h-9 text-rose-400" />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-black text-slate-800 mb-2">LogBook MS</h3>
+                            <p className="text-slate-500 font-medium max-w-sm text-sm leading-relaxed">
+                                Manage clinical logbooks, track procedural competencies, and configure sign-off workflows for students in this institution.
+                            </p>
+                        </div>
+                        <span className="inline-flex items-center gap-2 px-4 py-2 bg-rose-100 text-rose-700 rounded-full text-xs font-black uppercase tracking-widest">
+                            <Sparkles className="w-3.5 h-3.5" /> Coming Soon
+                        </span>
                     </div>
                 </SectionCard>
             )}

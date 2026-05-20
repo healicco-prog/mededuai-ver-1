@@ -74,9 +74,14 @@ export function proxy(request: NextRequest) {
   const roleCookie = request.cookies.get('role');
   const role = roleCookie?.value;
 
-  // ── Root path: Always show landing page ───────────
-  // Let all users (authenticated or not) see the landing/home page.
-  // Authenticated users can navigate to their dashboard via sidebar links.
+  // ── Redirect authenticated users away from landing/login/signup to dashboard ──
+  if (role) {
+    if (pathname === '/' || pathname === '/login' || pathname === '/signup') {
+      return NextResponse.redirect(new URL(getHomeUrl(role), request.url));
+    }
+  }
+
+  // ── Root path: Always show landing page (for unauthenticated users) ───────────
   if (pathname === '/') {
     return NextResponse.next();
   }

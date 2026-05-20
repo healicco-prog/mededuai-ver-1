@@ -28,7 +28,7 @@ export async function POST(req: Request) {
             secure: process.env.NODE_ENV === 'production',
             path: '/',
             sameSite: 'lax',
-            maxAge: 60 * 60 * 24 * 7,
+            maxAge: 60 * 60 * 24 * 365,
         });
 
         return NextResponse.json({ redirectUrl, role: frontendRole });

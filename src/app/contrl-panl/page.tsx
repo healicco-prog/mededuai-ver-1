@@ -204,15 +204,23 @@ export default function ControlPanelPage() {
         // No cookie + cp_auth → stay on login form; do NOT redirect to /login
     }, []);
 
-    const handleLogin = async (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setError('');
         setIsLoggingIn(true);
         try {
+            // AUTHORITATIVE AUTOFILL FALLBACK: Capture visual autofill values directly from DOM elements via FormData
+            const formData = new FormData(e.currentTarget);
+            const formEmail = (formData.get("email") as string || "").trim();
+            const formPassword = formData.get("password") as string || "";
+            
+            const submitEmail = formEmail || email.trim();
+            const submitPassword = formPassword || password;
+
             const res = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: email.trim(), password }),
+                body: JSON.stringify({ email: submitEmail, password: submitPassword }),
             });
             const data = await res.json();
             if (!res.ok || !data.success) {
@@ -305,6 +313,7 @@ export default function ControlPanelPage() {
                                 <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 block">Email</label>
                                 <input
                                     id="cp-email-field"
+                                    name="email"
                                     type="email"
                                     autoComplete="one-time-code"
                                     required
@@ -320,6 +329,7 @@ export default function ControlPanelPage() {
                                 <div className="relative">
                                     <input
                                         id="cp-password-field"
+                                        name="password"
                                         type={showPw ? 'text' : 'password'}
                                         autoComplete="one-time-code"
                                         required

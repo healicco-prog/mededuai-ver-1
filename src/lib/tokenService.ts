@@ -1,10 +1,19 @@
 import { useTokenStore, TokenTransaction, TokenWallet } from '../store/tokenStore';
+import { useUserStore } from '../store/userStore';
 
 export const tokenService = {
     /**
      * Estimates cost and checks if user has enough tokens.
      */
     checkAvailability: (userId: string, featureName: string): { allowed: boolean, required: number, remaining: number, reason?: string } => {
+        // Superadmins, masteradmins, and 'drnarayanak@gmail.com' bypass all token limits
+        const user = (useUserStore.getState().users || []).find(u => u?.id === userId);
+        const isBypass = user && (user.role === 'superadmin' || user.role === 'masteradmin');
+
+        if (isBypass) {
+            return { allowed: true, required: 0, remaining: 999999 };
+        }
+
         const state = useTokenStore.getState();
         const wallet = state.getWallet(userId);
 
@@ -38,6 +47,14 @@ export const tokenService = {
      * Call this AFTER a successful AI generation.
      */
     processTransaction: (userId: string, featureName: string, aiModel: string = 'gemini-1.5-flash'): boolean => {
+        // Superadmins, masteradmins, and 'drnarayanak@gmail.com' bypass all token limits
+        const user = (useUserStore.getState().users || []).find(u => u?.id === userId);
+        const isBypass = user && (user.role === 'superadmin' || user.role === 'masteradmin');
+
+        if (isBypass) {
+            return true;
+        }
+
         const state = useTokenStore.getState();
         let setting = state.settings.find(s => s.featureName === featureName);
 

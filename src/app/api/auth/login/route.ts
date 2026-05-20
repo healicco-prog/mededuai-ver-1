@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import {
+    ADMIN_SESSION_COOKIE,
+    ADMIN_SESSION_MAX_AGE_SECONDS,
+    signAdminSession,
+} from '@/lib/adminSessionCookie';
 
 // Normalises any variant the DB might store to the canonical lowercase frontend key.
 function mapRole(raw: string): string {
@@ -93,6 +98,7 @@ async function signInWithRetry(supabase: any, email: string, password: string) {
 export async function POST(req: Request) {
     try {
         const { email, password } = await req.json();
+        const emailLower = (email || '').trim().toLowerCase();
 
         // ── Resilient URL resolution ──
         // Always force the MedEduAI-1 URL. Even if NEXT_PUBLIC_SUPABASE_URL on
@@ -127,7 +133,22 @@ export async function POST(req: Request) {
         const { data: authData, error: authError } = await signInWithRetry(supabase, email, password);
 
         if (authError || !authData.user) {
-            return NextResponse.json({ error: authError?.message || 'Login failed' }, { status: 400 });
+            const rawMsg = (authError?.message || '').toLowerCase();
+            // Translate Supabase's terse messages into something that points the
+            // admin at the right next step. The Control Panel surfaces this
+            // string verbatim under the email field, so keep it tight.
+            let friendly = authError?.message || 'Login failed';
+            if (rawMsg.includes('invalid login credentials')) {
+                friendly =
+                    'Invalid login credentials. If this is a new install or the password ' +
+                    'was rotated, run RESET_ADMIN_LOGIN.bat (or `node reset_admin_login.mjs`) ' +
+                    'from the project root to re-sync the admin accounts.';
+            } else if (rawMsg.includes('email not confirmed')) {
+                friendly =
+                    'Admin email is not confirmed in Supabase. Run RESET_ADMIN_LOGIN.bat ' +
+                    'to mark it confirmed.';
+            }
+            return NextResponse.json({ error: friendly }, { status: 400 });
         }
 
         let role = 'student';
@@ -173,13 +194,6 @@ export async function POST(req: Request) {
             }
         }
 
-        // Auto-assign admin role for known admin testing accounts if default lookup returns student
-        const emailLower = (authData.user.email || '').toLowerCase();
-        const isAdminEmail = emailLower.includes('admin') || emailLower.includes('drnarayanak') || emailLower === 'drnarayanak@gmail.com';
-        if (role === 'student' && isAdminEmail) {
-            role = 'superadmin';
-            console.log(`[login] auto-assigned superadmin role based on matching admin email: ${emailLower}`);
-        }
 
         // Use the exhaustive mapRole() normaliser — falls back to 'student' for unknowns
         const frontendRole = roleMapping[role] ?? mapRole(role);
@@ -187,14 +201,37 @@ export async function POST(req: Request) {
 
         const cookieStore = await cookies();
 
-        // ── Role cookie (7-day, JS-readable for client-side role checks) ──
+        // ── Role cookie (365-day, JS-readable for client-side role checks) ──
         cookieStore.set('role', frontendRole, {
             httpOnly: false,
             secure: process.env.NODE_ENV === 'production',
             path: '/',
             sameSite: 'lax',
-            maxAge: 60 * 60 * 24 * 7,
+            maxAge: 60 * 60 * 24 * 365,
         });
+
+        // ── Long-lived signed admin session cookie ────────────────────────────
+        // HMAC-signed with ADMIN_SECRET so it can't be forged. Survives the 1h
+        // Supabase JWT expiry: when verifyAuth's JWT paths all fail, it falls
+        // back to this cookie so admins don't get bounced to 401 mid-session.
+        try {
+            const signed = signAdminSession({
+                id: authData.user.id,
+                email: authData.user.email || emailLower,
+                role: frontendRole,
+            });
+            cookieStore.set(ADMIN_SESSION_COOKIE, signed, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                path: '/',
+                sameSite: 'lax',
+                maxAge: ADMIN_SESSION_MAX_AGE_SECONDS,
+            });
+        } catch (sigErr) {
+            // Signing failure (ADMIN_SECRET missing) shouldn't block login —
+            // user still gets the standard JWT cookie path.
+            console.warn('[login] Could not issue signed admin session cookie:', (sigErr as any)?.message);
+        }
 
         // ── Supabase access token cookie (httpOnly, same lifetime as JWT ~1hr) ──
         if (authData.session?.access_token) {

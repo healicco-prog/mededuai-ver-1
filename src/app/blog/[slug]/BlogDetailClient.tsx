@@ -116,7 +116,7 @@ export default function BlogDetailClient({ initialBlog, slug, related }: { initi
         );
     }
 
-    const authorName = blog.author_name || 'System Admin';
+    const authorName = blog.author_name || 'Dr. Narayana K';
     const authorImage = blog.author_image || `https://ui-avatars.com/api/?name=${authorName.replace(' ', '+')}&background=0284c7&color=fff`;
 
     const schemaMarkup = {
@@ -253,8 +253,8 @@ export default function BlogDetailClient({ initialBlog, slug, related }: { initi
                                 <Link href="/login" className="px-8 py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold rounded-full transition-all flex items-center gap-2 shadow-lg shadow-emerald-500/25">
                                     <GraduationCap className="w-5 h-5" /> Try AI Mentor
                                 </Link>
-                                <Link href="/features" className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-full transition-all backdrop-blur-md flex items-center gap-2">
-                                    <BookOpen className="w-5 h-5" /> Download Notes
+                                <Link href="/login" className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-full transition-all backdrop-blur-md flex items-center gap-2">
+                                    <BookOpen className="w-5 h-5" /> Study with MedEduAI
                                 </Link>
                             </div>
                         </div>

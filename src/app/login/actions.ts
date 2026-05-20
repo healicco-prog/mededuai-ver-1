@@ -22,7 +22,9 @@ export async function setRoleCookieAndGetRedirectUrl(role: string) {
     const cookieStore = await cookies();
     cookieStore.set('role', frontendRole, { 
         secure: process.env.NODE_ENV === 'production', 
-        path: '/' 
+        path: '/',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 365
     });
     
     // All users go to their dashboard after login

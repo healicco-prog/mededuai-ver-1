@@ -146,10 +146,10 @@ export async function POST(req: Request) {
         // We do a select + update in sequence. In low-concurrency superadmin use this is safe.
         // For higher concurrency, a DB function with FOR UPDATE SKIP LOCKED would be better.
 
-        // Recover any stale "processing" jobs (stuck > 4 min — slightly over the
-        // 300s maxDuration so a Cloud-Run-killed job becomes claimable again
-        // quickly instead of leaving the batch limping for the full 10 min).
-        const staleThreshold = new Date(Date.now() - 4 * 60 * 1000).toISOString();
+        // Recover any stale "processing" jobs (stuck > 14 min — slightly under the
+        // 900s maxDuration so a Cloud-Run-killed job becomes claimable again
+        // quickly instead of leaving the batch limping for the full 15 min).
+        const staleThreshold = new Date(Date.now() - 14 * 60 * 1000).toISOString();
         await supabase
             .from('creator_jobs')
             .update({ status: 'pending', updated_at: new Date().toISOString() })
@@ -379,15 +379,17 @@ async function saveTopicToDb({
         topic: topicName,
         version,
     };
-    if (generatedNotes['l1']) lmsPayload['introduction'] = generatedNotes['l1'];
-    if (generatedNotes['l2']) lmsPayload['detailed_notes'] = generatedNotes['l2'];
-    if (generatedNotes['l3']) lmsPayload['summary'] = generatedNotes['l3'];
-    if (generatedNotes['l4'] && generatedNotes['l4'] !== 'None requested.') lmsPayload['marks_10_questions'] = generatedNotes['l4'];
-    if (generatedNotes['l5'] && generatedNotes['l5'] !== 'None requested.') lmsPayload['marks_5_questions'] = generatedNotes['l5'];
-    if (generatedNotes['l6'] && generatedNotes['l6'] !== 'None requested.') lmsPayload['marks_3_reasoning'] = generatedNotes['l6'];
-    if (generatedNotes['l7'] && generatedNotes['l7'] !== 'None requested.') lmsPayload['marks_2_case_mcqs'] = generatedNotes['l7'];
-    if (generatedNotes['l8'] && generatedNotes['l8'] !== 'None requested.') lmsPayload['marks_1_mcqs'] = generatedNotes['l8'];
-    if (generatedNotes['l9'] && generatedNotes['l9'] !== 'None requested.') lmsPayload['flashcards'] = generatedNotes['l9'];
+    // Map generic LMS structure IDs to lms_content columns unconditionally so that
+    // previous/empty values are overwritten correctly (to match the user's fixed template structure)
+    lmsPayload['introduction'] = generatedNotes['l1'] || 'None requested.';
+    lmsPayload['detailed_notes'] = generatedNotes['l2'] || 'None requested.';
+    lmsPayload['summary'] = generatedNotes['l3'] || 'None requested.';
+    lmsPayload['marks_10_questions'] = generatedNotes['l4'] || 'None requested.';
+    lmsPayload['marks_5_questions'] = generatedNotes['l5'] || 'None requested.';
+    lmsPayload['marks_3_reasoning'] = generatedNotes['l6'] || 'None requested.';
+    lmsPayload['marks_2_case_mcqs'] = generatedNotes['l7'] || 'None requested.';
+    lmsPayload['marks_1_mcqs'] = generatedNotes['l8'] || 'None requested.';
+    lmsPayload['flashcards'] = generatedNotes['l9'] || 'None requested.';
 
     const { data: existingLms } = await supabase.from('lms_content').select('id').eq('topic_id', topicId).maybeSingle();
 
@@ -436,8 +438,9 @@ async function saveTopicToDb({
             assessmentsToInsert.push({ topic_id: topicId, marks: src.marks, question_text: questionText, question_type: src.type, ...(correct_answer ? { correct_answer } : {}) });
         }
     }
+    // Delete old questions for this topic before inserting new ones to avoid duplicates/leftovers
+    await supabase.from('assessments').delete().eq('topic_id', topicId);
     if (assessmentsToInsert.length > 0) {
-        await supabase.from('assessments').delete().eq('topic_id', topicId);
         await supabase.from('assessments').insert(assessmentsToInsert);
     }
 }

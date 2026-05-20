@@ -127,19 +127,17 @@ export async function POST(req: Request) {
         // ── Version (e.g. "2025", "2026") — defaults to current year ──
         lmsPayload['version'] = version || new Date().getFullYear().toString();
 
-        // Map generic LMS structure IDs to lms_content columns
-        if (generatedNotes['l1']) lmsPayload['introduction'] = generatedNotes['l1'];
-        if (generatedNotes['l2']) lmsPayload['detailed_notes'] = generatedNotes['l2'];
-        if (generatedNotes['l3']) lmsPayload['summary'] = generatedNotes['l3'];
-        // ── Question columns (standardised names matching lms_content schema) ──
-        if (generatedNotes['l4'] && generatedNotes['l4'] !== 'None requested.') lmsPayload['marks_10_questions'] = generatedNotes['l4'];
-        if (generatedNotes['l5'] && generatedNotes['l5'] !== 'None requested.') lmsPayload['marks_5_questions'] = generatedNotes['l5'];
-        if (generatedNotes['l6'] && generatedNotes['l6'] !== 'None requested.') lmsPayload['marks_3_reasoning'] = generatedNotes['l6'];
-        if (generatedNotes['l7'] && generatedNotes['l7'] !== 'None requested.') lmsPayload['marks_2_case_mcqs'] = generatedNotes['l7'];
-        if (generatedNotes['l8'] && generatedNotes['l8'] !== 'None requested.') lmsPayload['marks_1_mcqs'] = generatedNotes['l8'];
-        if (generatedNotes['l9'] && generatedNotes['l9'] !== 'None requested.') {
-            lmsPayload['flashcards'] = generatedNotes['l9'];
-        }
+        // Map generic LMS structure IDs to lms_content columns unconditionally so that
+        // previous/empty values are overwritten correctly (to match the user's fixed template structure)
+        lmsPayload['introduction'] = generatedNotes['l1'] || 'None requested.';
+        lmsPayload['detailed_notes'] = generatedNotes['l2'] || 'None requested.';
+        lmsPayload['summary'] = generatedNotes['l3'] || 'None requested.';
+        lmsPayload['marks_10_questions'] = generatedNotes['l4'] || 'None requested.';
+        lmsPayload['marks_5_questions'] = generatedNotes['l5'] || 'None requested.';
+        lmsPayload['marks_3_reasoning'] = generatedNotes['l6'] || 'None requested.';
+        lmsPayload['marks_2_case_mcqs'] = generatedNotes['l7'] || 'None requested.';
+        lmsPayload['marks_1_mcqs'] = generatedNotes['l8'] || 'None requested.';
+        lmsPayload['flashcards'] = generatedNotes['l9'] || 'None requested.';
 
         // Check if lms_content exists for this topic
         const { data: existingLms } = await supabase
@@ -217,9 +215,9 @@ export async function POST(req: Request) {
             }
         }
 
+        // Delete old questions for this topic before inserting new ones to avoid duplicates/leftovers
+        await supabase.from('assessments').delete().eq('topic_id', topicId);
         if (assessmentsToInsert.length > 0) {
-            // Delete old questions for this topic before inserting new ones to avoid duplicates
-            await supabase.from('assessments').delete().eq('topic_id', topicId);
             await supabase.from('assessments').insert(assessmentsToInsert);
         }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { BrainCircuit, Play, CheckCircle2, RotateCcw, AlertTriangle, Plus, Sparkles, BookOpen, Layers, Trash2, Edit2, Upload, X, Check, GripVertical, XCircle, Minus } from 'lucide-react';
+import { BrainCircuit, Play, CheckCircle2, RotateCcw, AlertTriangle, Plus, Sparkles, BookOpen, Layers, Trash2, Edit2, Upload, X, Check, GripVertical, XCircle, Minus, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getAuthHeaders } from '@/lib/clientAuth';
 
@@ -9,6 +9,8 @@ import { useCurriculumStore, type Course, type Subject, type Section, type Topic
 import { useCurriculumStoreHydrated } from '@/hooks/useCurriculumStoreHydrated';
 
 const MEDEDUAI_PROJECT_REF = 'yrelfdwkjtaidtoulwrj';
+
+const normalizeStr = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
 
 export default function LMSCreatorAdmin() {
     const fetchAuthHeaders = getAuthHeaders;
@@ -709,8 +711,10 @@ export default function LMSCreatorAdmin() {
                         type: 'error',
                         text: `⚠️ Batch finished — ${completed} done, ${failed} failed of ${total}. Expand "Show failure reasons" below to diagnose, then click "Retry Failed".`,
                     });
+                    loadExistingNotes();
                 } else if (completed === total && total > 0) {
                     setBatchMessage({ type: 'success', text: `🎉 Batch completed — all ${total} topics generated.` });
+                    loadExistingNotes();
                 }
             }
         } catch (_) { /* ignore poll errors */ }
@@ -756,9 +760,21 @@ export default function LMSCreatorAdmin() {
                     body: JSON.stringify({ batchId: targetBatchId }),
                 });
 
-                // ── If we hit 401, try once with a force-refreshed token. ──
-                if (processRes.status === 401) {
-                    console.warn('[Batch Loop] 401 — refreshing token and retrying once');
+                let processData: any = null;
+                let parseError = false;
+                try {
+                    processData = await processRes.json();
+                } catch (e) {
+                    parseError = true;
+                    console.error('[Batch Loop] Failed to parse response JSON:', e);
+                }
+
+                // Check for unauthorized via status code OR payload error string
+                const isUnauthorized = processRes.status === 401 || processData?.error === 'Unauthorized.';
+
+                // ── If unauthorized, try once with a force-refreshed token ──
+                if (isUnauthorized) {
+                    console.warn('[Batch Loop] Unauthorized (401 or body) — refreshing token and retrying once');
                     headers = await fetchAuthHeaders(true);
                     lastTokenRefresh = Date.now();
                     processRes = await fetch('/api/creator/batch-process', {
@@ -767,9 +783,40 @@ export default function LMSCreatorAdmin() {
                         credentials: 'include',
                         body: JSON.stringify({ batchId: targetBatchId }),
                     });
+
+                    parseError = false;
+                    try {
+                        processData = await processRes.json();
+                    } catch (e) {
+                        parseError = true;
+                        processData = null;
+                        console.error('[Batch Loop] Failed to parse retry response JSON:', e);
+                    }
                 }
 
-                const processData = await processRes.json();
+                // ── Persistent unauthorized: session is genuinely dead ──
+                const isStillUnauthorized = processRes.status === 401 || processData?.error === 'Unauthorized.';
+                if (isStillUnauthorized) {
+                    setBatchMessage({
+                        type: 'error',
+                        text: '🔒 Your session expired and the silent refresh failed. Log out and log back in, then click Resume to continue. The completed jobs are saved in the DB.',
+                    });
+                    setIsBatchRunning(false);
+                    break;
+                }
+
+                // ── Handle general invalid/empty server response ──
+                if (parseError || !processData) {
+                    consecutiveErrors += 1;
+                    console.warn(`[Batch Loop] Invalid JSON or server error (${consecutiveErrors}/10)`);
+                    if (consecutiveErrors > 10) {
+                        setBatchMessage({ type: 'error', text: `Processing halted after 10 consecutive errors: Invalid server response.` });
+                        break;
+                    }
+                    setBatchMessage({ type: 'info', text: `⚠️ Temporary server issue. Retrying automatically in 5s (${consecutiveErrors}/10)…` });
+                    await new Promise(r => setTimeout(r, 5000));
+                    continue;
+                }
 
                 if (!processData.success) {
                     consecutiveErrors += 1;
@@ -834,7 +881,7 @@ export default function LMSCreatorAdmin() {
                         type: 'error',
                         text: `🛑 Daily AI Quota Exhausted. Please enable billing (Pay-as-you-go) in Google AI Studio or wait for the quota to reset (approx. 17 hours).`,
                     });
-                    setBatchStatus('idle');
+                    setIsBatchRunning(false);
                     break;
                 }
 
@@ -943,18 +990,32 @@ export default function LMSCreatorAdmin() {
     //  B) Topic exists only in lms_content (batch-saved) but NOT in local section →
     //     inject it as a stub Topic so it appears in the "Generated Content & Editor" grid
     const loadExistingNotes = useCallback(async () => {
-        if (!engineCourse || !engineSubject || !engineSection) return;
+        if (!engineCourse || !engineSubject) return;
 
         try {
             const params = new URLSearchParams({
                 courseName: engineCourse.name,
                 subjectName: engineSubject.name,
-                sectionName: engineSection.name,
             });
+            
+            // If viewing a specific section, pass it to limit payload
+            if (engineSectionId !== '__all__' && engineSection) {
+                params.append('sectionName', engineSection.name);
+            }
+
             const res = await fetch(`/api/creator/load?${params}`, { headers: await fetchAuthHeaders() });
             const data = await res.json();
 
             if (!data.success || !data.notes || Object.keys(data.notes).length === 0) return;
+
+            // Normalization helper for robust string matching (casing & whitespace)
+            const normalizeStr = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
+
+            // Build a normalized lookup map of received notes
+            const normalizedDbNotes: Record<string, any> = {};
+            for (const [topicName, notesRaw] of Object.entries(data.notes)) {
+                normalizedDbNotes[normalizeStr(topicName)] = notesRaw;
+            }
 
             setCoursesList(prev => prev.map(c => {
                 if (c.id !== engineCourse.id) return c;
@@ -963,34 +1024,46 @@ export default function LMSCreatorAdmin() {
                         if (s.id !== engineSubject.id) return s;
                         return {
                             ...s, sections: s.sections.map(sec => {
-                                if (sec.id !== engineSection.id) return sec;
+                                // If engineSectionId is not '__all__', we only update that specific section
+                                if (engineSectionId !== '__all__' && sec.id !== engineSectionId) return sec;
 
-                                // Build a set of existing topic names for quick lookup
-                                const existingNames = new Set(sec.topics.map(t => t.name));
-
-                                // A) Hydrate existing topics with notes from DB
+                                // A) Hydrate existing topics with notes from DB using normalized lookup
                                 const hydratedTopics = sec.topics.map(t => {
-                                    const existingNotes = data.notes[t.name];
-                                    if (existingNotes && (!t.generatedNotes || Object.keys(t.generatedNotes).length === 0)) {
+                                    const existingNotes = normalizedDbNotes[normalizeStr(t.name)];
+                                    if (existingNotes) {
                                         // Strip the internal __topicId marker before storing
                                         const { __topicId, ...cleanNotes } = existingNotes as any;
-                                        return { ...t, generatedNotes: cleanNotes };
+                                        if (Object.keys(cleanNotes).length > 0) {
+                                            return { ...t, generatedNotes: cleanNotes };
+                                        }
                                     }
                                     return t;
                                 });
 
-                                // B) Inject DB-only topics (found via denormalized columns) as stubs
+                                // B) Inject DB-only topics (found via denormalized columns) as stubs using normalized matching
                                 const stubTopics: any[] = [];
-                                for (const [topicName, notesRaw] of Object.entries(data.notes as Record<string, any>)) {
-                                    if (existingNames.has(topicName)) continue; // already handled above
-                                    const { __topicId, ...cleanNotes } = notesRaw;
-                                    if (Object.keys(cleanNotes).length === 0) continue;
-                                    // Create a minimal Topic stub so the editor can display/edit it
-                                    stubTopics.push({
-                                        id: __topicId || `db-${Date.now()}-${topicName}`,
-                                        name: topicName,
-                                        generatedNotes: cleanNotes,
-                                    });
+                                
+                                // Only inject stubs into the first section if __all__, or the active section otherwise
+                                const isTargetSectionForStubs = engineSectionId === '__all__' ? s.sections[0].id === sec.id : sec.id === engineSectionId;
+
+                                if (isTargetSectionForStubs) {
+                                    for (const [topicName, notesRaw] of Object.entries(data.notes as Record<string, any>)) {
+                                        const normalizedTopicName = normalizeStr(topicName);
+                                        
+                                        // Check if this topicName exists in ANY section (using normalized check)
+                                        const existsAnywhere = s.sections.some(sx => sx.topics.some(tx => normalizeStr(tx.name) === normalizedTopicName));
+                                        if (existsAnywhere) continue;
+
+                                        const { __topicId, ...cleanNotes } = notesRaw;
+                                        if (Object.keys(cleanNotes).length === 0) continue;
+                                        
+                                        // Create a minimal Topic stub so the editor can display/edit it
+                                        stubTopics.push({
+                                            id: __topicId || `db-${Date.now()}-${topicName}`,
+                                            name: topicName,
+                                            generatedNotes: cleanNotes,
+                                        });
+                                    }
                                 }
 
                                 return {
@@ -1005,7 +1078,7 @@ export default function LMSCreatorAdmin() {
         } catch (err) {
             console.warn('[DB Load] Failed to fetch existing notes:', err);
         }
-    }, [engineCourse?.id, engineSubject?.id, engineSection?.id]);
+    }, [engineCourse?.id, engineSubject?.id, engineSection?.id, engineSectionId]);
 
     // Run on mount and whenever the section selection changes
     useEffect(() => {
@@ -2058,11 +2131,27 @@ export default function LMSCreatorAdmin() {
                                                     {engineSectionId === '__all__' && (
                                                         <span className="text-[10px] text-slate-400 shrink-0 max-w-[80px] truncate" title={(t as any)._sectionName}>{(t as any)._sectionName}</span>
                                                     )}
-                                                    {t.generatedNotes ? (
-                                                        <span title="Already Generated"><CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" /></span>
-                                                    ) : (
-                                                        <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" title="Pending"></span>
-                                                    )}
+                                                    {(() => {
+                                                        if (t.generatedNotes) {
+                                                            return <span title="Already Generated"><CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" /></span>;
+                                                        }
+                                                        const jobForTopic = batchJobs.find(j => j.clientTopicId === t.id || normalizeStr(j.topicName) === normalizeStr(t.name));
+                                                        if (jobForTopic) {
+                                                            if (jobForTopic.status === 'completed') {
+                                                                return <span title="Batch Completed"><CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" /></span>;
+                                                            }
+                                                            if (jobForTopic.status === 'processing') {
+                                                                return <span title="AI Generating in Background"><Loader2 className="w-4 h-4 text-blue-500 shrink-0 animate-spin" /></span>;
+                                                            }
+                                                            if (jobForTopic.status === 'failed') {
+                                                                return <span title={`Generation Failed: ${jobForTopic.errorMessage || 'Unknown error'}`}><XCircle className="w-4 h-4 text-red-500 shrink-0" /></span>;
+                                                            }
+                                                            if (jobForTopic.status === 'pending') {
+                                                                return <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 animate-pulse" title="Queued (Pending)"></span>;
+                                                            }
+                                                        }
+                                                        return <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" title="Pending"></span>;
+                                                    })()}
                                                 </label>
                                             ))
                                         )}

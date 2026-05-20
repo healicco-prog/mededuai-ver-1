@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
     LayoutDashboard, BookOpen, MessageSquare, Mic,
     Settings, LogOut, Users, FileText,
-    GraduationCap, ClipboardCheck, AlertCircle, Home, ClipboardList, Menu, X, ClipboardType, CalendarDays, Lock, ArrowLeft, Shield, FilePenLine as FileEdit, ScanLine, Zap, Building2
+    GraduationCap, ClipboardCheck, AlertCircle, Home, ClipboardList, Menu, X, ClipboardType, CalendarDays, Lock, ArrowLeft, Shield, FilePenLine as FileEdit, ScanLine, Zap, Building2, Crown, Check, ArrowRight
 } from 'lucide-react';
 import MededuLogo from '@/components/MededuLogo';
 import TrialCountdown from '@/components/TrialCountdown';
@@ -51,10 +51,11 @@ function SidebarItem({ icon: Icon, label, href, badge }: any) {
 }
 
 function LockedSidebarItem({ label, requiredPlan }: { label: string; requiredPlan: string }) {
+    const isEnterprise = requiredPlan.toLowerCase() === 'enterprise';
     return (
         <Link
-            href="/dashboard/student/upgrade"
-            title={`Upgrade to ${requiredPlan} to unlock ${label}`}
+            href={isEnterprise ? "mailto:sales@mededuai.com?subject=Institution%20Enterprise%20Subscription%20Inquiry" : "/dashboard/student/upgrade"}
+            title={isEnterprise ? `Call Us to unlock ${label}` : `Upgrade to ${requiredPlan} to unlock ${label}`}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative group font-semibold text-slate-400 hover:bg-amber-50 hover:text-amber-600 cursor-pointer"
         >
             <div className="text-slate-300 group-hover:text-amber-500 transition-colors">
@@ -62,9 +63,163 @@ function LockedSidebarItem({ label, requiredPlan }: { label: string; requiredPla
             </div>
             <span className="flex-1 text-left truncate">{label}</span>
             <span className="text-[8px] font-bold bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-md uppercase tracking-wider opacity-70 group-hover:opacity-100">
-                {requiredPlan}
+                {isEnterprise ? 'CALL US' : requiredPlan}
             </span>
         </Link>
+    );
+}
+
+function LockedFeatureView({ featureSlug, requiredPlan, currentPlan }: { featureSlug: string; requiredPlan: PlanTier; currentPlan: PlanTier }) {
+    const isEnterprise = requiredPlan === 'enterprise';
+    
+    // Map feature slug back to user-friendly name
+    const slugToName: Record<string, string> = {
+        'lms-notes': 'LMS Notes',
+        'notes-creator': 'Notes Creator',
+        'mentorship-ms': 'Mentorship Management System',
+        'elective-ms': 'Elective Management System',
+        'ai-mentor': 'AI Mentor',
+        'viva-simulator': 'Viva Simulator',
+        'vocabulary': 'Vocabulary',
+        'reflection-generator': 'Reflection Generator',
+        'essay-qs-generator': 'Essay Questions Generator',
+        'mcqs-generator': 'MCQs Generator',
+        'self-evaluation': 'Self-Evaluation System',
+        'lesson-plan': 'Lesson Plan Generator',
+        'rubrics-generator': 'Rubrics Generator',
+        'dig-eval-assist': 'Digital Evaluation Assistant',
+        'classroom-generator': 'Classroom Generator',
+        'timetable-ms': 'Timetable Management System',
+        'attendance-ms': 'Attendance Management System',
+        'q-paper-dev': 'Question Paper Developer',
+        'ems-essay': 'EMS Essay Evaluator',
+        'emr-mcqs': 'EMS MCQs Evaluator',
+        'mentoring-ms': 'Mentoring Management System',
+        'logbook-ms': 'LogBook Management System',
+    };
+    
+    const featureName = slugToName[featureSlug] || 'Premium Feature';
+
+    const planBenefits: Record<string, string[]> = {
+        basic: [
+            'LMS Notes access',
+            'Notes Creator suite',
+            '50,000 AI tokens/month',
+        ],
+        standard: [
+            'Everything in Basic',
+            'AI Mentor & Viva Simulator access',
+            'Vocabulary & Reflection Generators',
+            'Essay & MCQs Generators',
+            'Self-Evaluation System',
+            'Full Teaching suite (Lesson Plans, Rubrics, Digital Eval)',
+            '10,000 AI tokens/month',
+        ],
+        premium: [
+            'Everything in Standard',
+            'Classroom Generator',
+            'Timetable & Attendance management',
+            'Question Paper Developer',
+            'EMS Essay & MCQ evaluators',
+            '300,000 AI tokens/month',
+        ],
+        enterprise: [
+            'Mentoring Management System',
+            'Elective Management System',
+            'Log Book Management',
+            'Custom token allocation',
+            'Dedicated 24/7 priority support',
+        ],
+    };
+
+    const benefits = planBenefits[requiredPlan] || [];
+
+    return (
+        <div className="flex items-center justify-center p-4 min-h-[70vh] w-full">
+            <div className="w-full max-w-xl bg-white border border-slate-200 rounded-3xl shadow-xl shadow-slate-100 overflow-hidden relative p-8 sm:p-10">
+                {/* Accent top bar */}
+                <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-amber-400 via-orange-500 to-rose-600" />
+                
+                <div className="flex justify-center mb-6">
+                    <div className="relative">
+                        <div className="w-20 h-20 bg-gradient-to-br from-slate-50 to-slate-100 rounded-3xl flex items-center justify-center shadow-inner border border-slate-100">
+                            <Lock className="w-8 h-8 text-slate-400 animate-pulse" />
+                        </div>
+                        <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
+                            <Crown className="w-4 h-4 text-white" />
+                        </div>
+                    </div>
+                </div>
+
+                <h3 className="text-2xl font-extrabold text-slate-900 text-center mb-2">
+                    {featureName} is Locked
+                </h3>
+                <p className="text-sm text-slate-500 text-center mb-8 max-w-sm mx-auto">
+                    {isEnterprise
+                        ? 'This feature is available exclusively for institutional plans or approved department emails.'
+                        : `Upgrade to the ${requiredPlan.toUpperCase()} tier to unlock this advanced module and boost your workflow.`
+                    }
+                </p>
+
+                <div className="bg-gradient-to-br from-slate-50 to-amber-50/20 border border-slate-200/80 rounded-2xl p-6 mb-8">
+                    <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                            <Zap className="w-5 h-5 text-amber-500" />
+                            <span className="font-bold text-slate-900 capitalize">{requiredPlan} Plan Benefits</span>
+                        </div>
+                        {isEnterprise ? (
+                            <span className="text-xs font-bold text-amber-600 bg-amber-50 px-3 py-1 rounded-full border border-amber-200/50 font-sans">CALL US</span>
+                        ) : (
+                            <div className="text-right">
+                                <span className="text-xl font-extrabold text-slate-900">₹{requiredPlan === 'basic' ? '200' : requiredPlan === 'standard' ? '500' : '1000'}</span>
+                                <span className="text-xs text-slate-500 font-medium">/mo</span>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {benefits.map((benefit, i) => (
+                            <div key={i} className="flex items-start gap-2.5">
+                                <Check className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                                <span className="text-xs text-slate-600 font-medium leading-normal">{benefit}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    {isEnterprise ? (
+                        <div className="space-y-3">
+                            <a
+                                href="mailto:sales@mededuai.com?subject=Institution%20Enterprise%20Subscription%20Inquiry"
+                                className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl font-bold hover:shadow-lg hover:shadow-amber-500/20 transition-all transform hover:-translate-y-0.5"
+                            >
+                                Contact Sales (Call Us)
+                                <ArrowRight className="w-4 h-4" />
+                            </a>
+                            <div className="text-center p-3.5 bg-slate-50 border border-slate-100 rounded-xl">
+                                <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                                    If your Institution Admin has already approved your access, make sure you are logged in with the registered email.
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <Link
+                            href="/dashboard/student/upgrade"
+                            className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-bold hover:shadow-lg hover:shadow-emerald-500/20 transition-all transform hover:-translate-y-0.5"
+                        >
+                            Upgrade to {requiredPlan.toUpperCase()}
+                            <ArrowRight className="w-4 h-4" />
+                        </Link>
+                    )}
+
+                    <p className="text-xs text-slate-400 text-center font-medium">
+                        You are currently on the <span className="font-bold text-slate-600 capitalize">{currentPlan}</span> plan.
+                        {currentPlan === 'free' && ' Your 15-day trial features are active.'}
+                    </p>
+                </div>
+            </div>
+        </div>
     );
 }
 
@@ -100,12 +255,52 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                     if (user.email) setUserEmail(user.email);
                     const { data } = await supabase
                         .from('users')
-                        .select('full_name')
+                        .select('full_name, role')
                         .eq('id', user.id)
                         .single();
 
-                    if (data && data.full_name) {
-                        setUserName(data.full_name);
+                    if (data) {
+                        if (data.full_name) {
+                            setUserName(data.full_name);
+                        }
+                        
+                        // Check for role mismatch and perform dynamic synchronization
+                        if (data.role) {
+                            const dbRoleRaw = (data.role || '').toLowerCase().replace(/[_\s]+/g, '');
+                            const map: Record<string, string> = {
+                                superadmin:       'superadmin',
+                                admin:            'superadmin',
+                                administrator:    'superadmin',
+                                masteradmin:      'masteradmin',
+                                institutionadmin: 'instadmin',
+                                instadmin:        'instadmin',
+                                departmentadmin:  'deptadmin',
+                                deptadmin:        'deptadmin',
+                                teacher:          'teacher',
+                                student:          'student',
+                            };
+                            const mappedDbRole = map[dbRoleRaw] || 'student';
+                            
+                            if (mappedDbRole !== role) {
+                                console.log(`[DashboardLayoutClient] Role mismatch detected. Cookie: ${role}, DB: ${mappedDbRole}. Synchronizing...`);
+                                try {
+                                    const syncRes = await fetch('/api/auth/set-role', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' }
+                                    });
+                                    if (syncRes.ok) {
+                                        const syncData = await syncRes.json();
+                                        if (syncData.role && syncData.role !== role) {
+                                            console.log(`[DashboardLayoutClient] Cookie successfully updated to ${syncData.role}. Reloading session...`);
+                                            window.location.reload();
+                                            return;
+                                        }
+                                    }
+                                } catch (syncErr) {
+                                    console.error('[DashboardLayoutClient] Failed to synchronize role cookie:', syncErr);
+                                }
+                            }
+                        }
                     } else if (user.user_metadata?.full_name) {
                         setUserName(user.user_metadata.full_name);
                     }
@@ -169,9 +364,17 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
 
     // Helper to check if a feature is accessible
     const isFeatureAccessible = (featureSlug: string): boolean => {
-        // Admins always have full access
-        if (role !== 'student') return true;
-        const { allowed } = canAccessFeature(featureSlug, planTier, billingStatus, trialEndDate);
+        // Master/Super Admins always have full access
+        if (role === 'masteradmin' || role === 'superadmin') return true;
+
+        // 1. Enterprise/Mentorship features logic
+        if (['mentorship-ms', 'mentoring-ms', 'elective-ms', 'logbook-ms'].includes(featureSlug)) {
+            if (planTier === 'enterprise') return true;
+            if (hasMentorshipAccess) return true;
+            return false;
+        }
+
+        const { allowed } = canAccessFeature(featureSlug, planTier, billingStatus, trialEndDate, userEmail);
         return allowed;
     };
 
@@ -257,9 +460,9 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                         <div className="text-sm font-bold text-slate-900 leading-tight mb-1.5 truncate" title={userName}>
                             {mounted ? (userName || <span className="text-slate-400 font-normal italic text-xs">Loading...</span>) : <div className="h-4 w-24 bg-slate-200 animate-pulse rounded" />}
                         </div>
-                        <p className="text-xs text-slate-500 font-medium leading-tight mb-2 truncate" title={userEmail}>
+                        <div className="text-xs text-slate-500 font-medium leading-tight mb-2 truncate" title={userEmail}>
                             {mounted ? (userEmail || <span className="text-slate-300">—</span>) : <div className="h-3 w-32 bg-slate-200 animate-pulse rounded inline-block" />}
-                        </p>
+                        </div>
                         <div className="flex items-center gap-1.5">
                             <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider leading-none">{roleDisplayLabel}</p>
                             {mounted && <span className={`text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md leading-none ${getPlanBadgeColor(planTier)}`}>{planTier}</span>}
@@ -326,10 +529,21 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                             <SidebarItem href={`/dashboard/student`} icon={LayoutDashboard} label="Learning Dashboard" />
                             <SidebarItem href={`/dashboard/student/notes`} icon={BookOpen} label="LMS Notes" />
                             <SidebarItem href={`/dashboard/student/notes-creator`} icon={FileEdit} label="Notes Creator" />
-                            {(hasMentorshipAccess || isMasterOrSuperAdmin) && (
+                            {isFeatureAccessible('mentorship-ms') ? (
                                 <SidebarItem href={`/dashboard/student/mentorship`} icon={Users} label="Mentorship MS" />
+                            ) : (
+                                <LockedSidebarItem label="Mentorship MS" requiredPlan="Enterprise" />
                             )}
-                            <SidebarItem href={`/dashboard/student/elective`} icon={BookOpen} label="Elective MS" />
+                            {isFeatureAccessible('elective-ms') ? (
+                                <SidebarItem href={`/dashboard/student/elective`} icon={BookOpen} label="Elective MS" />
+                            ) : (
+                                <LockedSidebarItem label="Elective MS" requiredPlan="Enterprise" />
+                            )}
+                            {isFeatureAccessible('logbook-ms') ? (
+                                <SidebarItem href={`/dashboard/student/logbook`} icon={ClipboardList} label="Logbook MS" />
+                            ) : (
+                                <LockedSidebarItem label="Logbook MS" requiredPlan="Enterprise" />
+                            )}
 
                             {/* Standard+ features — shown with lock if not accessible */}
                             {isFeatureAccessible('ai-mentor') ? (
@@ -368,16 +582,6 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                                 <LockedSidebarItem label="Self-Evaluation" requiredPlan="Standard" />
                             )}
 
-                            {/* Upgrade link */}
-                            <div className="pt-2">
-                                <Link
-                                    href="/dashboard/student/upgrade"
-                                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-semibold text-cyan-600 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200"
-                                >
-                                    <Zap size={20} />
-                                    <span className="flex-1 text-left truncate">Upgrade Plan</span>
-                                </Link>
-                            </div>
                         </>
                     )}
 
@@ -389,15 +593,46 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                             <SidebarItem href={`/dashboard/teacher`} icon={LayoutDashboard} label="Teaching Dashboard" />
                             <SidebarItem href={`/dashboard/teacher/notes`} icon={BookOpen} label="LMS Notes" />
                             <SidebarItem href={`/dashboard/teacher/notes-creator`} icon={FileEdit} label="Notes Creator" />
-                            {(hasMentorshipAccess || isMasterOrSuperAdmin) && (
+                            {isFeatureAccessible('mentorship-ms') ? (
                                 <SidebarItem href={`/dashboard/teacher/mentorship`} icon={Users} label="Mentorship MS" />
+                            ) : (
+                                <LockedSidebarItem label="Mentorship MS" requiredPlan="Enterprise" />
                             )}
-                            <SidebarItem href={`/dashboard/teacher/elective`} icon={BookOpen} label="Elective MS" />
-                            <SidebarItem href={`/dashboard/teacher/lesson-plan`} icon={FileText} label="Lesson Plan" />
-                            <SidebarItem href={`/dashboard/teacher/rubrics-generator`} icon={ClipboardList} label="Rubrics Generator" />
-                            <SidebarItem href={`/dashboard/teacher/essays`} icon={ClipboardType} label="Essay Qs Generator" />
-                            <SidebarItem href={`/dashboard/teacher/mcqs`} icon={ClipboardCheck} label="MCQs Generator" />
-                            <SidebarItem href={`/dashboard/teacher/dig-eval-assist`} icon={ScanLine} label="Dig Evaluation Assist" />
+                            {isFeatureAccessible('elective-ms') ? (
+                                <SidebarItem href={`/dashboard/teacher/elective`} icon={BookOpen} label="Elective MS" />
+                            ) : (
+                                <LockedSidebarItem label="Elective MS" requiredPlan="Enterprise" />
+                            )}
+                            {isFeatureAccessible('logbook-ms') ? (
+                                <SidebarItem href={`/dashboard/teacher/logbook`} icon={ClipboardList} label="Logbook MS" />
+                            ) : (
+                                <LockedSidebarItem label="Logbook MS" requiredPlan="Enterprise" />
+                            )}
+                            {isFeatureAccessible('lesson-plan') ? (
+                                <SidebarItem href={`/dashboard/teacher/lesson-plan`} icon={FileText} label="Lesson Plan" />
+                            ) : (
+                                <LockedSidebarItem label="Lesson Plan" requiredPlan="Standard" />
+                            )}
+                            {isFeatureAccessible('rubrics-generator') ? (
+                                <SidebarItem href={`/dashboard/teacher/rubrics-generator`} icon={ClipboardList} label="Rubrics Generator" />
+                            ) : (
+                                <LockedSidebarItem label="Rubrics Generator" requiredPlan="Standard" />
+                            )}
+                            {isFeatureAccessible('essay-qs-generator') ? (
+                                <SidebarItem href={`/dashboard/teacher/essays`} icon={ClipboardType} label="Essay Qs Generator" />
+                            ) : (
+                                <LockedSidebarItem label="Essay Qs Generator" requiredPlan="Standard" />
+                            )}
+                            {isFeatureAccessible('mcqs-generator') ? (
+                                <SidebarItem href={`/dashboard/teacher/mcqs`} icon={ClipboardCheck} label="MCQs Generator" />
+                            ) : (
+                                <LockedSidebarItem label="MCQs Generator" requiredPlan="Standard" />
+                            )}
+                            {isFeatureAccessible('dig-eval-assist') ? (
+                                <SidebarItem href={`/dashboard/teacher/dig-eval-assist`} icon={ScanLine} label="Dig Evaluation Assist" />
+                            ) : (
+                                <LockedSidebarItem label="Dig Evaluation Assist" requiredPlan="Standard" />
+                            )}
                         </>
                     )}
 
@@ -409,18 +644,61 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                             <SidebarItem href={`/dashboard/deptadmin`} icon={LayoutDashboard} label="Department Admin Dashboard" />
                             <SidebarItem href={`/dashboard/admin/notes`} icon={BookOpen} label="LMS Notes" />
                             <SidebarItem href={`/dashboard/admin/notes-creator`} icon={FileEdit} label="Notes Creator" />
-                            {(hasMentorshipAccess || isMasterOrSuperAdmin) && (
+                            {isFeatureAccessible('mentorship-ms') ? (
                                 <SidebarItem href={`/dashboard/admin/mentorship`} icon={Users} label="Mentorship MS" />
+                            ) : (
+                                <LockedSidebarItem label="Mentorship MS" requiredPlan="Enterprise" />
                             )}
-                            <SidebarItem href={`/dashboard/admin/dept-elective`} icon={BookOpen} label="Elective MS" />
-                            <SidebarItem href={`/dashboard/admin/lesson-plan`} icon={FileText} label="Lesson Plan" />
-                            <SidebarItem href={`/dashboard/admin/rubrics-generator`} icon={ClipboardList} label="Rubrics Generator" />
-                            <SidebarItem href={`/dashboard/admin/classroom-generator`} icon={GraduationCap} label="Classroom Generator" />
-                            <SidebarItem href={`/dashboard/admin/timetable`} icon={CalendarDays} label="Time Table MS" />
-                            <SidebarItem href={`/dashboard/admin/attendance`} icon={Users} label="Attendance MS" />
-                            <SidebarItem href={`/dashboard/admin/q-paper`} icon={AlertCircle} label="Q-Paper Dev" />
-                            <SidebarItem href={`/dashboard/admin/ems`} icon={ClipboardCheck} label="EMS - Essay" />
-                            <SidebarItem href={`/dashboard/admin/emr-mcq`} icon={ClipboardType} label="EMR - MCQs" />
+                            {isFeatureAccessible('elective-ms') ? (
+                                <SidebarItem href={`/dashboard/admin/dept-elective`} icon={BookOpen} label="Elective MS" />
+                            ) : (
+                                <LockedSidebarItem label="Elective MS" requiredPlan="Enterprise" />
+                            )}
+                            {isFeatureAccessible('logbook-ms') ? (
+                                <SidebarItem href={`/dashboard/admin/logbook`} icon={ClipboardList} label="Logbook MS" />
+                            ) : (
+                                <LockedSidebarItem label="Logbook MS" requiredPlan="Enterprise" />
+                            )}
+                            {isFeatureAccessible('lesson-plan') ? (
+                                <SidebarItem href={`/dashboard/admin/lesson-plan`} icon={FileText} label="Lesson Plan" />
+                            ) : (
+                                <LockedSidebarItem label="Lesson Plan" requiredPlan="Standard" />
+                            )}
+                            {isFeatureAccessible('rubrics-generator') ? (
+                                <SidebarItem href={`/dashboard/admin/rubrics-generator`} icon={ClipboardList} label="Rubrics Generator" />
+                            ) : (
+                                <LockedSidebarItem label="Rubrics Generator" requiredPlan="Standard" />
+                            )}
+                            {isFeatureAccessible('classroom-generator') ? (
+                                <SidebarItem href={`/dashboard/admin/classroom-generator`} icon={GraduationCap} label="Classroom Generator" />
+                            ) : (
+                                <LockedSidebarItem label="Classroom Generator" requiredPlan="Premium" />
+                            )}
+                            {isFeatureAccessible('timetable-ms') ? (
+                                <SidebarItem href={`/dashboard/admin/timetable`} icon={CalendarDays} label="Time Table MS" />
+                            ) : (
+                                <LockedSidebarItem label="Time Table MS" requiredPlan="Premium" />
+                            )}
+                            {isFeatureAccessible('attendance-ms') ? (
+                                <SidebarItem href={`/dashboard/admin/attendance`} icon={Users} label="Attendance MS" />
+                            ) : (
+                                <LockedSidebarItem label="Attendance MS" requiredPlan="Premium" />
+                            )}
+                            {isFeatureAccessible('q-paper-dev') ? (
+                                <SidebarItem href={`/dashboard/admin/q-paper`} icon={AlertCircle} label="Q-Paper Dev" />
+                            ) : (
+                                <LockedSidebarItem label="Q-Paper Dev" requiredPlan="Premium" />
+                            )}
+                            {isFeatureAccessible('ems-essay') ? (
+                                <SidebarItem href={`/dashboard/admin/ems`} icon={ClipboardCheck} label="EMS - Essay" />
+                            ) : (
+                                <LockedSidebarItem label="EMS - Essay" requiredPlan="Premium" />
+                            )}
+                            {isFeatureAccessible('emr-mcqs') ? (
+                                <SidebarItem href={`/dashboard/admin/emr-mcq`} icon={ClipboardType} label="EMR - MCQs" />
+                            ) : (
+                                <LockedSidebarItem label="EMR - MCQs" requiredPlan="Premium" />
+                            )}
                         </>
                     )}
 
@@ -430,9 +708,21 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Institution Admin</p>
                             </div>
                             <SidebarItem href={`/dashboard/instadmin`} icon={LayoutDashboard} label="Institution Admin Dashboard" />
-                            <SidebarItem href={`/dashboard/admin/mentoring`} icon={Users} label="Mentoring MS" />
-                            <SidebarItem href={`/dashboard/admin/elective`} icon={BookOpen} label="Elective MS" />
-                            <SidebarItem href={`/dashboard/admin/logbook`} icon={ClipboardList} label="LogBook MS" />
+                            {isFeatureAccessible('mentoring-ms') ? (
+                                <SidebarItem href={`/dashboard/admin/mentoring`} icon={Users} label="Mentoring MS" />
+                            ) : (
+                                <LockedSidebarItem label="Mentoring MS" requiredPlan="Enterprise" />
+                            )}
+                            {isFeatureAccessible('elective-ms') ? (
+                                <SidebarItem href={`/dashboard/admin/elective`} icon={BookOpen} label="Elective MS" />
+                            ) : (
+                                <LockedSidebarItem label="Elective MS" requiredPlan="Enterprise" />
+                            )}
+                            {isFeatureAccessible('logbook-ms') ? (
+                                <SidebarItem href={`/dashboard/admin/logbook`} icon={ClipboardList} label="LogBook MS" />
+                            ) : (
+                                <LockedSidebarItem label="LogBook MS" requiredPlan="Enterprise" />
+                            )}
                         </>
                     )}
 
@@ -455,7 +745,7 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                             <SidebarItem href={`/dashboard/admin/blog`} icon={FileText} label="Blog Publications" />
                             <SidebarItem href={`/dashboard/admin/users`} icon={Users} label="User Management" />
                             <SidebarItem href={`/dashboard/admin/tokens`} icon={Settings} label="Token Economy" />
-                            <SidebarItem href={`/dashboard/admin/create-institution`} icon={Building2} label="Create Institution" />
+                            <SidebarItem href={`/dashboard/admin/create-institution`} icon={Building2} label="Institution Onboarding" />
                         </>
                     )}
                 </nav>
@@ -510,9 +800,9 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                             <div className="text-sm font-bold text-slate-900 leading-tight mb-0.5">
                                 {mounted ? (userName || <span className="text-slate-400 font-normal italic text-xs">Loading...</span>) : <div className="h-4 w-24 bg-slate-100 animate-pulse rounded" />}
                             </div>
-                            <p className="text-[11px] text-slate-500 font-medium leading-none mb-0.5">
+                            <div className="text-[11px] text-slate-500 font-medium leading-none mb-0.5">
                                 {mounted ? (userEmail || <span className="text-slate-300">—</span>) : <div className="h-3 w-32 bg-slate-100 animate-pulse rounded inline-block" />}
-                            </p>
+                            </div>
                             <div className="flex items-center gap-1.5 justify-end">
                                 <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider leading-none">{roleDisplayLabel}</p>
                                 <span className={`text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md leading-none ${getPlanBadgeColor(planTier)}`}>{planTier}</span>
@@ -525,7 +815,22 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                 </header>
                 <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-8 w-full">
                     <ErrorBoundary>
-                        {children}
+                        {(() => {
+                            const currentFeatureSlug = pathname ? getFeatureSlugFromPath(pathname) : null;
+                            if (currentFeatureSlug !== null) {
+                                const { allowed, requiredPlan } = canAccessFeature(currentFeatureSlug, planTier, billingStatus, trialEndDate, userEmail);
+                                if (!allowed && requiredPlan && !isMasterOrSuperAdmin) {
+                                    return (
+                                        <LockedFeatureView
+                                            featureSlug={currentFeatureSlug}
+                                            requiredPlan={requiredPlan}
+                                            currentPlan={planTier}
+                                        />
+                                    );
+                                }
+                            }
+                            return children;
+                        })()}
                     </ErrorBoundary>
                 </div>
             </main>

@@ -15,8 +15,15 @@ export default async function DashboardLayout({
     async function handleLogout() {
         'use server';
         const cookieStore = await cookies();
-        const currentRole = cookieStore.get('role')?.value;
         cookieStore.delete('role');
+        cookieStore.delete('sb-access-token');
+        
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+        const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] ?? '';
+        if (projectRef) {
+            cookieStore.delete(`sb-${projectRef}-auth-token`);
+        }
+        
         redirect('/login');
     }
 

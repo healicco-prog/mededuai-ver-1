@@ -1,4 +1,4 @@
-import TeacherElectivePage from '@/app/dashboard/teacher/elective/page';
+import TeacherElectivePage from '@/components/TeacherElectivePage';
 
 export default function DeptAdminElectivePage() {
     return <TeacherElectivePage />;
