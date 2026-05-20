@@ -38,7 +38,7 @@ export function isOriginAllowed(origin: string | null | undefined): boolean {
  * Get CORS headers for a given request origin
  */
 export function getCorsHeaders(origin: string | null | undefined): Record<string, string> {
-  const allowedOrigin = origin || 'https://mededuai.com';
+  const allowedOrigin = isOriginAllowed(origin) ? origin! : 'https://mededuai.com';
 
   return {
     'Access-Control-Allow-Origin': allowedOrigin,

@@ -22,8 +22,7 @@ function isOriginAllowed(origin: string | null | undefined): boolean {
 }
 
 function getCorsHeaders(origin: string | null | undefined): Record<string, string> {
-  // Always reflect requesting origin to prevent mobile browser fetch failures and local testing IP blocks
-  const allowedOrigin = origin || 'https://mededuai.com';
+  const allowedOrigin = isOriginAllowed(origin) ? origin! : 'https://mededuai.com';
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
