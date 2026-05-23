@@ -132,6 +132,7 @@ export default function LoginPage() {
                                 autoComplete="one-time-code"
                                 placeholder="name@institution.edu"
                                 className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 transition-all text-sm"
+                                suppressHydrationWarning
                             />
                         </div>
                     </div>
@@ -155,11 +156,13 @@ export default function LoginPage() {
                                 autoComplete="one-time-code"
                                 placeholder="Enter your password"
                                 className="w-full pl-11 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 transition-all text-sm"
+                                suppressHydrationWarning
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
                                 className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                                suppressHydrationWarning
                             >
                                 {showPassword ? (
                                     <EyeOff className="w-5 h-5" />
@@ -174,6 +177,7 @@ export default function LoginPage() {
                         type="submit"
                         disabled={loading || !email || !password}
                         className="w-full flex items-center justify-center gap-2 py-3.5 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-500 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-600/20 mt-6"
+                        suppressHydrationWarning
                     >
                         {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                         Log In

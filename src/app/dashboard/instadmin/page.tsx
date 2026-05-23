@@ -6,10 +6,15 @@ import {
     Building2, TrendingUp, Calendar, Clock, Star,
     CheckCircle2, AlertCircle, BarChart3, Presentation
 } from 'lucide-react';
+import WhatsHappeningToday from '@/components/WhatsHappeningToday';
+import DailyKeyPoints from '@/components/DailyKeyPoints';
 
 export default function InstAdminDashboard() {
     return (
         <div className="max-w-7xl mx-auto space-y-8 pb-12">
+            <WhatsHappeningToday />
+            <DailyKeyPoints role="deptadmin" />
+            
             {/* Hero Header */}
             <div className="relative overflow-hidden rounded-[2rem] shadow-xl bg-gradient-to-br from-indigo-900 via-slate-900 to-indigo-950 p-10">
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(99,102,241,0.25),transparent_50%)]" />

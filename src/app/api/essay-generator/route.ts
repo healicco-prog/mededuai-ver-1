@@ -1,6 +1,7 @@
-import { checkSecurity, validateInput } from '@/lib/apiSecurity';
+import { checkSecurity } from '@/lib/apiSecurity';
 import { NextResponse } from 'next/server';
-import { generateJSON } from '@/lib/gemini';
+import { generateJSONWithUsage } from '@/lib/gemini';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 export async function POST(req: Request) {
     const sec = await checkSecurity(req);
@@ -21,8 +22,19 @@ If generating Short Answer Questions (SAQs), keep them specific and concise.
 Just return a plain array like:
 ["Question 1...", "Question 2...", "Question 3..."]`;
 
-        const parsed = await generateJSON(promptText);
-        return NextResponse.json({ success: true, questions: parsed });
+        const { data: parsed, geminiTokens } = await generateJSONWithUsage(promptText);
+        const tokensToDeduct = geminiTokens * 2;
+
+        if (sec.user?.id && tokensToDeduct > 0) {
+            const supabaseAdmin = getSupabaseAdmin();
+            const { data: sub } = await supabaseAdmin.from('subscriptions').select('ai_tokens_balance').eq('user_id', sec.user.id).single();
+            if (sub && typeof sub.ai_tokens_balance === 'number') {
+                const newBalance = Math.max(0, sub.ai_tokens_balance - tokensToDeduct);
+                await supabaseAdmin.from('subscriptions').update({ ai_tokens_balance: newBalance }).eq('user_id', sec.user.id);
+            }
+        }
+
+        return NextResponse.json({ success: true, questions: parsed, geminiTokens });
     } catch (error: any) {
         console.warn('Essay Generator API Error:', error.message);
         return NextResponse.json({

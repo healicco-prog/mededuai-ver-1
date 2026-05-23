@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { ClipboardCheck, Sparkles, SlidersHorizontal, Loader2, Save, Copy, Download, CheckCircle, RefreshCcw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useUserStore } from '@/store/userStore';
+import { tokenService } from '@/lib/tokenService';
 
 export default function SelfEvaluationPage() {
     const [question, setQuestion] = useState('');
@@ -12,9 +14,17 @@ export default function SelfEvaluationPage() {
     const [loading, setLoading] = useState(false);
     const [copied, setCopied] = useState(false);
     const [saved, setSaved] = useState(false);
+    const currentUser = useUserStore(state => state.users[0]);
 
     const handleGenerate = async () => {
-        if (!question.trim()) return;
+        if (!question.trim() || !currentUser) return;
+        
+        const check = tokenService.checkAvailability(currentUser.id, 'Self Evaluation Tool');
+        if (!check.allowed) {
+            alert(`${check.reason || 'Insufficient tokens'}! Cost: ${check.required}, Balance: ${check.remaining}`);
+            return;
+        }
+
         setLoading(true);
         setResult(null);
 
@@ -27,6 +37,11 @@ export default function SelfEvaluationPage() {
             const data = await res.json();
             if (data.success) {
                 setResult(data.answer || 'No answer generated.');
+                if (data.geminiTokens) {
+                    tokenService.processTransaction(currentUser.id, 'Self Evaluation Tool', 'gemini-2.0-flash', data.geminiTokens * 2);
+                } else {
+                    tokenService.processTransaction(currentUser.id, 'Self Evaluation Tool', 'gemini-2.0-flash');
+                }
             } else {
                 setResult('Failed to generate. Please try again.');
             }

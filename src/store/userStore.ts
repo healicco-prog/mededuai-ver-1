@@ -20,6 +20,7 @@ interface UserState {
     addUser: (user: Omit<User, 'id' | 'createdAt'>) => void;
     updateUser: (id: string, data: Partial<User>) => void;
     deleteUser: (id: string) => void;
+    setUsers: (users: User[]) => void;
 }
 
 const defaultUsers: User[] = [];
@@ -39,6 +40,9 @@ export const useUserStore = create<UserState>()(
             })),
             deleteUser: (id) => set((state) => ({
                 users: state.users.filter(u => u.id !== id)
+            })),
+            setUsers: (users) => set(() => ({
+                users
             }))
         }),
         {

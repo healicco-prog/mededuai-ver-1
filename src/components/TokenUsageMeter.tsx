@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Coins, Zap, TrendingDown } from 'lucide-react';
 import Link from 'next/link';
+import { useTokenStore } from '@/store/tokenStore';
+import { useUserStore } from '@/store/userStore';
 
 interface TokenUsageMeterProps {
   balance: number;
@@ -13,11 +15,14 @@ interface TokenUsageMeterProps {
 
 export default function TokenUsageMeter({ balance, allotment, bonusTokens, planTier }: TokenUsageMeterProps) {
   const [mounted, setMounted] = useState(false);
+  const currentUser = useUserStore(state => state.users[0]);
+  const wallet = useTokenStore(state => currentUser ? state.getWallet(currentUser.id) : undefined);
 
   useEffect(() => { setMounted(true); }, []);
   if (!mounted) return null;
 
-  const totalAvailable = balance + bonusTokens;
+  const currentBalance = wallet ? wallet.totalTokens : balance;
+  const totalAvailable = currentBalance + bonusTokens;
   const maxTokens = Math.max(allotment, totalAvailable);
   const usagePercent = maxTokens > 0 ? Math.min(100, (totalAvailable / maxTokens) * 100) : 0;
   const isLow = totalAvailable < (allotment * 0.15); // less than 15%
@@ -87,13 +92,13 @@ export default function TokenUsageMeter({ balance, allotment, bonusTokens, planT
         </div>
       )}
 
-      {planTier === 'free' && (
+      {(planTier === 'free' || isLow || isCritical) && (
         <Link
           href="/dashboard/student/upgrade"
-          className="flex items-center justify-center gap-1.5 text-[10px] font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-600 px-3 py-2 rounded-lg hover:shadow-md hover:shadow-cyan-500/20 transition-all"
+          className="flex items-center justify-center gap-1.5 text-[10px] font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-600 px-3 py-2 rounded-lg hover:shadow-md hover:shadow-cyan-500/20 transition-all mt-2"
         >
           <Zap className="w-3 h-3" />
-          Get More Tokens
+          {planTier === 'free' ? 'Upgrade Plan' : 'Buy Tokens Top-up'}
         </Link>
       )}
     </div>

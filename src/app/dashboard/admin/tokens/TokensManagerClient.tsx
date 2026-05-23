@@ -171,7 +171,8 @@ export default function TokensManagerClient() {
     const getUsagePct = (u: UserRow) => {
         const allotment = u.ai_tokens_allotment || PLAN_ALLOTMENTS[u.plan_tier] || 10000;
         if (allotment === 0) return 0;
-        return Math.round(((allotment - u.ai_tokens_balance) / allotment) * 100);
+        const used = allotment - u.ai_tokens_balance;
+        return Math.max(0, Math.round((used / allotment) * 100));
     };
 
     return (

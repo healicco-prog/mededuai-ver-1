@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { Stethoscope, FileSearch, Sparkles, CheckCircle2, Loader2, Save, Copy, Download, Share2, CheckCircle, RefreshCcw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useUserStore } from '@/store/userStore';
+import { tokenService } from '@/lib/tokenService';
 
 export default function CaseTrainerPage() {
     const [summary, setSummary] = useState('');
@@ -11,9 +13,17 @@ export default function CaseTrainerPage() {
     const [result, setResult] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
     const [saved, setSaved] = useState(false);
+    const currentUser = useUserStore(state => state.users[0]);
 
     const handleAnalyze = async () => {
-        if (!summary.trim()) return;
+        if (!summary.trim() || !currentUser) return;
+        
+        const check = tokenService.checkAvailability(currentUser.id, 'Case Presentation Trainer');
+        if (!check.allowed) {
+            alert(`${check.reason || 'Insufficient tokens'}! Cost: ${check.required}, Balance: ${check.remaining}`);
+            return;
+        }
+
         setLoading(true);
         setResult(null);
 
@@ -26,6 +36,11 @@ export default function CaseTrainerPage() {
             const data = await res.json();
             if (data.success) {
                 setResult(data.analysis || 'No analysis generated.');
+                if (data.geminiTokens) {
+                    tokenService.processTransaction(currentUser.id, 'Case Presentation Trainer', 'gemini-2.0-flash', data.geminiTokens * 2);
+                } else {
+                    tokenService.processTransaction(currentUser.id, 'Case Presentation Trainer', 'gemini-2.0-flash');
+                }
             } else {
                 setResult('Failed to analyze. Please try again.');
             }

@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { FileText, Wand2, Copy, Loader2, Save, Download, CheckCircle, RefreshCcw, ArrowRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useUserStore } from '@/store/userStore';
+import { tokenService } from '@/lib/tokenService';
 
 export default function AnswerStructurerPage() {
     const [draft, setDraft] = useState('');
@@ -11,9 +13,17 @@ export default function AnswerStructurerPage() {
     const [loading, setLoading] = useState(false);
     const [copied, setCopied] = useState(false);
     const [saved, setSaved] = useState(false);
+    const currentUser = useUserStore(state => state.users[0]);
 
     const handleStructure = async () => {
-        if (!draft.trim()) return;
+        if (!draft.trim() || !currentUser) return;
+        
+        const check = tokenService.checkAvailability(currentUser.id, 'Answer Structuring Assistant');
+        if (!check.allowed) {
+            alert(`${check.reason || 'Insufficient tokens'}! Cost: ${check.required}, Balance: ${check.remaining}`);
+            return;
+        }
+
         setLoading(true);
         setStructured('');
 
@@ -26,6 +36,11 @@ export default function AnswerStructurerPage() {
             const data = await res.json();
             if (data.success) {
                 setStructured(data.structured || 'No structured output generated.');
+                if (data.geminiTokens) {
+                    tokenService.processTransaction(currentUser.id, 'Answer Structuring Assistant', 'gemini-2.0-flash', data.geminiTokens * 2);
+                } else {
+                    tokenService.processTransaction(currentUser.id, 'Answer Structuring Assistant', 'gemini-2.0-flash');
+                }
             } else {
                 setStructured('Failed to structure. Please try again.');
             }

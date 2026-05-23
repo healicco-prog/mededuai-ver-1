@@ -2,8 +2,11 @@
 
 import { useState } from 'react';
 import { Target, Download, Loader2, Sparkles, Save, Copy, CheckCircle, RefreshCcw, FileText } from 'lucide-react';
+import { useUserStore } from '@/store/userStore';
+import { tokenService } from '@/lib/tokenService';
 
 export default function ImportantQuestionsPage() {
+    const currentUser = useUserStore(state => state.users[0]);
 
     const [form, setForm] = useState({ uni: '', course: '', subject: '' });
     const [generating, setGenerating] = useState(false);
@@ -13,6 +16,13 @@ export default function ImportantQuestionsPage() {
 
     const handleGenerate = async () => {
         if (!form.uni || !form.course || !form.subject) return;
+        if (!currentUser) return;
+        const check = tokenService.checkAvailability(currentUser.id, 'Important Questions Generator');
+        if (!check.allowed) {
+            alert(`${check.reason || 'Insufficient tokens'}! Cost: ${check.required}, Balance: ${check.remaining}`);
+            return;
+        }
+
         setGenerating(true);
         setPaper(null);
 
@@ -25,6 +35,11 @@ export default function ImportantQuestionsPage() {
             const data = await res.json();
             if (data.success && data.paper) {
                 setPaper(data.paper);
+                if (data.geminiTokens) {
+                    tokenService.processTransaction(currentUser.id, 'Important Questions Generator', 'gemini-2.0-flash', data.geminiTokens * 2);
+                } else {
+                    tokenService.processTransaction(currentUser.id, 'Important Questions Generator', 'gemini-2.0-flash');
+                }
             } else {
                 alert('Failed to generate. Please try again.');
             }

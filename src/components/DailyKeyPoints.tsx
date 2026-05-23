@@ -1,8 +1,13 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Sparkles, Target, Zap, BrainCircuit, Activity, BookOpen, ClipboardCheck, CalendarCheck, ClipboardList, FileQuestion, PenLine, Users, NotebookPen, Presentation } from 'lucide-react';
-import { useCurriculumStore } from '../store/curriculumStore';
+import { 
+    Sparkles, Target, Zap, BrainCircuit, Activity, BookOpen, 
+    ClipboardCheck, CalendarCheck, ClipboardList, FileQuestion, 
+    PenLine, Users, NotebookPen, Presentation, FileText, 
+    CheckSquare, Edit3, PenTool 
+} from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 type KeyPoint = {
     title: string;
@@ -13,166 +18,343 @@ type KeyPoint = {
 };
 
 interface DailyKeyPointsProps {
-    /** Drives which tool set the daily prompts rotate through. Defaults to the
-     *  student-facing prompts. */
     role?: 'student' | 'teacher' | 'deptadmin' | 'instadmin' | 'superadmin' | 'masteradmin';
 }
 
 export default function DailyKeyPoints({ role = 'student' }: DailyKeyPointsProps) {
-    const { coursesList } = useCurriculumStore();
     const [keyPoints, setKeyPoints] = useState<KeyPoint[]>([]);
+    const [planTier, setPlanTier] = useState<string>('free');
+    const [selectedCourse, setSelectedCourse] = useState<string>('');
+    const [selectedSubject, setSelectedSubject] = useState<string>('');
 
     useEffect(() => {
-        // Pseudo-random generation based on today's date so it changes daily
-        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        // 1. Fetch selected course & subject names from localStorage
+        const cachedCourse = localStorage.getItem('mededuai_selected_course');
+        const cachedSubject = localStorage.getItem('mededuai_selected_subject');
+        if (cachedCourse) setSelectedCourse(cachedCourse);
+        if (cachedSubject) setSelectedSubject(cachedSubject);
+
+        // 2. Fetch user plan tier to customize features shown
+        const getSub = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.user) {
+                    const res = await fetch(`/api/subscription?userId=${session.user.id}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.plan_tier) {
+                            setPlanTier(data.plan_tier);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Error fetching plan tier for key points:", err);
+            }
+        };
+        getSub();
+    }, []);
+
+    useEffect(() => {
+        // Pseudo-random generation based on today's local date so it changes daily
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const today = `${year}-${month}-${day}`; // Local YYYY-MM-DD
         const hash = today.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
-        const course = coursesList[0]?.name || 'Medical Exams';
-        const subject = coursesList[0]?.subjects?.[0]?.name || 'General Anatomy';
+        const course = selectedCourse || 'MBBS';
+        const subject = selectedSubject || 'General Anatomy';
 
-        // ── Student-facing prompts (default) ─────────────────────────────────
-        const studentPoints: KeyPoint[] = [
+        const isFeatureAllowed = (feature: string) => {
+            const tierOrder = ['free', 'basic', 'standard', 'premium', 'enterprise'];
+            const currentIdx = tierOrder.indexOf(planTier.toLowerCase());
+            // Treat free/trial users as 'standard' so they can see intermediate features to encourage upgrading
+            const effectiveIdx = planTier.toLowerCase() === 'free' ? 2 : currentIdx;
+
+            let required = 'free';
+            if (['lms-notes'].includes(feature)) required = 'free';
+            else if (['notes-creator'].includes(feature)) required = 'basic';
+            else if ([
+                'ai-mentor', 'viva-simulator', 'vocabulary', 'reflection-generator', 
+                'essay-qs-generator', 'mcqs-generator', 'self-evaluation', 
+                'lesson-plan', 'rubrics-generator', 'dig-eval-assist'
+            ].includes(feature)) required = 'standard';
+            else if ([
+                'classroom-generator', 'timetable-ms', 'attendance-ms', 
+                'q-paper-dev', 'ems-essay', 'emr-mcqs'
+            ].includes(feature)) required = 'premium';
+            else if (['mentorship-ms', 'mentoring-ms', 'elective-ms', 'logbook-ms'].includes(feature)) required = 'enterprise';
+
+            const requiredIdx = tierOrder.indexOf(required);
+            return effectiveIdx >= requiredIdx;
+        };
+
+        // Build list of points only for features allowed by tier
+        const studentPool: { feature: string; point: KeyPoint }[] = [
             {
-                title: "LMS Notes Revision",
-                desc: `Since you recently reviewed General Anatomy in ${course}, focus on the Brachial Plexus today.`,
-                icon: <BookOpen className="w-5 h-5 text-emerald-600" />,
-                color: "emerald",
-                source: "Based on LMS Notes viewing"
+                feature: "lms-notes",
+                point: {
+                    title: "LMS Notes Revision",
+                    desc: `Review the high-yield study topics for ${subject} in ${course} to keep your memory sharp.`,
+                    icon: <BookOpen className="w-5 h-5 text-emerald-600" />,
+                    color: "emerald",
+                    source: "Based on LMS Notes viewing"
+                }
             },
             {
-                title: "AI Mentor Insights",
-                desc: "Your recent queries indicate a need to brush up on cardiovascular physiology.",
-                icon: <BrainCircuit className="w-5 h-5 text-indigo-600" />,
-                color: "indigo",
-                source: "Based on AI Mentor usage"
+                feature: "notes-creator",
+                point: {
+                    title: "Notes Creator Tips",
+                    desc: `Generate a custom set of revision summaries or flashcards for complex topics in ${subject}.`,
+                    icon: <Zap className="w-5 h-5 text-blue-600" />,
+                    color: "blue",
+                    source: "Based on Notes Creator"
+                }
             },
             {
-                title: "Self-Evaluation Target",
-                desc: "Your last evaluation scores suggest reviewing Biochemistry metabolism pathways.",
-                icon: <Target className="w-5 h-5 text-amber-600" />,
-                color: "amber",
-                source: "Based on Self-Evaluation"
+                feature: "ai-mentor",
+                point: {
+                    title: "AI Mentor Insights",
+                    desc: `Discuss clinical applications and mock cases in ${subject} with MentorPro today.`,
+                    icon: <BrainCircuit className="w-5 h-5 text-indigo-600" />,
+                    color: "indigo",
+                    source: "Based on AI Mentor usage"
+                }
             },
             {
-                title: "MCQ Practice",
-                desc: "Practice more MCQs on Pathology to improve your diagnostic accuracy.",
-                icon: <ClipboardCheck className="w-5 h-5 text-rose-600" />,
-                color: "rose",
-                source: "Based on MCQs Generator"
+                feature: "viva-simulator",
+                point: {
+                    title: "Viva Preparation",
+                    desc: `Test your quick recall on ${subject} by initiating an interactive voice viva session.`,
+                    icon: <Activity className="w-5 h-5 text-purple-600" />,
+                    color: "purple",
+                    source: "Based on Viva Simulator"
+                }
             },
             {
-                title: "Viva Preparation",
-                desc: "Try a new Viva Simulator session on Cranial Nerves to boost confidence.",
-                icon: <Activity className="w-5 h-5 text-purple-600" />,
-                color: "purple",
-                source: "Based on Viva Simulator"
+                feature: "vocabulary",
+                point: {
+                    title: "Medical Vocabulary",
+                    desc: `Brush up on root words, prefixes, and suffixes for specialized terminology in ${subject}.`,
+                    icon: <FileText className="w-5 h-5 text-teal-600" />,
+                    color: "teal",
+                    source: "Based on Vocabulary"
+                }
             },
             {
-                title: "Notes Creator Tips",
-                desc: "Consider generating Flashcards for Microbiology spotters.",
-                icon: <Zap className="w-5 h-5 text-blue-600" />,
-                color: "blue",
-                source: "Based on Notes Creator"
+                feature: "reflection-generator",
+                point: {
+                    title: "Reflective Journals",
+                    desc: `Reflect on your clinical postings or classroom sessions for ${subject} with guided reflection.`,
+                    icon: <Edit3 className="w-5 h-5 text-amber-600" />,
+                    color: "amber",
+                    source: "Based on Reflection Generator"
+                }
+            },
+            {
+                feature: "essay-qs-generator",
+                point: {
+                    title: "Essay Practice",
+                    desc: `Review structure templates and model answers for long-form essay questions in ${subject}.`,
+                    icon: <PenTool className="w-5 h-5 text-purple-600" />,
+                    color: "purple",
+                    source: "Based on Essay Qs Generator"
+                }
+            },
+            {
+                feature: "mcqs-generator",
+                point: {
+                    title: "MCQ Challenge",
+                    desc: `Solve 10 random case-based MCQs in ${subject} to check your conceptual understanding.`,
+                    icon: <ClipboardCheck className="w-5 h-5 text-rose-600" />,
+                    color: "rose",
+                    source: "Based on MCQs Generator"
+                }
+            },
+            {
+                feature: "self-evaluation",
+                point: {
+                    title: "Self-Evaluation Test",
+                    desc: `Benchmark your retention and speed for ${subject} syllabus units today.`,
+                    icon: <Target className="w-5 h-5 text-amber-600" />,
+                    color: "amber",
+                    source: "Based on Self-Evaluation"
+                }
+            },
+            {
+                feature: "mentorship-ms",
+                point: {
+                    title: "Mentorship Portfolio",
+                    desc: "Update your academic progression goals and share recent milestones with your faculty mentor.",
+                    icon: <Users className="w-5 h-5 text-emerald-600" />,
+                    color: "emerald",
+                    source: "Based on Mentorship MS"
+                }
+            },
+            {
+                feature: "elective-ms",
+                point: {
+                    title: "Elective Postings",
+                    desc: "Review your elective selection guidelines and hospital ward slots for clinical experience.",
+                    icon: <BookOpen className="w-5 h-5 text-indigo-600" />,
+                    color: "indigo",
+                    source: "Based on Elective MS"
+                }
+            },
+            {
+                feature: "logbook-ms",
+                point: {
+                    title: "Clinical Logbook",
+                    desc: "Verify your logged clinical procedures and bedside assessments are ready for coordinator approval.",
+                    icon: <ClipboardList className="w-5 h-5 text-rose-600" />,
+                    color: "rose",
+                    source: "Based on Logbook MS"
+                }
             }
         ];
 
-        // ── Faculty/Dept-admin-facing prompts ────────────────────────────────
-        // Each entry references one of the 11 tools the dept admin uses, so the
-        // daily rotation surfaces a different lever for them to act on.
-        const facultyPoints: KeyPoint[] = [
+        const facultyPool: { feature: string; point: KeyPoint }[] = [
             {
-                title: "LMS Notes Coverage",
-                desc: `Your faculty have been opening ${subject} notes most this week. Identify the 2 topics with lowest engagement and queue them in Notes Creator for richer coverage.`,
-                icon: <BookOpen className="w-5 h-5 text-emerald-600" />,
-                color: "emerald",
-                source: "Based on LMS Notes activity"
+                feature: "lms-notes",
+                point: {
+                    title: "LMS Notes Coverage",
+                    desc: `Review which student cohorts are actively reading ${subject} notes under the ${course} track.`,
+                    icon: <BookOpen className="w-5 h-5 text-emerald-600" />,
+                    color: "emerald",
+                    source: "Based on LMS Notes activity"
+                }
             },
             {
-                title: "Notes Creator Backlog",
-                desc: `Several ${course} topics still don't have full LMS notes. Trigger a batch generation in Content Creator before the next teaching block starts.`,
-                icon: <NotebookPen className="w-5 h-5 text-blue-600" />,
-                color: "blue",
-                source: "Based on Notes Creator usage"
+                feature: "notes-creator",
+                point: {
+                    title: "Notes Creator Backlog",
+                    desc: `Generate detailed, curriculum-aligned study booklets for upcoming ${subject} lectures.`,
+                    icon: <NotebookPen className="w-5 h-5 text-blue-600" />,
+                    color: "blue",
+                    source: "Based on Notes Creator usage"
+                }
             },
             {
-                title: "Lesson Plan Refresh",
-                desc: "Your last Lesson Plan was generated more than a week ago. Refresh it for this week's classes so AI suggestions reflect your current syllabus position.",
-                icon: <Presentation className="w-5 h-5 text-indigo-600" />,
-                color: "indigo",
-                source: "Based on Lesson Plan usage"
+                feature: "lesson-plan",
+                point: {
+                    title: "Lesson Plan Calibration",
+                    desc: `Design highly structured active-learning lecture outlines for tomorrow's ${subject} class.`,
+                    icon: <Presentation className="w-5 h-5 text-indigo-600" />,
+                    color: "indigo",
+                    source: "Based on Lesson Plan usage"
+                }
             },
             {
-                title: "Rubrics Standardization",
-                desc: "Two of your teachers are evaluating without an approved rubric. Generate department-standard rubrics in Rubrics Generator and share with them.",
-                icon: <ClipboardCheck className="w-5 h-5 text-amber-600" />,
-                color: "amber",
-                source: "Based on Rubrics Generator"
+                feature: "rubrics-generator",
+                point: {
+                    title: "Rubric Standardization",
+                    desc: `Create clear, objective criteria for assessing student clinical presentations on ${subject}.`,
+                    icon: <ClipboardCheck className="w-5 h-5 text-amber-600" />,
+                    color: "amber",
+                    source: "Based on Rubrics Generator"
+                }
             },
             {
-                title: "Classroom Templates",
-                desc: "Reuse last week's Classroom Generator template for the next batch — small-group case-based discussions had the highest student feedback scores.",
-                icon: <Users className="w-5 h-5 text-purple-600" />,
-                color: "purple",
-                source: "Based on Classroom Generator"
+                feature: "dig-eval-assist",
+                point: {
+                    title: "Digital Grading Assist",
+                    desc: `Batch-assess student exam submissions on ${subject} with digital grading assistance.`,
+                    icon: <Edit3 className="w-5 h-5 text-teal-600" />,
+                    color: "teal",
+                    source: "Based on Dig Evaluation Assist"
+                }
             },
             {
-                title: "Time Table Conflicts",
-                desc: "Time Table MS shows two overlapping faculty slots for this Friday. Resolve them before the daily schedule export goes out to students.",
-                icon: <CalendarCheck className="w-5 h-5 text-rose-600" />,
-                color: "rose",
-                source: "Based on Time Table MS"
+                feature: "classroom-generator",
+                point: {
+                    title: "Active Classroom Prep",
+                    desc: `Structure dynamic small-group discussions and case simulations for ${subject}.`,
+                    icon: <Users className="w-5 h-5 text-purple-600" />,
+                    color: "purple",
+                    source: "Based on Classroom Generator"
+                }
             },
             {
-                title: "Attendance Gaps",
-                desc: "Attendance MS flags 3 students below the 75% threshold in the current month. Pull the report and trigger mentor follow-ups before semester end.",
-                icon: <ClipboardList className="w-5 h-5 text-rose-600" />,
-                color: "rose",
-                source: "Based on Attendance MS"
+                feature: "timetable-ms",
+                point: {
+                    title: "Time Table Conflicts",
+                    desc: `Check for lecture overlaps or schedule updates for the ${course} cohort.`,
+                    icon: <CalendarCheck className="w-5 h-5 text-rose-600" />,
+                    color: "rose",
+                    source: "Based on Time Table MS"
+                }
             },
             {
-                title: "Q-Paper Calibration",
-                desc: `Use Q-Paper Dev to draft a balanced internal assessment for ${subject} — last paper was top-heavy on recall, light on application-level questions.`,
-                icon: <FileQuestion className="w-5 h-5 text-emerald-600" />,
-                color: "emerald",
-                source: "Based on Q-Paper Dev"
+                feature: "attendance-ms",
+                point: {
+                    title: "Attendance Gaps",
+                    desc: `Identify students failing to meet mandatory lecture attendance percentages in ${subject}.`,
+                    icon: <ClipboardList className="w-5 h-5 text-rose-600" />,
+                    color: "rose",
+                    source: "Based on Attendance MS"
+                }
             },
             {
-                title: "Essay Evaluation (EMS)",
-                desc: "Pending essay scripts in EMS - Essay are piling up. Batch-evaluate them today so students get feedback before the next formative.",
-                icon: <PenLine className="w-5 h-5 text-indigo-600" />,
-                color: "indigo",
-                source: "Based on EMS - Essay"
+                feature: "q-paper-dev",
+                point: {
+                    title: "Q-Paper Calibration",
+                    desc: `Draft a balanced term-end question paper targeting key domains in ${subject}.`,
+                    icon: <FileQuestion className="w-5 h-5 text-emerald-600" />,
+                    color: "emerald",
+                    source: "Based on Q-Paper Dev"
+                }
             },
             {
-                title: "MCQ Bank Audit (EMR)",
-                desc: `EMR - MCQs has flagged item-difficulty drift in ${subject}. Review the outlier questions before they enter the next assessment cycle.`,
-                icon: <BrainCircuit className="w-5 h-5 text-blue-600" />,
-                color: "blue",
-                source: "Based on EMR - MCQs"
+                feature: "ems-essay",
+                point: {
+                    title: "Essay Evaluation (EMS)",
+                    desc: `Review AI evaluation reports and suggested grading breakdowns for essay assessments.`,
+                    icon: <PenLine className="w-5 h-5 text-indigo-600" />,
+                    color: "indigo",
+                    source: "Based on EMS - Essay"
+                }
             },
             {
-                title: "Curriculum Coverage",
-                desc: `${course} curriculum tree shows untouched sections. Switch the Curriculum Setup tab and assign those topics to faculty owners today.`,
-                icon: <Target className="w-5 h-5 text-amber-600" />,
-                color: "amber",
-                source: "Based on Curriculum selection"
+                feature: "emr-mcqs",
+                point: {
+                    title: "MCQ Bank Audit",
+                    desc: `Run quality diagnostics on the test database questions for ${subject}.`,
+                    icon: <BrainCircuit className="w-5 h-5 text-blue-600" />,
+                    color: "blue",
+                    source: "Based on EMR - MCQs"
+                }
+            },
+            {
+                feature: "mentorship-ms",
+                point: {
+                    title: "Mentor Actions Needed",
+                    desc: "Several mentees have pending progress reports. View and approve them today.",
+                    icon: <Users className="w-5 h-5 text-emerald-600" />,
+                    color: "emerald",
+                    source: "Based on Mentorship MS"
+                }
             }
         ];
 
-        const pool = role === 'student' ? studentPoints : facultyPoints;
+        const rawPool = role === 'student' ? studentPool : facultyPool;
+        const pool = rawPool.filter(item => isFeatureAllowed(item.feature)).map(item => item.point);
 
-        // Pick 3 unique points based on the date hash so the same card doesn't appear twice.
+        // Pick 3 unique points based on the date hash so the same cards don't always appear twice
         const selected: KeyPoint[] = [];
         const used = new Set<number>();
-        for (let i = 0; selected.length < 3 && i < pool.length * 2; i++) {
-            const index = (hash + i * 17) % pool.length;
-            if (used.has(index)) continue;
-            used.add(index);
-            selected.push(pool[index]);
+        
+        if (pool.length > 0) {
+            for (let i = 0; selected.length < Math.min(3, pool.length) && i < pool.length * 4; i++) {
+                const index = (hash + i * 17) % pool.length;
+                if (used.has(index)) continue;
+                used.add(index);
+                selected.push(pool[index]);
+            }
         }
 
         setKeyPoints(selected);
-    }, [coursesList, role]);
+    }, [selectedCourse, selectedSubject, planTier, role]);
 
     if (keyPoints.length === 0) return null;
 
@@ -186,7 +368,10 @@ export default function DailyKeyPoints({ role = 'student' }: DailyKeyPointsProps
                     <div className="bg-white/10 p-2 rounded-xl border border-white/10 backdrop-blur-sm">
                         <Sparkles className="w-6 h-6 text-emerald-400" />
                     </div>
-                    <h2 className="text-2xl font-extrabold text-white tracking-tight">Key points to focus today</h2>
+                    <div>
+                        <h2 className="text-2xl font-extrabold text-white tracking-tight">Key points to focus today</h2>
+                        <p className="text-slate-400 text-xs mt-0.5 capitalize">Tailored context for {planTier} Plan</p>
+                    </div>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -196,8 +381,8 @@ export default function DailyKeyPoints({ role = 'student' }: DailyKeyPointsProps
                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-${point.color}-500/20 border border-${point.color}-500/30`}>
                                     {point.icon}
                                 </div>
-                                <div>
-                                    <h3 className="text-white font-bold text-base mb-1">{point.title}</h3>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="text-white font-bold text-base mb-1 truncate">{point.title}</h3>
                                     <p className="text-slate-300 text-sm leading-relaxed mb-3">{point.desc}</p>
                                     <div className="inline-flex items-center rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                                         {point.source}

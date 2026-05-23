@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useCurriculumStore } from '../../../../store/curriculumStore';
+import { useTokenStore } from '../../../../store/tokenStore';
 import {
     BrainCircuit, BookOpen, Search, Bell, Download, ChevronRight, ChevronLeft, ChevronDown, CheckCircle2,
     Sparkles, ArrowLeft, Layers, MessageSquare, Plus, AlignLeft, CheckSquare, Presentation,
@@ -13,6 +14,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
+import { supabase } from '@/lib/supabase';
 
 // Helper to normalise raw content from DB (might be JSONB array, JSON string array, or plain string)
 const normaliseContent = (raw: any): string => {
@@ -320,7 +322,7 @@ const PPTSlideViewer = ({ rawText }: { rawText: any }) => {
     );
 };
 
-const MCQViewer = ({ rawText, colorClass = "indigo", marks = 1, currentTopic, currentSubject }: { rawText: any, colorClass?: string, marks?: number, currentTopic?: any, currentSubject?: any }) => {
+const MCQViewer = ({ rawText, colorClass = "indigo", marks = 1, currentTopic, currentSubject, compact = false }: { rawText: any, colorClass?: string, marks?: number, currentTopic?: any, currentSubject?: any, compact?: boolean }) => {
     const questions = parseMCQs(rawText) as any[];
     const [selectedOpts, setSelectedOpts] = useState<Record<string, number>>({});
     const [revealed, setRevealed] = useState<Record<string, boolean>>({});
@@ -443,15 +445,15 @@ const MCQViewer = ({ rawText, colorClass = "indigo", marks = 1, currentTopic, cu
                 const questionsToRender = q.subQuestions && q.subQuestions.length > 0 ? q.subQuestions : [q];
                 
                 return (
-                    <div key={i} className={`p-6 rounded-2xl ${c.bg} ${c.border} border shadow-sm transition-all hover:shadow-md`}>
-                        <h4 className={`font-bold text-lg ${c.text} mb-4 flex items-start gap-3`}>
-                            <span className="shrink-0 w-8 h-8 rounded-full bg-white/60 flex items-center justify-center text-sm font-black">{i + 1}</span>
-                            <div className="prose prose-sm max-w-none flex-1">
+                    <div key={i} className={`rounded-2xl ${c.bg} ${c.border} border shadow-sm transition-all hover:shadow-md ${compact ? 'p-3 md:p-4' : 'p-4 md:p-6'}`}>
+                        <h4 className={`font-bold ${c.text} mb-3 md:mb-4 flex items-start gap-2 md:gap-3 ${compact ? 'text-sm' : 'text-base md:text-lg'}`}>
+                            <span className={`shrink-0 rounded-full bg-white/60 flex items-center justify-center font-black ${compact ? 'w-6 h-6 text-xs' : 'w-7 h-7 md:w-8 md:h-8 text-xs md:text-sm'}`}>{i + 1}</span>
+                            <div className={`prose max-w-none flex-1 ${compact ? 'prose-sm' : 'prose-sm'}`}>
                                 <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{q.question || ''}</ReactMarkdown>
                             </div>
                         </h4>
 
-                        <div className="ml-11 space-y-8">
+                        <div className={`${compact ? 'ml-0 mt-3' : 'ml-9 md:ml-11'} space-y-4 md:space-y-6`}>
                             {questionsToRender.map((subQ: any, subIdx: number) => {
                                 const key = `${i}-${subIdx}`;
                                 const isRevealed = revealed[key];
@@ -498,13 +500,13 @@ const MCQViewer = ({ rawText, colorClass = "indigo", marks = 1, currentTopic, cu
                                                         <button
                                                             key={j}
                                                             onClick={() => handleOptionSelect(i, subIdx, j)}
-                                                            className={`w-full text-left p-4 rounded-xl border flex items-center gap-3 transition-all ${btnStyle} ${isRevealed ? 'cursor-default' : 'hover:shadow-sm'}`}
+                                                            className={`w-full text-left rounded-xl border flex items-center gap-2 md:gap-3 transition-all ${btnStyle} ${isRevealed ? 'cursor-default' : 'hover:shadow-sm'} ${compact ? 'p-2 md:p-3 text-sm' : 'p-3 md:p-4'}`}
                                                             disabled={isRevealed}
                                                         >
-                                                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ${isThisSelected ? 'border-current' : 'border-slate-300'}`}>
-                                                                {isThisSelected && <div className="w-2.5 h-2.5 rounded-full bg-current" />}
+                                                            <div className={`rounded-full border-2 flex items-center justify-center shrink-0 ${isThisSelected ? 'border-current' : 'border-slate-300'} ${compact ? 'w-5 h-5' : 'w-6 h-6'}`}>
+                                                                {isThisSelected && <div className={`rounded-full bg-current ${compact ? 'w-2 h-2' : 'w-2.5 h-2.5'}`} />}
                                                             </div>
-                                                            <span className="font-medium">{opt}</span>
+                                                            <span className="font-medium flex-1">{opt}</span>
                                                         </button>
                                                     );
                                                 })}
@@ -744,15 +746,63 @@ export default function StudentLMSNotes() {
     const [chatInput, setChatInput] = useState<string>('');
     const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'ai', content: string }[]>([]);
     const [isTyping, setIsTyping] = useState<boolean>(false);
+    const [userName, setUserName] = useState<string>('Student');
+    const [planTier, setPlanTier] = useState<string>('free');
+    const [userId, setUserId] = useState<string>('');
+    const { getWallet, deductTokens } = useTokenStore();
+
+    // Fetch user profile and subscription
+    useEffect(() => {
+        const fetchUserAndPlan = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                setUserId(session.user.id);
+                const name = session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Student';
+                setUserName(name);
+
+                const res = await fetch(`/api/subscription?userId=${session.user.id}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.plan_tier) setPlanTier(data.plan_tier);
+                    
+                    if (data.ai_tokens_balance !== undefined) {
+                        const state = useTokenStore.getState();
+                        let wallet = state.getWallet(session.user.id);
+                        if (!wallet) {
+                            state.createWallet(session.user.id, { freeTokens: data.ai_tokens_balance, paidTokens: 0 });
+                        } else {
+                            state.updateWallet(session.user.id, { freeTokens: data.ai_tokens_balance, paidTokens: 0 });
+                        }
+                    }
+                }
+            }
+        };
+        fetchUserAndPlan();
+    }, []);
 
     const handleSendMessage = async (text: string) => {
         if (!text.trim()) return;
+
+        const wallet = getWallet(userId);
+        if (!wallet || wallet.totalTokens <= 0) {
+            setChatHistory(prev => [...prev, { role: 'ai', content: 'AI Tokens exhausted. Please buy Extra AI Credits to continue using the MedEduAI Mentor.' }]);
+            return;
+        }
+
         const updatedHistory = [...chatHistory, { role: 'user' as const, content: text }];
         setChatHistory(updatedHistory);
         setChatInput('');
         setIsTyping(true);
         try {
-            const messages = updatedHistory.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content }));
+            const messages = updatedHistory.map((m, i) => {
+                let content = m.content;
+                // If it's the first message and we have a current topic, inject the context invisibly.
+                if (i === 0 && m.role === 'user' && currentTopic && currentSubject) {
+                    content = `[Context: I am currently studying "${currentTopic.name}" under "${currentSubject.name}". Note: If I ask for MCQs, please generate entirely NEW ones, do not just regurgitate standard notes.]\n\n${content}`;
+                }
+                return { role: m.role === 'ai' ? 'assistant' : 'user', content };
+            });
+
             const res = await fetch('/api/mentor', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -760,6 +810,11 @@ export default function StudentLMSNotes() {
             });
             const data = await res.json();
             const reply = data.response || 'Sorry, I could not get a response. Please try again.';
+            
+            if (data.geminiTokens) {
+                deductTokens(userId, data.geminiTokens * 2);
+            }
+
             setChatHistory(prev => [...prev, { role: 'ai', content: reply }]);
         } catch {
             setChatHistory(prev => [...prev, { role: 'ai', content: 'Connection error. Please check your network and try again.' }]);
@@ -960,6 +1015,15 @@ export default function StudentLMSNotes() {
             .catch(() => setDbNotes({}))
             .finally(() => setLoadingDbNotes(false));
     }, [currentTopic?.id, dbTopicMap]);
+
+    useEffect(() => {
+        if (currentCourse?.name) {
+            localStorage.setItem('mededuai_selected_course', currentCourse.name);
+        }
+        if (currentSubject?.name) {
+            localStorage.setItem('mededuai_selected_subject', currentSubject.name);
+        }
+    }, [currentCourse, currentSubject]);
 
     // Auto-select the first topic with real content whenever version/subject/course changes.
     // If the current version has NO topics at all, switch to the version that does.
@@ -1231,7 +1295,7 @@ export default function StudentLMSNotes() {
                         <div className="relative">
                             <div onClick={() => setShowProfileMenu(p => !p)} className="flex items-center gap-3 pl-4 md:pl-6 border-l border-slate-200 cursor-pointer group">
                                 <div className="text-right hidden md:block">
-                                    <p className="text-sm font-bold text-slate-800 leading-tight group-hover:text-purple-600 transition-colors">John Doe</p>
+                                    <p className="text-sm font-bold text-slate-800 leading-tight group-hover:text-purple-600 transition-colors">{userName}</p>
                                     <p className="text-[10px] font-bold text-purple-600 uppercase tracking-wider">Medical Student</p>
                                 </div>
                                 <img src="https://api.dicebear.com/7.x/notionists/svg?seed=John&backgroundColor=f8fafc" alt="Avatar" className="w-10 h-10 rounded-full border border-slate-200 bg-slate-100 shrink-0 group-hover:ring-4 group-hover:ring-purple-100 transition-all" />
@@ -1249,6 +1313,9 @@ export default function StudentLMSNotes() {
                                         >
                                             <button onClick={() => window.location.href = '/dashboard/student'} className="w-full flex items-center gap-3 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-purple-600 transition-colors">
                                                 <ArrowLeft className="w-4 h-4 text-slate-400" /> Back to Dashboard
+                                            </button>
+                                            <button onClick={() => { setShowAIPanel(true); setShowProfileMenu(false); }} className="w-full flex items-center gap-3 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-purple-600 transition-colors">
+                                                <Sparkles className="w-4 h-4 text-slate-400" /> Back to MedEduAI Mentor
                                             </button>
                                             <div className="h-px bg-slate-100 my-1"></div>
                                             <button onClick={() => window.location.href = '/login'} className="w-full flex items-center gap-3 px-5 py-3 text-sm font-bold text-rose-600 hover:bg-rose-50 transition-colors">
@@ -1525,7 +1592,7 @@ export default function StudentLMSNotes() {
                                         <>
                                             <div className="text-center mb-4 mt-4">
                                                 <img src="https://api.dicebear.com/7.x/bottts/svg?seed=medBot&backgroundColor=e2e8f0" alt="Bot" className="w-16 h-16 mx-auto rounded-full bg-slate-100 border-2 border-white shadow-sm mb-3" />
-                                                <p className="text-sm text-slate-600 font-medium">Hi John! Need help understanding <strong className="text-slate-800">{currentTopic?.name || 'this topic'}</strong>?</p>
+                                                <p className="text-sm text-slate-600 font-medium">Hi {userName.split(' ')[0]}! Need help understanding <strong className="text-slate-800">{currentTopic?.name || 'this topic'}</strong>?</p>
                                             </div>
 
                                             {/* Action Chips */}
@@ -1539,17 +1606,43 @@ export default function StudentLMSNotes() {
                                         </>
                                     ) : (
                                         <div className="space-y-4 flex-1">
-                                            {chatHistory.map((msg, i) => (
-                                                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                                    <div className={`p-3 rounded-2xl max-w-[85%] text-sm ${msg.role === 'user' ? 'bg-purple-600 text-white rounded-br-sm' : 'bg-slate-100 text-slate-800 rounded-bl-sm prose prose-sm'}`}>
-                                                        {msg.role === 'ai' ? (
-                                                            <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{msg.content}</ReactMarkdown>
-                                                        ) : (
-                                                            msg.content
-                                                        )}
+                                            {chatHistory.map((msg, i) => {
+                                                const hasMcq = msg.content.includes('```mcq');
+                                                const bubbleClass = msg.role === 'user' 
+                                                    ? 'p-3 rounded-2xl max-w-[85%] text-sm bg-purple-600 text-white rounded-br-sm'
+                                                    : `p-3 rounded-2xl text-sm bg-slate-100 text-slate-800 rounded-bl-sm prose prose-sm ${hasMcq ? 'w-full max-w-full' : 'max-w-[85%]'}`;
+                                                
+                                                return (
+                                                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                                        <div className={bubbleClass}>
+                                                            {msg.role === 'ai' ? (
+                                                                <ReactMarkdown 
+                                                                    remarkPlugins={[remarkGfm, remarkMath]} 
+                                                                    rehypePlugins={[rehypeKatex]}
+                                                                    components={{
+                                                                        code({node, inline, className, children, ...props}: any) {
+                                                                            const match = /language-(\w+)/.exec(className || '')
+                                                                            if (!inline && match && match[1] === 'mcq') {
+                                                                                return <MCQViewer rawText={String(children).replace(/\n$/, '')} compact={true} />
+                                                                            }
+                                                                            return <code className={className} {...props}>{children}</code>
+                                                                        },
+                                                                        pre({node, children, ...props}: any) {
+                                                                            const hasMcq = node?.children?.some((c: any) => c.tagName === 'code' && c.properties?.className?.includes('language-mcq'));
+                                                                            if (hasMcq) return <div className="not-prose w-full my-3">{children}</div>;
+                                                                            return <pre {...props}>{children}</pre>;
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    {msg.content}
+                                                                </ReactMarkdown>
+                                                            ) : (
+                                                                msg.content
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                             {isTyping && (
                                                 <div className="flex justify-start">
                                                     <div className="p-4 rounded-2xl bg-slate-100 rounded-bl-sm flex gap-1 items-center">
@@ -1566,8 +1659,14 @@ export default function StudentLMSNotes() {
                                 {/* Input Area */}
                                 <div className="p-4 border-t border-slate-100 bg-white flex-shrink-0">
                                     <div className="flex items-center justify-between mb-3 px-2">
-                                        <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">3 Free Questions Left</span>
-                                        <span className="text-[10px] font-bold text-purple-600 flex items-center gap-1 cursor-pointer hover:underline"><Trophy className="w-3 h-3" /> Upgrade Pro</span>
+                                        <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-md ${getWallet(userId)?.totalTokens && getWallet(userId)!.totalTokens > 0 ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50'}`}>
+                                            {getWallet(userId)?.totalTokens || 0} AI Tokens
+                                        </span>
+                                        {planTier === 'free' && (
+                                            <a href="/dashboard/student/upgrade" className="text-[10px] font-bold text-purple-600 flex items-center gap-1 cursor-pointer hover:underline">
+                                                <Trophy className="w-3 h-3" /> Upgrade to Standard
+                                            </a>
+                                        )}
                                     </div>
                                     <div className="relative">
                                         <textarea

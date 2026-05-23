@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { FileText, Loader2, Save, Send, CheckCircle, BrainCircuit, ShieldAlert, History, Calendar, ChevronDown, ChevronUp, Share2, Download, Sparkles, PenLine } from 'lucide-react';
+import { useUserStore } from '@/store/userStore';
+import { tokenService } from '@/lib/tokenService';
 
 interface GeneratedReflection {
     id: string;
@@ -19,6 +21,7 @@ interface GeneratedReflection {
 }
 
 export default function ReflectionGeneratorPage() {
+    const currentUser = useUserStore(state => state.users[0]);
     const [subject, setSubject] = useState('');
     const [topic, setTopic] = useState('');
     const [competency, setCompetency] = useState('');
@@ -48,6 +51,12 @@ export default function ReflectionGeneratorPage() {
             alert("Subject and Topic are compulsory fields.");
             return;
         }
+        if (!currentUser) return;
+        const check = tokenService.checkAvailability(currentUser.id, 'Reflection Generator');
+        if (!check.allowed) {
+            alert(`${check.reason || 'Insufficient tokens'}! Cost: ${check.required}, Balance: ${check.remaining}`);
+            return;
+        }
 
         setLoading(true);
         setCurrentReflectionDraft(null);
@@ -74,6 +83,11 @@ export default function ReflectionGeneratorPage() {
                     topic: topic.trim(),
                     content: data.reflection
                 });
+                if (data.geminiTokens) {
+                    tokenService.processTransaction(currentUser.id, 'Reflection Generator', 'gemini-2.0-flash', data.geminiTokens * 2);
+                } else {
+                    tokenService.processTransaction(currentUser.id, 'Reflection Generator', 'gemini-2.0-flash');
+                }
             }
         } catch (error) {
             console.error(error);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { Send, Sparkles, Lock, Coins, Volume2, VolumeX, Mic, Square, Loader2, BrainCircuit, Bot } from 'lucide-react';
+import { Send, Sparkles, Lock, Coins, Volume2, VolumeX, Mic, Square, Loader2, BrainCircuit, Bot, Pause, Play } from 'lucide-react';
 import { useUserStore } from '../../../../store/userStore';
 import { tokenService } from '../../../../lib/tokenService';
 import ReactMarkdown from 'react-markdown';
@@ -16,7 +16,7 @@ export default function AIMentorPage() {
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [audioState, setAudioState] = useState<'idle' | 'playing' | 'paused'>('idle');
   const recognitionRef = useRef<any>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -68,9 +68,9 @@ export default function AIMentorPage() {
           const preferredVoice = voices.find(v => v.lang.includes('en-GB') || v.lang.includes('en-US'));
           if (preferredVoice) utterance.voice = preferredVoice;
 
-          utterance.onstart = () => setIsPlayingAudio(true);
-          utterance.onend = () => setIsPlayingAudio(false);
-          utterance.onerror = () => setIsPlayingAudio(false);
+          utterance.onstart = () => setAudioState('playing');
+          utterance.onend = () => setAudioState('idle');
+          utterance.onerror = () => setAudioState('idle');
 
           window.speechSynthesis.speak(utterance);
       }
@@ -79,7 +79,21 @@ export default function AIMentorPage() {
   const stopAudio = () => {
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
           window.speechSynthesis.cancel();
-          setIsPlayingAudio(false);
+          setAudioState('idle');
+      }
+  };
+
+  const pauseAudio = () => {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          window.speechSynthesis.pause();
+          setAudioState('paused');
+      }
+  };
+
+  const resumeAudio = () => {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          window.speechSynthesis.resume();
+          setAudioState('playing');
       }
   };
 
@@ -106,7 +120,11 @@ export default function AIMentorPage() {
       const data = await res.json();
       
       if (currentUser) {
-        tokenService.processTransaction(currentUser.id, 'AI Mentor', 'gemini-2.0-flash');
+        if (data.geminiTokens) {
+            tokenService.processTransaction(currentUser.id, 'AI Mentor', 'gemini-2.0-flash', data.geminiTokens * 2);
+        } else {
+            tokenService.processTransaction(currentUser.id, 'AI Mentor', 'gemini-2.0-flash');
+        }
       }
 
       const aiText = data.response;
@@ -211,14 +229,34 @@ export default function AIMentorPage() {
              </div>
           )}
 
-          {isPlayingAudio && (
+          {audioState !== 'idle' && (
               <div className="flex justify-center sticky bottom-2 z-10 animate-in fade-in zoom-in duration-300">
-                  <button 
-                      onClick={stopAudio}
-                      className="bg-gradient-to-r from-slate-800 to-slate-900 text-white px-5 py-2.5 rounded-full font-bold shadow-lg flex items-center gap-2 transition-all text-sm border border-slate-700 hover:shadow-xl hover:scale-105"
-                  >
-                      <VolumeX className="w-4 h-4" /> Stop Audio
-                  </button>
+                  <div className="bg-gradient-to-r from-slate-800 to-slate-900 text-white rounded-full shadow-lg flex items-center p-1 border border-slate-700">
+                      {audioState === 'playing' ? (
+                          <button 
+                              onClick={pauseAudio}
+                              className="px-4 py-2 hover:bg-slate-700 rounded-full flex items-center gap-2 transition-all text-sm font-bold"
+                          >
+                              <Pause className="w-4 h-4" /> Pause
+                          </button>
+                      ) : (
+                          <button 
+                              onClick={resumeAudio}
+                              className="px-4 py-2 hover:bg-slate-700 rounded-full flex items-center gap-2 transition-all text-sm font-bold"
+                          >
+                              <Play className="w-4 h-4 fill-current" /> Resume
+                          </button>
+                      )}
+                      
+                      <div className="w-px h-6 bg-slate-600 mx-1"></div>
+                      
+                      <button 
+                          onClick={stopAudio}
+                          className="px-4 py-2 hover:bg-slate-700 rounded-full flex items-center gap-2 transition-all text-sm font-bold text-red-400 hover:text-red-300"
+                      >
+                          <Square className="w-4 h-4 fill-current" /> Stop
+                      </button>
+                  </div>
               </div>
           )}
 

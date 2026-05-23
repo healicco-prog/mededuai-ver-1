@@ -1,7 +1,8 @@
-import { checkSecurity, validateInput } from '@/lib/apiSecurity';
+import { checkSecurity } from '@/lib/apiSecurity';
 import { NextResponse } from 'next/server';
 import { getAI } from '@/lib/gemini';
 import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 function getSupabase() {
     return createClient(
@@ -85,6 +86,7 @@ Be thorough, fair, and constructive. If handwriting is unclear, mention it but t
         let evaluationResult = '';
         let lastError: Error | null = null;
 
+        let geminiTokens = 0;
         for (const model of models) {
             try {
                 const response = await ai.models.generateContent({
@@ -100,6 +102,9 @@ Be thorough, fair, and constructive. If handwriting is unclear, mention it but t
                     ],
                 });
                 evaluationResult = response.text || '';
+                if (response.usageMetadata && response.usageMetadata.totalTokenCount) {
+                    geminiTokens = response.usageMetadata.totalTokenCount;
+                }
                 break;
             } catch (e: any) {
                 console.warn(`Model ${model} failed for answer eval:`, e.message);
@@ -122,6 +127,16 @@ Be thorough, fair, and constructive. If handwriting is unclear, mention it but t
         const improvementsMatch = evaluationResult.match(/## ⚠️ Areas for Improvement\n([\s\S]*?)(?=\n## )/);
         const strengths = strengthsMatch ? strengthsMatch[1].trim() : '';
         const improvements = improvementsMatch ? improvementsMatch[1].trim() : '';
+
+        const tokensToDeduct = geminiTokens * 2;
+        if (sec.user?.id && tokensToDeduct > 0) {
+            const supabaseAdmin = getSupabaseAdmin();
+            const { data: sub } = await supabaseAdmin.from('subscriptions').select('ai_tokens_balance').eq('user_id', sec.user.id).single();
+            if (sub && typeof sub.ai_tokens_balance === 'number') {
+                const newBalance = Math.max(0, sub.ai_tokens_balance - tokensToDeduct);
+                await supabaseAdmin.from('subscriptions').update({ ai_tokens_balance: newBalance }).eq('user_id', sec.user.id);
+            }
+        }
 
         // Save to Supabase
         let evaluationId = null;
@@ -156,6 +171,7 @@ Be thorough, fair, and constructive. If handwriting is unclear, mention it but t
             totalMarks,
             percentage,
             evaluationId,
+            geminiTokens,
         });
     } catch (error: any) {
         console.error('Evaluate Answer Error:', error.message);

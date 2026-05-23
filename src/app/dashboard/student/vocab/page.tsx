@@ -3,9 +3,12 @@
 import { useState, useEffect } from 'react';
 import { Volume2, ChevronDown, Library, Loader2, BookOpenText, Sparkles, Globe, Save, Copy, CheckCircle, Database } from 'lucide-react';
 import { useCurriculumStore } from '@/store/curriculumStore';
+import { useUserStore } from '@/store/userStore';
+import { tokenService } from '@/lib/tokenService';
 
 export default function VocabBuilderPage() {
     const { coursesList } = useCurriculumStore();
+    const currentUser = useUserStore(state => state.users[0]);
     const [selectedCourseId, setSelectedCourseId] = useState('');
     const [selectedSubjectId, setSelectedSubjectId] = useState('');
     const [selectedTopicId, setSelectedTopicId] = useState('');
@@ -41,6 +44,13 @@ export default function VocabBuilderPage() {
 
     const handleGenerate = async () => {
         if (!activeTopic) return;
+        if (!currentUser) return;
+        const check = tokenService.checkAvailability(currentUser.id, 'Vocabulary Builder');
+        if (!check.allowed) {
+            alert(`${check.reason || 'Insufficient tokens'}! Cost: ${check.required}, Balance: ${check.remaining}`);
+            return;
+        }
+
         setLoading(true);
         setVocabList([]);
         setOpenedIndex(null);
@@ -60,6 +70,11 @@ export default function VocabBuilderPage() {
             const data = await res.json();
             if (data.success && data.terms) {
                 setVocabList(data.terms);
+                if (data.geminiTokens) {
+                    tokenService.processTransaction(currentUser.id, 'Vocabulary Builder', 'gemini-2.0-flash', data.geminiTokens * 2);
+                } else {
+                    tokenService.processTransaction(currentUser.id, 'Vocabulary Builder', 'gemini-2.0-flash');
+                }
             }
         } catch (error) {
             console.error(error);

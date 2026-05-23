@@ -237,7 +237,7 @@ export default function ControlPanelPage() {
 
             if (data.session) {
                 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-                const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] ?? '';
+                const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] ?? 'yrelfdwkjtaidtoulwrj';
                 const storageKey = `sb-${projectRef}-auth-token`;
                 try {
                     localStorage.setItem(storageKey, JSON.stringify({
@@ -248,6 +248,17 @@ export default function ControlPanelPage() {
                         expires_in: data.session.expires_in,
                         user: data.session.user,
                     }));
+                    // Also write to standard fallback key just in case
+                    if (projectRef !== 'yrelfdwkjtaidtoulwrj') {
+                        localStorage.setItem('sb-yrelfdwkjtaidtoulwrj-auth-token', JSON.stringify({
+                            access_token: data.session.access_token,
+                            refresh_token: data.session.refresh_token,
+                            token_type: 'bearer',
+                            expires_at: data.session.expires_at,
+                            expires_in: data.session.expires_in,
+                            user: data.session.user,
+                        }));
+                    }
                     sessionStorage.setItem('cp_auth', 'true');
                 } catch (_) { }
             }
@@ -264,10 +275,11 @@ export default function ControlPanelPage() {
     const handleLogout = () => {
         document.cookie = 'role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-        const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] ?? '';
+        const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] ?? 'yrelfdwkjtaidtoulwrj';
         const storageKey = `sb-${projectRef}-auth-token`;
         try { 
             localStorage.removeItem(storageKey); 
+            localStorage.removeItem('sb-yrelfdwkjtaidtoulwrj-auth-token'); 
             sessionStorage.removeItem('cp_auth'); 
         } catch(_) {}
         setAuthRole(null);

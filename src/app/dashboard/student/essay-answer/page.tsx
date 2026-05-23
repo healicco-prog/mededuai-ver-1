@@ -184,7 +184,11 @@ export default function EssayAnswerGenPage() {
             const data = await res.json();
             if (data.success) {
                 setResult(data.answer || 'No answers were generated.');
-                tokenService.processTransaction(currentUser.id, 'Essay Answer Gen', 'gemini-2.0-flash');
+                if (data.geminiTokens) {
+                    tokenService.processTransaction(currentUser.id, 'Essay Answer Gen', 'gemini-2.0-flash', data.geminiTokens * 2);
+                } else {
+                    tokenService.processTransaction(currentUser.id, 'Essay Answer Gen', 'gemini-2.0-flash');
+                }
                 setCurrentStep(4);
             }
         } catch (e) {

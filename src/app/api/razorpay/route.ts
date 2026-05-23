@@ -11,12 +11,14 @@ const PLAN_PRICES: Record<string, number> = {
   basic: 20000,     // Rs 200 in paise
   standard: 50000,  // Rs 500 in paise
   premium: 100000,  // Rs 1000 in paise
+  topup_100k: 10000, // Rs 100 in paise
 };
 
 const PLAN_TOKENS: Record<string, number> = {
   basic: 50000,
   standard: 100000,
   premium: 300000,
+  topup_100k: 100000,
 };
 
 // ── POST: Create Razorpay Order ────────────────────────────
@@ -122,7 +124,33 @@ export async function PUT(req: NextRequest) {
       razorpay_signature,
     }).eq('razorpay_order_id', razorpay_order_id);
 
-    // Activate subscription
+    // Activate subscription or Top-up tokens
+    if (planTier.startsWith('topup_')) {
+      const extraTokens = PLAN_TOKENS[planTier] || 100000;
+      
+      // Fetch current subscription
+      const { data: currentSub } = await supabaseAdmin.from('subscriptions').select('ai_tokens_balance, bonus_tokens').eq('user_id', userId).single();
+      const currentBalance = currentSub?.ai_tokens_balance || 0;
+      const currentBonus = currentSub?.bonus_tokens || 0;
+      
+      await supabaseAdmin.from('subscriptions').update({
+        ai_tokens_balance: currentBalance + extraTokens,
+        bonus_tokens: currentBonus + extraTokens, // Track bonus tokens as well
+        updated_at: new Date().toISOString(),
+      }).eq('user_id', userId);
+      
+      // Log adjustment
+      await supabaseAdmin.from('admin_token_adjustments').insert({
+        admin_id: 'system_purchase',
+        target_user_id: userId,
+        adjustment_type: 'bonus_tokens',
+        amount: extraTokens,
+        reason: `Purchased top-up ${planTier}`,
+      });
+
+      return NextResponse.json({ success: true, plan: planTier, tokens: extraTokens, isTopup: true });
+    }
+
     const tokensAllotment = PLAN_TOKENS[planTier] || 10000;
     const nextResetDate = new Date();
     nextResetDate.setDate(nextResetDate.getDate() + 30);

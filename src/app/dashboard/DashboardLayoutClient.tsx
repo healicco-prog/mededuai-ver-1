@@ -15,6 +15,8 @@ import { usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { isEmailApproved } from '@/app/dashboard/admin/mentoring/mentorshipAccess';
 import { type PlanTier, type BillingStatus, canAccessFeature, getFeatureSlugFromPath } from '@/lib/subscription';
+import { useTokenStore } from '@/store/tokenStore';
+import { useUserStore } from '@/store/userStore';
 
 interface SubscriptionData {
     plan_tier: PlanTier;
@@ -280,6 +282,17 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                                 student:          'student',
                             };
                             const mappedDbRole = map[dbRoleRaw] || 'student';
+
+                            // Sync user to Zustand store for token verification in frontend tools
+                            const userStore = useUserStore.getState();
+                            userStore.setUsers([{
+                                id: user.id,
+                                role: mappedDbRole as any,
+                                name: data.full_name || user.user_metadata?.full_name || 'User',
+                                email: user.email || '',
+                                password: '',
+                                createdAt: new Date().toISOString()
+                            }]);
                             
                             if (mappedDbRole !== role) {
                                 console.log(`[DashboardLayoutClient] Role mismatch detected. Cookie: ${role}, DB: ${mappedDbRole}. Synchronizing...`);
@@ -318,6 +331,16 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                                 ai_tokens_allotment: sub.ai_tokens_allotment ?? 10000,
                                 bonus_tokens: sub.bonus_tokens ?? 0,
                             });
+                            
+                            // Sync backend balance to local tokenStore
+                            const balance = sub.ai_tokens_balance ?? 10000;
+                            const state = useTokenStore.getState();
+                            let w = state.getWallet(user.id);
+                            if (!w) {
+                                state.createWallet(user.id, { totalTokens: balance });
+                            } else {
+                                state.updateWallet(user.id, { totalTokens: balance });
+                            }
                         } else {
                             throw new Error('Subscription fetch failed');
                         }
@@ -528,7 +551,11 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                             </div>
                             <SidebarItem href={`/dashboard/student`} icon={LayoutDashboard} label="Learning Dashboard" />
                             <SidebarItem href={`/dashboard/student/notes`} icon={BookOpen} label="LMS Notes" />
-                            <SidebarItem href={`/dashboard/student/notes-creator`} icon={FileEdit} label="Notes Creator" />
+                            {isFeatureAccessible('notes-creator') ? (
+                                <SidebarItem href={`/dashboard/student/notes-creator`} icon={FileEdit} label="Notes Creator" />
+                            ) : (
+                                <LockedSidebarItem label="Notes Creator" requiredPlan="Standard" />
+                            )}
                             {isFeatureAccessible('mentorship-ms') ? (
                                 <SidebarItem href={`/dashboard/student/mentorship`} icon={Users} label="Mentorship MS" />
                             ) : (
@@ -592,7 +619,11 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
                             </div>
                             <SidebarItem href={`/dashboard/teacher`} icon={LayoutDashboard} label="Teaching Dashboard" />
                             <SidebarItem href={`/dashboard/teacher/notes`} icon={BookOpen} label="LMS Notes" />
-                            <SidebarItem href={`/dashboard/teacher/notes-creator`} icon={FileEdit} label="Notes Creator" />
+                            {isFeatureAccessible('notes-creator') ? (
+                                <SidebarItem href={`/dashboard/teacher/notes-creator`} icon={FileEdit} label="Notes Creator" />
+                            ) : (
+                                <LockedSidebarItem label="Notes Creator" requiredPlan="Standard" />
+                            )}
                             {isFeatureAccessible('mentorship-ms') ? (
                                 <SidebarItem href={`/dashboard/teacher/mentorship`} icon={Users} label="Mentorship MS" />
                             ) : (

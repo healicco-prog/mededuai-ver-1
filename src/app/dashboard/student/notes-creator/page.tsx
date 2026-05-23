@@ -51,6 +51,15 @@ export default function NotesCreatorPage() {
         }
     }, [activeCourse, selectedSubjectId]);
 
+    useEffect(() => {
+        if (activeCourse?.name) {
+            localStorage.setItem('mededuai_selected_course', activeCourse.name);
+        }
+        if (activeSubject?.name) {
+            localStorage.setItem('mededuai_selected_subject', activeSubject.name);
+        }
+    }, [activeCourse, activeSubject]);
+
     const handleAddTopic = () => {
         const trimmed = topicInput.trim();
         if (trimmed && !topicsList.includes(trimmed)) {
@@ -124,7 +133,11 @@ export default function NotesCreatorPage() {
                 } else {
                     setResult(data.notes || 'No notes were generated.');
                 }
-                tokenService.processTransaction(currentUser.id, 'Notes Creator', 'gemini-2.0-flash');
+                if (data.geminiTokens) {
+                    tokenService.processTransaction(currentUser.id, 'Notes Creator', 'gemini-2.0-flash', data.geminiTokens * 2);
+                } else {
+                    tokenService.processTransaction(currentUser.id, 'Notes Creator', 'gemini-2.0-flash');
+                }
             }
         } catch (e) {
             console.error(e);

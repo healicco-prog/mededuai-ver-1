@@ -154,6 +154,21 @@ export async function generateWithFallback(
         timeoutMs?: number;
     }
 ): Promise<string> {
+    const res = await generateWithUsage(prompt, options);
+    return res.text;
+}
+
+export async function generateWithUsage(
+    prompt: string,
+    options?: {
+        jsonMode?: boolean;
+        preferredModels?: string[];
+        maxRetries?: number;
+        images?: string[];
+        disableThinking?: boolean;
+        timeoutMs?: number;
+    }
+): Promise<{ text: string, usageMetadata?: any }> {
     const models = options?.preferredModels || [
         MODELS.primary,
         MODELS.secondary,
@@ -242,7 +257,7 @@ export async function generateWithFallback(
                 }
 
                 console.log(`[MedEduAI AI] ✅ model=${model} succeeded (attempt ${attempt}, ${text.length} chars)`);
-                return text;
+                return { text, usageMetadata: response?.usageMetadata };
             } catch (e: any) {
                 lastError = e;
                 const httpCode: number = e?.status ?? e?.code ?? 0;
@@ -255,9 +270,10 @@ export async function generateWithFallback(
                 // Timeouts on a model that hung mid-response → treat as transient
                 const errorMsg = e?.message ?? '';
                 const isDailyLimit = errorMsg.includes('per_model_per_day');
+                const isBillingExceeded = errorMsg.includes('spending cap') || errorMsg.includes('billing account');
                 const isTimeout = typeof e?.message === 'string' && e.message.includes('GEMINI_CALL_TIMEOUT');
                 
-                const isRetryable = !isDailyLimit && (
+                const isRetryable = !isDailyLimit && !isBillingExceeded && (
                     isTimeout
                     || RETRYABLE_CODES.has(httpCode)
                     || errorMsg.includes('503')
@@ -273,9 +289,9 @@ export async function generateWithFallback(
 
                 if (!isRetryable || PERMANENT_SKIP_CODES.has(httpCode)) {
                     const isSuspended = httpCode === 403 || errorMsg.includes('suspended') || errorMsg.includes('Permission denied');
-                    if (isSuspended) {
-                        console.error(`[MedEduAI AI] 🛑 CRITICAL: API Key appears suspended or restricted (403). Failing fast.`);
-                        throw new Error('API_KEY_SUSPENDED: The Gemini API key has been suspended or restricted by Google.');
+                    if (isSuspended || isBillingExceeded) {
+                        console.error(`[MedEduAI AI] 🛑 CRITICAL: Gemini service is blocked (Billing cap exceeded or key suspended). Failing fast.`);
+                        throw new Error(isBillingExceeded ? 'GEMINI_BILLING_EXCEEDED: Monthly spending cap exceeded.' : 'API_KEY_SUSPENDED: The Gemini API key has been suspended or restricted by Google.');
                     }
                     console.error(`[MedEduAI AI] Permanent error (${httpCode}) on model=${model}, skipping to next model.`);
                     break;
@@ -442,6 +458,87 @@ export async function generateJSON<T = any>(
             return JSON.parse(jsonStr);
         } catch {
             return JSON.parse(repairJSON(jsonStr));
+        }
+    } catch (e3) {
+        console.error('[MedEduAI AI] All 3 layers of JSON parsing failed. Raw text snippet:', text.substring(0, 500));
+        throw new Error(`JSON parsing failed after all recovery attempts: ${(e3 as Error).message}`);
+    }
+}
+
+/**
+ * Generate structured JSON content with automatic parsing
+ * and returns usageMetadata.
+ */
+export async function generateJSONWithUsage<T = any>(
+    prompt: string,
+    options?: {
+        jsonMode?: boolean;
+        preferredModels?: string[];
+        maxRetries?: number;
+        images?: string[];
+        disableThinking?: boolean;
+    }
+): Promise<{ data: T; geminiTokens: number }> {
+    const { text, usageMetadata } = await generateWithUsage(prompt, {
+        ...options,
+        jsonMode: true,
+    });
+    const geminiTokens = usageMetadata?.totalTokenCount || 0;
+    
+    // Strip markdown formatting like ```json ... ```
+    let cleanText = text.trim();
+    if (cleanText.startsWith('```')) {
+        const lines = cleanText.split('\n');
+        if (lines[0].startsWith('```')) lines.shift();
+        if (lines[lines.length - 1].startsWith('```')) lines.pop();
+        cleanText = lines.join('\n').trim();
+    }
+    
+    // Layer 1: Direct parse
+    try {
+        return { data: JSON.parse(cleanText), geminiTokens };
+    } catch (e1) {
+        console.warn(`[MedEduAI AI] Layer 1 JSON.parse failed: ${(e1 as Error).message}. Attempting repair…`);
+    }
+
+    // Layer 2: Repair bad escape sequences and retry
+    try {
+        const repaired = repairJSON(cleanText);
+        return { data: JSON.parse(repaired), geminiTokens };
+    } catch (e2) {
+        console.warn(`[MedEduAI AI] Layer 2 repaired JSON.parse failed: ${(e2 as Error).message}. Trying text-mode fallback…`);
+    }
+
+    // Layer 3: Re-generate in non-JSON mode and extract the JSON object manually
+    try {
+        console.log('[MedEduAI AI] Layer 3: Re-generating without JSON mode…');
+        const { text: textFallback, usageMetadata: fallbackMetadata } = await generateWithUsage(
+            prompt + '\n\nIMPORTANT: Return ONLY a valid JSON object. No markdown, no backticks, no explanations. Every string value must have properly escaped special characters.',
+            { jsonMode: false, preferredModels: options?.preferredModels, images: options?.images }
+        );
+        const fallbackTokens = fallbackMetadata?.totalTokenCount || 0;
+
+        // Try to extract JSON from the text
+        let jsonStr = textFallback.trim();
+        // Strip ```json blocks
+        if (jsonStr.startsWith('```')) {
+            const lines = jsonStr.split('\n');
+            if (lines[0].startsWith('```')) lines.shift();
+            if (lines[lines.length - 1].startsWith('```')) lines.pop();
+            jsonStr = lines.join('\n').trim();
+        }
+        // Find the outermost JSON object
+        const firstBrace = jsonStr.indexOf('{');
+        const lastBrace = jsonStr.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+            jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
+        }
+
+        // Try direct parse first, then repaired parse
+        try {
+            return { data: JSON.parse(jsonStr), geminiTokens: geminiTokens + fallbackTokens };
+        } catch {
+            return { data: JSON.parse(repairJSON(jsonStr)), geminiTokens: geminiTokens + fallbackTokens };
         }
     } catch (e3) {
         console.error('[MedEduAI AI] All 3 layers of JSON parsing failed. Raw text snippet:', text.substring(0, 500));

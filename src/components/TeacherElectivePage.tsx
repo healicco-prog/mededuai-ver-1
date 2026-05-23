@@ -200,7 +200,7 @@ export default function TeacherElectivePage() {
 
             {activeTab === 'students' && <StudentsView store={store} instId={instId} myElectives={matchedElectives} serverStudents={serverStudents} serverAllotments={serverAllotments} />}
             {activeTab === 'session' && <SessionView store={store} instId={instId} myElectives={matchedElectives} userEmail={userEmail} serverStudents={serverStudents} serverAllotments={serverAllotments} />}
-            {activeTab === 'grading' && <GradingView store={store} instId={instId} myElectives={matchedElectives} serverStudents={serverStudents} serverAllotments={serverAllotments} />}
+            {activeTab === 'grading' && <GradingView store={store} instId={instId} myElectives={matchedElectives} serverStudents={serverStudents} serverAllotments={serverAllotments} serverSessions={serverSessions} />}
         </div>
     );
 }
@@ -335,17 +335,17 @@ function SessionView({ store, instId, myElectives, userEmail, serverStudents, se
     );
 }
 
-function GradingView({ store, instId, myElectives, serverStudents, serverAllotments }: any) {
+function GradingView({ store, instId, myElectives, serverStudents, serverAllotments, serverSessions }: any) {
     const [selectedSessionId, setSelectedSessionId] = useState('');
     const [selectedElectiveId, setSelectedElectiveId] = useState(myElectives[0]?.id || '');
     const [grades, setGrades] = useState<TeacherGrade[]>([]);
 
-    const sessions = (serverAllotments && serverAllotments.length > 0) ? serverAllotments : store.sessions.filter((s: ElectiveSession) => s.institutionId === instId);
+    const sessions = (serverSessions && serverSessions.length > 0) ? serverSessions : store.sessions.filter((s: ElectiveSession) => s.institutionId === instId);
     const allStudents: ElectiveStudent[] = (serverStudents && serverStudents.length > 0) ? serverStudents : store.students.filter((s: ElectiveStudent) => s.institutionId === instId);
 
-    const electiveSessions = sessions.filter(s => s.electiveId === selectedElectiveId);
-    const selectedSession = electiveSessions.find(s => s.id === selectedSessionId);
-    const students = allStudents.filter(s => s.institutionId === instId);
+    const electiveSessions = sessions.filter((s: ElectiveSession) => s.electiveId === selectedElectiveId);
+    const selectedSession = electiveSessions.find((s: ElectiveSession) => s.id === selectedSessionId);
+    const students = allStudents.filter((s: ElectiveStudent) => s.institutionId === instId);
 
     useEffect(() => {
         if (electiveSessions.length > 0) {
@@ -354,7 +354,7 @@ function GradingView({ store, instId, myElectives, serverStudents, serverAllotme
     }, [selectedElectiveId, electiveSessions.length]);
 
     useEffect(() => {
-        const currentGrades = store.grades.filter(g => g.institutionId === instId && g.sessionId === selectedSessionId);
+        const currentGrades = store.grades.filter((g: TeacherGrade) => g.institutionId === instId && g.sessionId === selectedSessionId);
         setGrades(currentGrades);
     }, [instId, selectedSessionId, store.grades]);
 
@@ -370,13 +370,13 @@ function GradingView({ store, instId, myElectives, serverStudents, serverAllotme
                 <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Select Elective</label>
                     <select value={selectedElectiveId} onChange={e => setSelectedElectiveId(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 font-bold outline-none focus:border-blue-500">
-                        {myElectives.map(el => <option key={el.id} value={el.id}>Block {el.block} — {el.electiveName}</option>)}
+                        {myElectives.map((el: Elective) => <option key={el.id} value={el.id}>Block {el.block} — {el.electiveName}</option>)}
                     </select>
                 </div>
                 <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Select Session</label>
                     <select value={selectedSessionId} onChange={e => setSelectedSessionId(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 font-bold outline-none focus:border-blue-500">
-                        {electiveSessions.map(session => <option key={session.id} value={session.id}>{session.date} • {session.topic}</option>)}
+                        {electiveSessions.map((session: ElectiveSession) => <option key={session.id} value={session.id}>{session.date} • {session.topic}</option>)}
                     </select>
                 </div>
             </div>

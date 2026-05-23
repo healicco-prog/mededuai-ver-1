@@ -476,7 +476,11 @@ export default function LandingPage() {
               </div>
               <div className="space-y-3 mb-6">
                 <PricingFeature text="LMS Notes" />
-                <PricingFeature text="Mentorship MS" />
+                <PricingFeature text="MedEduAI Mentor" />
+                <PricingFeature text="Mentoring MS Access*" />
+                <PricingFeature text="Elective MS Access*" />
+                <PricingFeature text="Log Book MS Access*" />
+                <p className="text-[10px] text-slate-500 mt-2 italic">* (if your Institution has subscribed to it)</p>
               </div>
               <Link href="/signup" className="w-full flex items-center justify-center gap-2 py-3.5 bg-white/10 border border-white/20 text-white rounded-xl font-bold text-sm hover:bg-white/20 transition-all">
                 Get Started <ArrowRight className="w-4 h-4" />
@@ -505,13 +509,29 @@ export default function LandingPage() {
                 <Zap className="w-4 h-4 text-cyan-400" />
                 <span className="text-xs font-bold text-cyan-300">1,00,000 AI tokens/month</span>
               </div>
-              <div className="space-y-3 mb-6">
-                <PricingFeature text="All Learning features" highlight />
-                <PricingFeature text="AI MentorPro & Viva Simulator" />
-                <PricingFeature text="Vocabulary & Reflection" />
-                <PricingFeature text="Essay Qs & MCQs Generator" />
+              <div className="space-y-2 mb-6">
+                <p className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-2">Students</p>
+                <PricingFeature text="All features of Basic" highlight />
+                <PricingFeature text="Notes Creator" />
+                <PricingFeature text="AI MentorPro" />
+                <PricingFeature text="Viva Simulator" />
+                <PricingFeature text="Vocabulary" />
+                <PricingFeature text="Reflection Generator" />
+                <PricingFeature text="Essay Qs Generator" />
+                <PricingFeature text="MCQs Generator" />
                 <PricingFeature text="Self-Evaluation" />
-                <PricingFeature text="Full Teaching suite" />
+                
+                <p className="text-xs font-bold text-cyan-400 uppercase tracking-wider mt-4 mb-2">Teachers</p>
+                <PricingFeature text="All features of Basic" highlight />
+                <PricingFeature text="Notes Creator" />
+                <PricingFeature text="Mentorship MS" />
+                <PricingFeature text="Elective MS" />
+                <PricingFeature text="Logbook MS" />
+                <PricingFeature text="Lesson Plan" />
+                <PricingFeature text="Rubrics Generator" />
+                <PricingFeature text="Essay Qs Generator" />
+                <PricingFeature text="MCQs Generator" />
+                <PricingFeature text="Dig Evaluation Assist" />
               </div>
               <Link href="/signup" className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl font-bold text-sm hover:shadow-lg hover:shadow-cyan-500/30 transition-all transform hover:-translate-y-0.5">
                 Get Started <ArrowRight className="w-4 h-4" />
@@ -537,12 +557,20 @@ export default function LandingPage() {
                 <Zap className="w-4 h-4 text-purple-400" />
                 <span className="text-xs font-bold text-purple-300">3,00,000 AI tokens/month</span>
               </div>
-              <div className="space-y-3 mb-6">
-                <PricingFeature text="Everything in Standard" />
+              <div className="space-y-2 mb-6">
+                <PricingFeature text="All features of Basic" />
+                <PricingFeature text="Notes Creator" />
+                <PricingFeature text="Mentorship MS" />
+                <PricingFeature text="Elective MS" />
+                <PricingFeature text="Logbook MS" />
+                <PricingFeature text="Lesson Plan" />
+                <PricingFeature text="Rubrics Generator" />
                 <PricingFeature text="Classroom Generator" />
-                <PricingFeature text="Time Table & Attendance MS" />
+                <PricingFeature text="Time Table MS" />
+                <PricingFeature text="Attendance MS" />
                 <PricingFeature text="Q-Paper Dev" />
-                <PricingFeature text="EMS – Essay & EMR – MCQs" />
+                <PricingFeature text="EMS - Essay" />
+                <PricingFeature text="EMR - MCQs" />
               </div>
               <Link href="/signup" className="w-full flex items-center justify-center gap-2 py-3.5 bg-white/10 border border-white/20 text-white rounded-xl font-bold text-sm hover:bg-white/20 transition-all">
                 Get Started <ArrowRight className="w-4 h-4" />
@@ -599,27 +627,29 @@ export default function LandingPage() {
                 </thead>
                 <tbody className="text-sm">
                   {[
-                    { name: 'LMS Notes', b: true, s: true, p: true, e: true },
-                    { name: 'Mentorship MS', b: true, s: true, p: true, e: true },
-                    { name: 'AI MentorPro', b: false, s: true, p: true, e: true },
-                    { name: 'Viva Simulator', b: false, s: true, p: true, e: true },
-                    { name: 'Vocabulary', b: false, s: true, p: true, e: true },
-                    { name: 'Reflection Generator', b: false, s: true, p: true, e: true },
-                    { name: 'Essay Qs Generator', b: false, s: true, p: true, e: true },
-                    { name: 'MCQs Generator', b: false, s: true, p: true, e: true },
-                    { name: 'Self-Evaluation', b: false, s: true, p: true, e: true },
-                    { name: 'Lesson Plan', b: false, s: true, p: true, e: true },
-                    { name: 'Rubrics Generator', b: false, s: true, p: true, e: true },
-                    { name: 'Dig Evaluation Assist', b: false, s: true, p: true, e: true },
-                    { name: 'Classroom Generator', b: false, s: false, p: true, e: true },
-                    { name: 'Time Table MS', b: false, s: false, p: true, e: true },
-                    { name: 'Attendance MS', b: false, s: false, p: true, e: true },
-                    { name: 'Q-Paper Dev', b: false, s: false, p: true, e: true },
-                    { name: 'EMS – Essay', b: false, s: false, p: true, e: true },
-                    { name: 'EMR – MCQs', b: false, s: false, p: true, e: true },
-                    { name: 'Mentoring MS', b: false, s: false, p: false, e: true },
-                    { name: 'Elective MS', b: false, s: false, p: false, e: true },
-                    { name: 'Log Book MS', b: false, s: false, p: false, e: true },
+                    { name: 'LMS Notes', b: true, s: true, p: true, e: false },
+                    { name: 'MedEduAI Mentor', b: true, s: true, p: true, e: false },
+                    { name: 'Mentoring MS Access*', b: true, s: true, p: true, e: true },
+                    { name: 'Elective MS Access*', b: true, s: true, p: true, e: true },
+                    { name: 'Log Book MS Access*', b: true, s: true, p: true, e: true },
+                    { name: 'Notes Creator', b: false, s: true, p: true, e: false },
+                    { name: 'AI MentorPro', b: false, s: true, p: false, e: false },
+                    { name: 'Viva Simulator', b: false, s: true, p: false, e: false },
+                    { name: 'Vocabulary', b: false, s: true, p: false, e: false },
+                    { name: 'Reflection Generator', b: false, s: true, p: false, e: false },
+                    { name: 'Essay Qs Generator', b: false, s: true, p: false, e: false },
+                    { name: 'MCQs Generator', b: false, s: true, p: false, e: false },
+                    { name: 'Self-Evaluation', b: false, s: true, p: false, e: false },
+                    { name: 'Lesson Plan', b: false, s: true, p: true, e: false },
+                    { name: 'Rubrics Generator', b: false, s: true, p: true, e: false },
+                    { name: 'Dig Evaluation Assist', b: false, s: true, p: false, e: false },
+                    { name: 'Classroom Generator', b: false, s: false, p: true, e: false },
+                    { name: 'Time Table MS', b: false, s: false, p: true, e: false },
+                    { name: 'Attendance MS', b: false, s: false, p: true, e: false },
+                    { name: 'Q-Paper Dev', b: false, s: false, p: true, e: false },
+                    { name: 'EMS - Essay', b: false, s: false, p: true, e: false },
+                    { name: 'EMR - MCQs', b: false, s: false, p: true, e: false },
+                    { name: 'Dedicated support', b: false, s: false, p: false, e: true },
                   ].map((f, i) => (
                     <tr key={i} className={`border-b border-white/5 ${i % 2 === 0 ? 'bg-white/[0.02]' : ''}`}>
                       <td className="py-3 px-6 text-slate-300 font-medium">{f.name}</td>
@@ -645,6 +675,9 @@ export default function LandingPage() {
                   </tr>
                 </tbody>
               </table>
+            </div>
+            <div className="p-4 border-t border-white/5 bg-slate-950/80 text-center">
+              <p className="text-[11px] text-slate-500 italic">* (if yourInstitution has subscribed to it)</p>
             </div>
           </div>
         </div>

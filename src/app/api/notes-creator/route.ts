@@ -1,6 +1,7 @@
-import { checkSecurity, validateInput } from '@/lib/apiSecurity';
+import { checkSecurity } from '@/lib/apiSecurity';
 import { NextResponse } from 'next/server';
-import { generateText } from '@/lib/gemini';
+import { generateWithUsage } from '@/lib/gemini';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { verifyAuth } from '@/lib/authMiddleware';
 
 export async function POST(req: Request) {
@@ -63,8 +64,20 @@ ${instructions ? `Additional instructions: ${instructions}` : ''}
 Use proper markdown formatting with headers, bold, italics, bullet points, and tables where appropriate.
 Make the notes medically accurate, well-structured, and suitable for ${course} students.`;
 
-        const text = await generateText(promptText);
-        return NextResponse.json({ success: true, notes: text || 'No content generated.' });
+        const { text, usageMetadata } = await generateWithUsage(promptText);
+        const geminiTokens = usageMetadata?.totalTokenCount || 0;
+        const tokensToDeduct = geminiTokens * 2;
+
+        if (sec.user?.id && tokensToDeduct > 0) {
+            const supabaseAdmin = getSupabaseAdmin();
+            const { data: sub } = await supabaseAdmin.from('subscriptions').select('ai_tokens_balance').eq('user_id', sec.user.id).single();
+            if (sub && typeof sub.ai_tokens_balance === 'number') {
+                const newBalance = Math.max(0, sub.ai_tokens_balance - tokensToDeduct);
+                await supabaseAdmin.from('subscriptions').update({ ai_tokens_balance: newBalance }).eq('user_id', sec.user.id);
+            }
+        }
+
+        return NextResponse.json({ success: true, notes: text || 'No content generated.', geminiTokens });
     } catch (error: any) {
         console.warn('Notes Creator API Error:', error.message);
         return NextResponse.json({

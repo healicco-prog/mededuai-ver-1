@@ -207,11 +207,50 @@ export default function UpgradePage() {
         <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl flex items-start gap-3">
           <Sparkles className="w-5 h-5 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="font-bold text-sm">Upgrade Successful!</p>
+            <p className="font-bold text-sm">Success!</p>
             <p className="text-sm">{paymentSuccess}</p>
           </div>
         </div>
       )}
+
+      {/* Top-up Banner */}
+      <div className="mb-10 bg-gradient-to-r from-indigo-500 via-purple-500 to-fuchsia-500 rounded-3xl p-1 shadow-lg">
+        <div className="bg-white rounded-[23px] p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+          <div className="absolute -right-10 -top-10 w-40 h-40 bg-fuchsia-100 rounded-full blur-3xl opacity-50 pointer-events-none" />
+          
+          <div className="relative z-10 flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <Zap className="w-5 h-5 text-indigo-500" />
+              <h2 className="text-xl font-extrabold text-slate-900">Need more tokens?</h2>
+            </div>
+            <p className="text-sm text-slate-500 max-w-lg mb-4">
+              Running low on AI tokens? You don't have to upgrade your entire plan. Get a one-time top-up instantly added to your wallet.
+            </p>
+            <div className="flex items-center gap-3">
+              <span className="text-2xl font-extrabold text-slate-900">₹100</span>
+              <span className="px-3 py-1 bg-indigo-50 text-indigo-700 font-bold text-xs rounded-full border border-indigo-100">
+                +1,00,000 AI Tokens
+              </span>
+            </div>
+          </div>
+          
+          <div className="relative z-10 w-full md:w-auto flex-shrink-0">
+            <button
+              onClick={() => handleUpgrade('topup_100k' as any)}
+              disabled={!!paymentLoading}
+              className="w-full md:w-auto px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-sm shadow-md hover:shadow-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {paymentLoading === 'topup_100k' ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" /> Buy 1.0L Tokens
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Pricing Cards */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">

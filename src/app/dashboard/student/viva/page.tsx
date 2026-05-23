@@ -107,8 +107,8 @@ export default function VivaSimulatorPage() {
             setHistory(prev => [...prev, { role: 'examiner', content: aiText }]);
             playAudio(aiText);
 
-            if (currentUser) {
-                tokenService.processTransaction(currentUser.id, 'Viva Simulator', 'gemini-1.5-flash');
+            if (currentUser && data.geminiTokens) {
+                tokenService.processTransaction(currentUser.id, 'Viva Simulator', 'gemini-1.5-flash', data.geminiTokens * 2);
             }
         } catch (e) {
             console.error(e);
@@ -183,8 +183,8 @@ export default function VivaSimulatorPage() {
             const data = await res.json();
             setAnalysisResult(data.response);
 
-            if (currentUser) {
-                tokenService.processTransaction(currentUser.id, 'Viva Simulator', 'gemini-1.5-flash');
+            if (currentUser && data.geminiTokens) {
+                tokenService.processTransaction(currentUser.id, 'Viva Simulator', 'gemini-1.5-flash', data.geminiTokens * 2);
             }
         } catch (e) {
             setAnalysisResult("Failed to generate analysis.");

@@ -9,6 +9,8 @@ import {
 import { supabase } from '@/lib/supabase';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useUserStore } from '@/store/userStore';
+import { tokenService } from '@/lib/tokenService';
 
 const COURSES = [
     { id: 'MBBS', name: 'MBBS', subjects: ['Anatomy', 'Physiology', 'Biochemistry', 'Pathology', 'Pharmacology', 'Microbiology', 'Forensic Medicine', 'Community Medicine', 'General Medicine', 'General Surgery', 'Pediatrics', 'Obstetrics & Gynecology', 'Ophthalmology', 'ENT', 'Orthopedics', 'Dermatology', 'Psychiatry', 'Anesthesiology', 'Radiology'] },
@@ -25,6 +27,7 @@ type Phase = 'setup' | 'generating-rubrics' | 'upload-answers' | 'evaluating' | 
 interface CropState { top: number; right: number; bottom: number; left: number; }
 
 export default function SelfEvalSystemPage() {
+    const currentUser = useUserStore(state => state.users[0]);
     const [userId, setUserId] = useState<string | null>(null);
     useEffect(() => { supabase.auth.getUser().then(({ data }) => { if (data.user) setUserId(data.user.id); }); }, []);
 
@@ -62,6 +65,13 @@ export default function SelfEvalSystemPage() {
             setError('Please fill all fields before proceeding.');
             return;
         }
+        if (!currentUser) return;
+        const check = tokenService.checkAvailability(currentUser.id, 'Self-Evaluation System');
+        if (!check.allowed) {
+            setError(`${check.reason || 'Insufficient tokens'}! Cost: ${check.required}, Balance: ${check.remaining}`);
+            return;
+        }
+
         setError('');
         setPhase('generating-rubrics');
 
@@ -76,6 +86,11 @@ export default function SelfEvalSystemPage() {
             if (data.success) {
                 setRubrics(data.rubrics);
                 setRubricId(data.rubricId || null);
+                if (data.geminiTokens) {
+                    tokenService.processTransaction(currentUser.id, 'Self-Evaluation System', 'gemini-2.0-flash', data.geminiTokens * 2);
+                } else {
+                    tokenService.processTransaction(currentUser.id, 'Self-Evaluation System', 'gemini-2.0-flash');
+                }
                 // Skip rubrics display — go directly to upload
                 setPhase('upload-answers');
             } else {
@@ -157,6 +172,13 @@ export default function SelfEvalSystemPage() {
             setError('Please upload at least one answer script image.');
             return;
         }
+        if (!currentUser) return;
+        const check = tokenService.checkAvailability(currentUser.id, 'Self-Evaluation System');
+        if (!check.allowed) {
+            setError(`${check.reason || 'Insufficient tokens'}! Cost: ${check.required}, Balance: ${check.remaining}`);
+            return;
+        }
+
         setError('');
         setPhase('evaluating');
 
@@ -179,6 +201,11 @@ export default function SelfEvalSystemPage() {
                 setEvaluation(data.evaluation);
                 setMarksObtained(data.marksObtained || 0);
                 setPercentage(data.percentage || 0);
+                if (data.geminiTokens) {
+                    tokenService.processTransaction(currentUser.id, 'Self-Evaluation System', 'gemini-2.0-flash', data.geminiTokens * 2);
+                } else {
+                    tokenService.processTransaction(currentUser.id, 'Self-Evaluation System', 'gemini-2.0-flash');
+                }
                 setPhase('results');
             } else {
                 setError(data.error || 'Evaluation failed');

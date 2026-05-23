@@ -79,7 +79,7 @@ export const PLAN_CONFIG = {
 export const FEATURE_ACCESS: Record<string, PlanTier[]> = {
   // LEARNING features
   'lms-notes':             ['free', 'basic', 'standard', 'premium', 'enterprise'],
-  'notes-creator':         ['free', 'basic', 'standard', 'premium', 'enterprise'],
+  'notes-creator':         ['standard', 'premium', 'enterprise'],
   'mentorship-ms':         ['enterprise'],
   'elective-ms':           ['enterprise'],
   'ai-mentor':             ['standard', 'premium', 'enterprise'],

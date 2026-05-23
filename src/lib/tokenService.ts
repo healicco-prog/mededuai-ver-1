@@ -46,7 +46,7 @@ export const tokenService = {
      * Deducts tokens and logs the transaction. 
      * Call this AFTER a successful AI generation.
      */
-    processTransaction: (userId: string, featureName: string, aiModel: string = 'gemini-1.5-flash'): boolean => {
+    processTransaction: (userId: string, featureName: string, aiModel: string = 'gemini-1.5-flash', dynamicTokens?: number): boolean => {
         // Superadmins, masteradmins, and 'drnarayanak@gmail.com' bypass all token limits
         const user = (useUserStore.getState().users || []).find(u => u?.id === userId);
         const isBypass = user && (user.role === 'superadmin' || user.role === 'masteradmin');
@@ -62,7 +62,7 @@ export const tokenService = {
              setting = { id: `auto-${Date.now()}`, featureName, baseTokenCost: 30, multiplier: 1, status: 'active', updatedAt: new Date().toISOString() };
         }
 
-        const requiredTokens = Math.ceil(setting.baseTokenCost * setting.multiplier);
+        const requiredTokens = dynamicTokens !== undefined ? dynamicTokens : Math.ceil(setting.baseTokenCost * setting.multiplier);
         const { success } = state.deductTokens(userId, requiredTokens);
 
         if (success) {
@@ -70,8 +70,8 @@ export const tokenService = {
                 userId,
                 featureUsed: featureName,
                 aiModel,
-                baseTokens: setting.baseTokenCost,
-                multiplier: setting.multiplier,
+                baseTokens: dynamicTokens !== undefined ? dynamicTokens : setting.baseTokenCost,
+                multiplier: dynamicTokens !== undefined ? 1 : setting.multiplier,
                 tokensDeducted: requiredTokens,
                 status: 'success'
             });

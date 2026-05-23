@@ -1,7 +1,8 @@
-import { checkSecurity, validateInput } from '@/lib/apiSecurity';
+import { checkSecurity } from '@/lib/apiSecurity';
 import { NextResponse } from 'next/server';
-import { generateJSON } from '@/lib/gemini';
+import { generateJSONWithUsage } from '@/lib/gemini';
 import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 function getSupabase() {
     return createClient(
@@ -44,9 +45,19 @@ Rules:
 - Be specific to ${course} ${subject} curriculum
 - Include diagrams as a criterion if relevant`;
 
-        const parsedRubrics = await generateJSON(prompt, {
+        const { data: parsedRubrics, geminiTokens } = await generateJSONWithUsage(prompt, {
             preferredModels: ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'],
         });
+        const tokensToDeduct = geminiTokens * 2;
+
+        if (sec.user?.id && tokensToDeduct > 0) {
+            const supabaseAdmin = getSupabaseAdmin();
+            const { data: sub } = await supabaseAdmin.from('subscriptions').select('ai_tokens_balance').eq('user_id', sec.user.id).single();
+            if (sub && typeof sub.ai_tokens_balance === 'number') {
+                const newBalance = Math.max(0, sub.ai_tokens_balance - tokensToDeduct);
+                await supabaseAdmin.from('subscriptions').update({ ai_tokens_balance: newBalance }).eq('user_id', sec.user.id);
+            }
+        }
 
         // Save to Supabase automatically
         let rubricId = null;
@@ -76,6 +87,7 @@ Rules:
             success: true,
             rubrics: JSON.stringify(parsedRubrics),
             rubricId,
+            geminiTokens
         });
     } catch (error: any) {
         console.error('Generate Rubrics Error:', error.message);

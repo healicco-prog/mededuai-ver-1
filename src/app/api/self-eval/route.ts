@@ -1,6 +1,7 @@
-import { checkSecurity, validateInput } from '@/lib/apiSecurity';
+import { checkSecurity } from '@/lib/apiSecurity';
 import { NextResponse } from 'next/server';
-import { generateText } from '@/lib/gemini';
+import { generateWithUsage } from '@/lib/gemini';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 export async function POST(req: Request) {
     const sec = await checkSecurity(req);
@@ -48,8 +49,20 @@ Create an ideal answer structure and content that a student should write to scor
 Use proper markdown formatting with headers, bold, italics, and bullet points.
 Make the answer medically accurate and aligned with standard university examination expectations.`;
 
-        const text = await generateText(promptText);
-        return NextResponse.json({ success: true, answer: text || 'No answer generated.' });
+        const { text, usageMetadata } = await generateWithUsage(promptText);
+        const geminiTokens = usageMetadata?.totalTokenCount || 0;
+        const tokensToDeduct = geminiTokens * 2;
+
+        if (sec.user?.id && tokensToDeduct > 0) {
+            const supabaseAdmin = getSupabaseAdmin();
+            const { data: sub } = await supabaseAdmin.from('subscriptions').select('ai_tokens_balance').eq('user_id', sec.user.id).single();
+            if (sub && typeof sub.ai_tokens_balance === 'number') {
+                const newBalance = Math.max(0, sub.ai_tokens_balance - tokensToDeduct);
+                await supabaseAdmin.from('subscriptions').update({ ai_tokens_balance: newBalance }).eq('user_id', sec.user.id);
+            }
+        }
+
+        return NextResponse.json({ success: true, answer: text || 'No answer generated.', geminiTokens });
     } catch (error: any) {
         console.warn('Self-Eval API Error:', error.message);
         return NextResponse.json({

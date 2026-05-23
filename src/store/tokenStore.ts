@@ -94,13 +94,19 @@ export const useTokenStore = create<TokenState>()(
                 const newWallet: TokenWallet = {
                     id: Math.random().toString(36).substr(2, 9),
                     userId,
-                    freeTokens: 300, // Initial free limit
+                    freeTokens: initialBalances?.totalTokens ?? 300,
                     paidTokens: 0,
                     ...initialBalances,
-                    totalTokens: 0, // Recalculated below
+                    totalTokens: 0, 
                     lastUpdated: new Date().toISOString()
                 };
-                newWallet.totalTokens = newWallet.freeTokens + newWallet.paidTokens;
+                if (initialBalances?.totalTokens !== undefined) {
+                    newWallet.totalTokens = initialBalances.totalTokens;
+                    newWallet.freeTokens = initialBalances.totalTokens;
+                    newWallet.paidTokens = 0;
+                } else {
+                    newWallet.totalTokens = newWallet.freeTokens + newWallet.paidTokens;
+                }
                 return { wallets: [...state.wallets, newWallet] };
             }),
 
@@ -108,7 +114,13 @@ export const useTokenStore = create<TokenState>()(
                 wallets: state.wallets.map(w => {
                     if (w.userId === userId) {
                         const newW = { ...w, ...updates, lastUpdated: new Date().toISOString() };
-                        newW.totalTokens = newW.freeTokens + newW.paidTokens;
+                        if (updates.totalTokens !== undefined) {
+                            newW.freeTokens = updates.totalTokens;
+                            newW.paidTokens = 0;
+                            newW.totalTokens = updates.totalTokens;
+                        } else {
+                            newW.totalTokens = newW.freeTokens + newW.paidTokens;
+                        }
                         return newW;
                     }
                     return w;
