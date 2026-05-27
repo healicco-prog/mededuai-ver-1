@@ -666,8 +666,7 @@ export default function LMSCreatorAdmin() {
         });
 
         try {
-            const CLOUD_RUN_URL = 'https://mededuai-backend-434817580915.us-central1.run.app';
-            const enqueueRes = await fetch(`${CLOUD_RUN_URL}/api/creator/batch-start`, {
+            const enqueueRes = await fetch('/api/creator/batch-start', {
                 method: 'POST',
                 headers: await fetchAuthHeaders(true),
                 credentials: 'include',
@@ -697,8 +696,7 @@ export default function LMSCreatorAdmin() {
 
     const refreshBatchStatus = async (targetBatchId: string) => {
         try {
-            const CLOUD_RUN_URL = 'https://mededuai-backend-434817580915.us-central1.run.app';
-            const statusRes = await fetch(`${CLOUD_RUN_URL}/api/creator/batch-status?batchId=${targetBatchId}`, {
+            const statusRes = await fetch(`/api/creator/batch-status?batchId=${targetBatchId}`, {
                 headers: await fetchAuthHeaders(),
                 credentials: 'include',
             });
@@ -1012,8 +1010,7 @@ export default function LMSCreatorAdmin() {
                 params.append('sectionName', engineSection.name);
             }
 
-            const CLOUD_RUN_URL = 'https://mededuai-backend-434817580915.us-central1.run.app';
-            const res = await fetch(`${CLOUD_RUN_URL}/api/creator/load?${params}`, { headers: await fetchAuthHeaders(), credentials: 'include' });
+            const res = await fetch(`/api/creator/load?${params}`, { headers: await fetchAuthHeaders() });
             const data = await res.json();
 
             if (!data.success || !data.notes || Object.keys(data.notes).length === 0) return;
@@ -1100,8 +1097,7 @@ export default function LMSCreatorAdmin() {
         const checkDb = async () => {
             setDbStatus('checking');
             try {
-                const CLOUD_RUN_URL = 'https://mededuai-backend-434817580915.us-central1.run.app';
-                const r = await fetch(`${CLOUD_RUN_URL}/api/creator/db-test`, { headers: await fetchAuthHeaders(), credentials: 'include' });
+                const r = await fetch(`/api/creator/db-test`, { headers: await fetchAuthHeaders() });
                 // If the server returns HTML (404/error page from Cloud Run), treat as "not deployed yet"
                 const contentType = r.headers.get('content-type') || '';
                 if (!contentType.includes('application/json') || !r.ok) {
