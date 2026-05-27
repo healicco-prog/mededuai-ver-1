@@ -468,6 +468,7 @@ export default function LMSCreatorAdmin() {
                     const response = await fetch(`${CLOUD_RUN_URL}/api/creator`, {
                         method: 'POST',
                         headers: await fetchAuthHeaders(needsRefresh),
+                        credentials: 'include',
                         signal: controller.signal,
                         body: JSON.stringify({
                             courseName: engineCourse.name,
@@ -521,6 +522,7 @@ export default function LMSCreatorAdmin() {
                                     const saveRes = await fetch(`${CLOUD_RUN_URL}/api/creator/save`, {
                                         method: 'POST',
                                         headers: authH,
+                                        credentials: 'include',
                                         body: JSON.stringify({
                                             courseName: engineCourse.name,
                                             subjectName: engineSubject.name,
@@ -668,6 +670,7 @@ export default function LMSCreatorAdmin() {
             const enqueueRes = await fetch(`${CLOUD_RUN_URL}/api/creator/batch-start`, {
                 method: 'POST',
                 headers: await fetchAuthHeaders(true),
+                credentials: 'include',
                 body: JSON.stringify({ topics: topicsToQueue }),
             });
             const enqueueData = await enqueueRes.json();
@@ -697,6 +700,7 @@ export default function LMSCreatorAdmin() {
             const CLOUD_RUN_URL = 'https://mededuai-backend-434817580915.us-central1.run.app';
             const statusRes = await fetch(`${CLOUD_RUN_URL}/api/creator/batch-status?batchId=${targetBatchId}`, {
                 headers: await fetchAuthHeaders(),
+                credentials: 'include',
             });
             const statusData = await statusRes.json();
             if (statusData.success) {
@@ -761,6 +765,7 @@ export default function LMSCreatorAdmin() {
                 let processRes = await fetch(`${CLOUD_RUN_URL}/api/creator/batch-process`, {
                     method: 'POST',
                     headers,
+                    credentials: 'include',
                     body: JSON.stringify({ batchId: targetBatchId }),
                 });
 
@@ -784,6 +789,7 @@ export default function LMSCreatorAdmin() {
                     processRes = await fetch(`${CLOUD_RUN_URL}/api/creator/batch-process`, {
                         method: 'POST',
                         headers,
+                        credentials: 'include',
                         body: JSON.stringify({ batchId: targetBatchId }),
                     });
 
