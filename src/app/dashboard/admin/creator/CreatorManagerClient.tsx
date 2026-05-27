@@ -1012,7 +1012,8 @@ export default function LMSCreatorAdmin() {
                 params.append('sectionName', engineSection.name);
             }
 
-            const res = await fetch(`/api/creator/load?${params}`, { headers: await fetchAuthHeaders() });
+            const CLOUD_RUN_URL = 'https://mededuai-backend-434817580915.us-central1.run.app';
+            const res = await fetch(`${CLOUD_RUN_URL}/api/creator/load?${params}`, { headers: await fetchAuthHeaders(), credentials: 'include' });
             const data = await res.json();
 
             if (!data.success || !data.notes || Object.keys(data.notes).length === 0) return;
@@ -1099,7 +1100,8 @@ export default function LMSCreatorAdmin() {
         const checkDb = async () => {
             setDbStatus('checking');
             try {
-                const r = await fetch('/api/creator/db-test', { headers: await fetchAuthHeaders() });
+                const CLOUD_RUN_URL = 'https://mededuai-backend-434817580915.us-central1.run.app';
+                const r = await fetch(`${CLOUD_RUN_URL}/api/creator/db-test`, { headers: await fetchAuthHeaders(), credentials: 'include' });
                 // If the server returns HTML (404/error page from Cloud Run), treat as "not deployed yet"
                 const contentType = r.headers.get('content-type') || '';
                 if (!contentType.includes('application/json') || !r.ok) {

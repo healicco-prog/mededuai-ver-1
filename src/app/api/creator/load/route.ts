@@ -18,7 +18,7 @@ export const revalidate = 0;
  *            the section name or topics table row may differ from the Zustand curriculum.
  */
 export async function GET(req: Request) {
-    const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin', 'deptadmin', 'instadmin', 'teacher'] });
+    const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin', 'deptadmin', 'instadmin', 'teacher'], rateLimitCount: 100 });
     if (!sec.authorized) return sec.response;
 
     try {

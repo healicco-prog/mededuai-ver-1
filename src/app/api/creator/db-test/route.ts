@@ -11,7 +11,7 @@ export const revalidate = 0;
  * Returns a full status report.
  */
 export async function GET(req: Request) {
-    const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin'] });
+    const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin'], rateLimitCount: 100 });
     if (!sec.authorized) return sec.response;
 
     const report: Record<string, any> = {

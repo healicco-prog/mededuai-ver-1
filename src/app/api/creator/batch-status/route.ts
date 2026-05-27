@@ -16,7 +16,7 @@ export const revalidate = 0;
 export const maxDuration = 15;
 
 export async function GET(req: Request) {
-    const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin'] });
+    const sec = await checkSecurity(req, { roles: ['superadmin', 'masteradmin'], rateLimitCount: 100 });
     if (!sec.authorized) return sec.response;
 
     const url = new URL(req.url);
