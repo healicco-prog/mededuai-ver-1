@@ -990,7 +990,7 @@ export default function LMSCreatorAdmin() {
     //  B) Topic exists only in lms_content (batch-saved) but NOT in local section →
     //     inject it as a stub Topic so it appears in the "Generated Content & Editor" grid
     const loadExistingNotes = useCallback(async () => {
-        if (!engineCourse || !engineSubject) return;
+        if (!storeHydrated || !engineCourse || !engineSubject) return;
 
         try {
             const params = new URLSearchParams({
@@ -1078,7 +1078,7 @@ export default function LMSCreatorAdmin() {
         } catch (err) {
             console.warn('[DB Load] Failed to fetch existing notes:', err);
         }
-    }, [engineCourse?.id, engineSubject?.id, engineSection?.id, engineSectionId]);
+    }, [storeHydrated, engineCourse?.id, engineSubject?.id, engineSection?.id, engineSectionId]);
 
     // Run on mount and whenever the section selection changes
     useEffect(() => {
