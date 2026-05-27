@@ -464,7 +464,8 @@ export default function LMSCreatorAdmin() {
                     // typical generation is 60–180s; 480s covers worst-case top-up rounds.
                     const timeoutId = setTimeout(() => controller.abort(), 480000);
 
-                    const response = await fetch('/api/creator', {
+                    const CLOUD_RUN_URL = 'https://mededuai-backend-434817580915.us-central1.run.app';
+                    const response = await fetch(`${CLOUD_RUN_URL}/api/creator`, {
                         method: 'POST',
                         headers: await fetchAuthHeaders(needsRefresh),
                         signal: controller.signal,
@@ -516,7 +517,8 @@ export default function LMSCreatorAdmin() {
                             for (let s = 0; s < retries; s++) {
                                 try {
                                     const authH = await fetchAuthHeaders(s > 0);
-                                    const saveRes = await fetch('/api/creator/save', {
+                                    const CLOUD_RUN_URL = 'https://mededuai-backend-434817580915.us-central1.run.app';
+                                    const saveRes = await fetch(`${CLOUD_RUN_URL}/api/creator/save`, {
                                         method: 'POST',
                                         headers: authH,
                                         body: JSON.stringify({
@@ -662,7 +664,8 @@ export default function LMSCreatorAdmin() {
         });
 
         try {
-            const enqueueRes = await fetch('/api/creator/batch-start', {
+            const CLOUD_RUN_URL = 'https://mededuai-backend-434817580915.us-central1.run.app';
+            const enqueueRes = await fetch(`${CLOUD_RUN_URL}/api/creator/batch-start`, {
                 method: 'POST',
                 headers: await fetchAuthHeaders(true),
                 body: JSON.stringify({ topics: topicsToQueue }),
@@ -691,7 +694,8 @@ export default function LMSCreatorAdmin() {
 
     const refreshBatchStatus = async (targetBatchId: string) => {
         try {
-            const statusRes = await fetch(`/api/creator/batch-status?batchId=${targetBatchId}`, {
+            const CLOUD_RUN_URL = 'https://mededuai-backend-434817580915.us-central1.run.app';
+            const statusRes = await fetch(`${CLOUD_RUN_URL}/api/creator/batch-status?batchId=${targetBatchId}`, {
                 headers: await fetchAuthHeaders(),
             });
             const statusData = await statusRes.json();
@@ -753,10 +757,10 @@ export default function LMSCreatorAdmin() {
                 let headers = await fetchAuthHeaders(shouldRefresh);
                 if (shouldRefresh) lastTokenRefresh = Date.now();
 
-                let processRes = await fetch('/api/creator/batch-process', {
+                const CLOUD_RUN_URL = 'https://mededuai-backend-434817580915.us-central1.run.app';
+                let processRes = await fetch(`${CLOUD_RUN_URL}/api/creator/batch-process`, {
                     method: 'POST',
                     headers,
-                    credentials: 'include',
                     body: JSON.stringify({ batchId: targetBatchId }),
                 });
 
@@ -777,10 +781,9 @@ export default function LMSCreatorAdmin() {
                     console.warn('[Batch Loop] Unauthorized (401 or body) — refreshing token and retrying once');
                     headers = await fetchAuthHeaders(true);
                     lastTokenRefresh = Date.now();
-                    processRes = await fetch('/api/creator/batch-process', {
+                    processRes = await fetch(`${CLOUD_RUN_URL}/api/creator/batch-process`, {
                         method: 'POST',
                         headers,
-                        credentials: 'include',
                         body: JSON.stringify({ batchId: targetBatchId }),
                     });
 
