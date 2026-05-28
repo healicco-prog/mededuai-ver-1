@@ -1206,13 +1206,25 @@ export default function TeacherLMSNotes() {
                                                         key={`search-res-${idx}`}
                                                         onClick={() => {
                                                             const matchSubject = currentCourse?.subjects?.find((s: any) => s.name.toLowerCase() === res.subject?.toLowerCase());
-                                                            if (matchSubject) setSelectedSubjectId(matchSubject.id);
-                                                            const allTopics = matchSubject ? matchSubject.sections.flatMap((s: any) => s.topics) : [];
-                                                            const matchTopic = allTopics.find((t: any) => t.name.toLowerCase() === res.topic?.toLowerCase());
-                                                            if (matchTopic) {
-                                                                setSelectedTopicId(matchTopic.id);
-                                                                const actualSection = matchSubject?.sections?.find((s: any) => s.topics.some((t: any) => t.id === matchTopic.id));
-                                                                if (actualSection) setSelectedSectionId(actualSection.id);
+                                                            if (matchSubject) {
+                                                                setSelectedSubjectId(matchSubject.id);
+                                                                
+                                                                let foundSectionId = '';
+                                                                let foundTopicId = '';
+                                                                
+                                                                if (matchSubject.sections) {
+                                                                    for (const sec of matchSubject.sections) {
+                                                                        const match = sec.topics.find((t:any) => t.id === res.topic_id || t.name.toLowerCase() === res.topic?.toLowerCase());
+                                                                        if (match) {
+                                                                            foundSectionId = sec.id;
+                                                                            foundTopicId = match.id;
+                                                                            break;
+                                                                        }
+                                                                    }
+                                                                }
+                                                                
+                                                                if (foundSectionId) setSelectedSectionId(foundSectionId);
+                                                                if (foundTopicId) setSelectedTopicId(foundTopicId);
                                                             }
                                                             setGlobalSearchQuery('');
                                                             setIsGlobalSearchFocused(false);

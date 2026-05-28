@@ -1497,16 +1497,44 @@ export default function StudentLMSNotes() {
                                                         key={`search-res-${idx}`}
                                                         onClick={() => {
                                                             const matchSubject = currentCourse?.subjects?.find((s: any) => s.name.toLowerCase() === res.subject?.toLowerCase());
-                                                            if (matchSubject) setSelectedSubjectId(matchSubject.id);
-                                                            const matchVersion = matchSubject?.versions?.find((v: any) => v.name.toLowerCase() === (res.version || 'Standard Curriculum').toLowerCase());
-                                                            if (matchVersion) setSelectedVersionId(matchVersion.id);
-                                                            const allTopics = matchVersion ? matchVersion.sections.flatMap((s: any) => s.topics) : [];
-                                                            const matchTopic = allTopics.find((t: any) => t.name.toLowerCase() === res.topic?.toLowerCase());
-                                                            if (matchTopic) {
-                                                                setSelectedTopicId(matchTopic.id);
-                                                                const actualSection = matchVersion?.sections?.find((s: any) => s.topics.some((t: any) => t.id === matchTopic.id));
-                                                                if (actualSection) setSelectedSectionId(actualSection.id);
+                                                            if (matchSubject) {
+                                                                setSelectedSubjectId(matchSubject.id);
+                                                                
+                                                                let foundVersionId = '';
+                                                                let foundSectionId = '';
+                                                                let foundTopicId = '';
+                                                                
+                                                                // Search through versions
+                                                                for (const v of (matchSubject.versions || [])) {
+                                                                    for (const sec of (v.sections || [])) {
+                                                                        const match = sec.topics.find((t:any) => t.id === res.topic_id || t.name.toLowerCase() === res.topic?.toLowerCase());
+                                                                        if (match) {
+                                                                            foundVersionId = v.id;
+                                                                            foundSectionId = sec.id;
+                                                                            foundTopicId = match.id;
+                                                                            break;
+                                                                        }
+                                                                    }
+                                                                    if (foundTopicId) break;
+                                                                }
+                                                                
+                                                                // Fallback for flat sections (if versions aren't used/populated)
+                                                                if (!foundTopicId && matchSubject.sections) {
+                                                                    for (const sec of matchSubject.sections) {
+                                                                        const match = sec.topics.find((t:any) => t.id === res.topic_id || t.name.toLowerCase() === res.topic?.toLowerCase());
+                                                                        if (match) {
+                                                                            foundSectionId = sec.id;
+                                                                            foundTopicId = match.id;
+                                                                            break;
+                                                                        }
+                                                                    }
+                                                                }
+                                                                
+                                                                if (foundVersionId) setSelectedVersionId(foundVersionId);
+                                                                if (foundSectionId) setSelectedSectionId(foundSectionId);
+                                                                if (foundTopicId) setSelectedTopicId(foundTopicId);
                                                             }
+                                                            
                                                             setGlobalSearchQuery('');
                                                             setIsGlobalSearchFocused(false);
                                                             setActiveTab('introduction');
