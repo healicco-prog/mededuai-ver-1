@@ -30,8 +30,8 @@ export async function GET(req: Request) {
         dbQuery = dbQuery.ilike('course', course);
     }
 
-    // Limit to prevent huge payloads
-    dbQuery = dbQuery.limit(20);
+    // Limit increased to ensure topics from other subjects aren't cut off if one subject has many matches
+    dbQuery = dbQuery.limit(100);
 
     const { data, error } = await dbQuery;
 
@@ -45,7 +45,7 @@ export async function GET(req: Request) {
             
         if (course) fallbackQuery = fallbackQuery.ilike('course', course);
         
-        const { data: fallbackData, fallbackError } = await fallbackQuery.limit(20) as any;
+        const { data: fallbackData, fallbackError } = await fallbackQuery.limit(100) as any;
         
         if (fallbackError) {
             console.error('[LMS Search] Error:', fallbackError);

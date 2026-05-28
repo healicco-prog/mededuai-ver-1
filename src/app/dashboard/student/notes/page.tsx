@@ -767,15 +767,22 @@ export default function StudentLMSNotes() {
         fetch(`/api/lms/search?q=${encodeURIComponent(debouncedGlobalQuery)}&course=${encodeURIComponent(currentCourse.name)}`)
             .then(r => r.json())
             .then(data => {
-                if (data.success) {
-                    setGlobalSearchResults(data.results || []);
+                if (data.success && data.results) {
+                    const sortedResults = [...data.results].sort((a: any, b: any) => {
+                        const isACurrent = a.subject?.toLowerCase() === currentSubject?.name?.toLowerCase();
+                        const isBCurrent = b.subject?.toLowerCase() === currentSubject?.name?.toLowerCase();
+                        if (isACurrent && !isBCurrent) return -1;
+                        if (!isACurrent && isBCurrent) return 1;
+                        return 0; // maintain remaining order
+                    });
+                    setGlobalSearchResults(sortedResults);
                 } else {
                     setGlobalSearchResults([]);
                 }
             })
             .catch(() => setGlobalSearchResults([]))
             .finally(() => setIsSearching(false));
-    }, [debouncedGlobalQuery, currentCourse]);
+    }, [debouncedGlobalQuery, currentCourse, currentSubject]);
 
     const [activeTab, setActiveTab] = useState<string>('introduction');
     const [showAIPanel, setShowAIPanel] = useState<boolean>(false);

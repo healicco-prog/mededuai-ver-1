@@ -832,6 +832,7 @@ export default function TeacherLMSNotes() {
 
     // Computed selections
     const currentCourse = coursesList.find((c: any) => c.id === selectedCourseId) || coursesList[0];
+    const currentSubject = currentCourse?.subjects?.find((s: any) => s.id === selectedSubjectId) || currentCourse?.subjects?.[0];
 
     const [debouncedGlobalQuery, setDebouncedGlobalQuery] = useState<string>('');
     const [globalSearchResults, setGlobalSearchResults] = useState<any[]>([]);
@@ -851,16 +852,23 @@ export default function TeacherLMSNotes() {
         fetch(`/api/lms/search?q=${encodeURIComponent(debouncedGlobalQuery)}&course=${encodeURIComponent(currentCourse.name)}`)
             .then(r => r.json())
             .then(data => {
-                if (data.success) {
-                    setGlobalSearchResults(data.results || []);
+                if (data.success && data.results) {
+                    const sortedResults = [...data.results].sort((a: any, b: any) => {
+                        const isACurrent = a.subject?.toLowerCase() === currentSubject?.name?.toLowerCase();
+                        const isBCurrent = b.subject?.toLowerCase() === currentSubject?.name?.toLowerCase();
+                        if (isACurrent && !isBCurrent) return -1;
+                        if (!isACurrent && isBCurrent) return 1;
+                        return 0; // maintain remaining order
+                    });
+                    setGlobalSearchResults(sortedResults);
                 } else {
                     setGlobalSearchResults([]);
                 }
             })
             .catch(() => setGlobalSearchResults([]))
             .finally(() => setIsSearching(false));
-    }, [debouncedGlobalQuery, currentCourse]);
-    const currentSubject = currentCourse?.subjects?.find((s: any) => s.id === selectedSubjectId) || currentCourse?.subjects?.[0];
+    }, [debouncedGlobalQuery, currentCourse, currentSubject]);
+    
     const availableSections = currentSubject?.sections || [];
     const currentSection = availableSections.find((s: any) => s.id === selectedSectionId) || availableSections[0];
     // Search ALL sections so topic is never lost due to stale sectionId
