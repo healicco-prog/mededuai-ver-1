@@ -46,7 +46,7 @@ export default function StudentMentorshipClient() {
     const peerMenteeMeetings = meetings.filter(m => m.menteeId === selectedPeerMenteeId && m.isPeerMeeting);
 
     const tabConfig = [
-        { id: 'profile' as const, label: 'My Profile', icon: User, gradient: 'from-purple-500 to-violet-600', bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
+        { id: 'profile' as const, label: 'My Profile', icon: User, gradient: 'from-emerald-500 to-violet-600', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
         { id: 'mentee' as const, label: 'As Mentee', icon: Calendar, gradient: 'from-emerald-500 to-teal-600', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
         { id: 'peerMentor' as const, label: 'As Peer Mentor', icon: Users, gradient: 'from-blue-500 to-indigo-600', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
     ];
@@ -55,16 +55,16 @@ export default function StudentMentorshipClient() {
         <div className="max-w-7xl mx-auto flex flex-col h-[calc(100vh-7rem)]">
             {/* Premium Header */}
             <div className="relative mb-6 flex-shrink-0">
-                <div className="bg-gradient-to-r from-purple-900 via-violet-900 to-indigo-900 rounded-3xl p-6 shadow-xl overflow-hidden relative">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                <div className="bg-gradient-to-r from-emerald-900 via-violet-900 to-indigo-900 rounded-3xl p-6 shadow-xl overflow-hidden relative">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
                     <div className="absolute bottom-0 left-0 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
                     <div className="relative flex items-center gap-4">
-                        <div className="w-14 h-14 bg-gradient-to-br from-purple-400 to-violet-600 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/25">
+                        <div className="w-14 h-14 bg-gradient-to-br from-emerald-400 to-violet-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/25">
                             <GraduationCap className="w-7 h-7 text-white" />
                         </div>
                         <div>
                             <h2 className="text-2xl font-bold text-white tracking-tight">Mentorship Management System</h2>
-                            <p className="text-purple-300/80 text-sm font-medium">Manage your profile, connect with mentors, and guide your peers</p>
+                            <p className="text-emerald-300/80 text-sm font-medium">Manage your profile, connect with mentors, and guide your peers</p>
                         </div>
                     </div>
                 </div>
@@ -90,9 +90,9 @@ export default function StudentMentorshipClient() {
                 {/* ————— PROFILE TAB ————— */}
                 {activeTab === 'profile' && (
                     <div className="bg-white border border-slate-200 rounded-3xl shadow-lg overflow-hidden max-w-3xl">
-                        <div className="bg-gradient-to-b from-purple-50/50 to-white p-6 border-b border-slate-100">
+                        <div className="bg-gradient-to-b from-emerald-50/50 to-white p-6 border-b border-slate-100">
                             <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                <User className="w-5 h-5 text-purple-600" /> Mentorship Profile Setup
+                                <User className="w-5 h-5 text-emerald-600" /> Mentorship Profile Setup
                             </h3>
                         </div>
                         
@@ -102,7 +102,7 @@ export default function StudentMentorshipClient() {
                                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Registration Number</label>
                                     <input 
                                         type="text" 
-                                        className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-300 text-sm font-medium transition-all"
+                                        className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-300 text-sm font-medium transition-all"
                                         value={profileForm.regNo}
                                         onChange={e => setProfileForm({...profileForm, regNo: e.target.value})}
                                     />
@@ -111,7 +111,7 @@ export default function StudentMentorshipClient() {
                                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Mobile Number</label>
                                     <input 
                                         type="tel" 
-                                        className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-300 text-sm font-medium transition-all"
+                                        className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-300 text-sm font-medium transition-all"
                                         value={profileForm.mobileNumber}
                                         onChange={e => setProfileForm({...profileForm, mobileNumber: e.target.value})}
                                     />
@@ -120,7 +120,7 @@ export default function StudentMentorshipClient() {
                                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Email ID</label>
                                     <input 
                                         type="email" 
-                                        className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-300 text-sm font-medium transition-all"
+                                        className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-300 text-sm font-medium transition-all"
                                         value={profileForm.emailId}
                                         onChange={e => setProfileForm({...profileForm, emailId: e.target.value})}
                                     />
@@ -129,7 +129,7 @@ export default function StudentMentorshipClient() {
                                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Permanent Address</label>
                                     <textarea 
                                         rows={3} 
-                                        className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-300 text-sm font-medium resize-none transition-all"
+                                        className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-300 text-sm font-medium resize-none transition-all"
                                         value={profileForm.permanentAddress}
                                         onChange={e => setProfileForm({...profileForm, permanentAddress: e.target.value})}
                                     />
@@ -138,14 +138,14 @@ export default function StudentMentorshipClient() {
 
                             <div className="pt-6 border-t border-slate-100 space-y-5">
                                 <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                                    <Heart className="w-4 h-4 text-purple-500" /> Parent / Guardian Details
+                                    <Heart className="w-4 h-4 text-emerald-500" /> Parent / Guardian Details
                                 </h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                     <div className="md:col-span-2">
                                         <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Name</label>
                                         <input 
                                             type="text" 
-                                            className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-300 text-sm font-medium transition-all"
+                                            className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-300 text-sm font-medium transition-all"
                                             value={profileForm.parentName}
                                             onChange={e => setProfileForm({...profileForm, parentName: e.target.value})}
                                         />
@@ -154,7 +154,7 @@ export default function StudentMentorshipClient() {
                                         <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Contact No</label>
                                         <input 
                                             type="tel" 
-                                            className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-300 text-sm font-medium transition-all"
+                                            className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-300 text-sm font-medium transition-all"
                                             value={profileForm.parentContactNo}
                                             onChange={e => setProfileForm({...profileForm, parentContactNo: e.target.value})}
                                         />
@@ -163,7 +163,7 @@ export default function StudentMentorshipClient() {
                                         <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Contact Email</label>
                                         <input 
                                             type="email" 
-                                            className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-300 text-sm font-medium transition-all"
+                                            className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-300 text-sm font-medium transition-all"
                                             value={profileForm.parentContactMail}
                                             onChange={e => setProfileForm({...profileForm, parentContactMail: e.target.value})}
                                         />
@@ -181,7 +181,7 @@ export default function StudentMentorshipClient() {
                                             alert("Mentee record not found.");
                                         }
                                     }}
-                                    className="bg-gradient-to-r from-purple-500 to-violet-600 text-white font-bold h-12 px-8 rounded-xl hover:shadow-lg hover:shadow-purple-500/25 transition-all flex items-center gap-2 hover:scale-[1.01] active:scale-[0.99]"
+                                    className="bg-gradient-to-r from-emerald-500 to-violet-600 text-white font-bold h-12 px-8 rounded-xl hover:shadow-lg hover:shadow-emerald-500/25 transition-all flex items-center gap-2 hover:scale-[1.01] active:scale-[0.99]"
                                 >
                                     <Save className="w-5 h-5" /> Save Profile
                                 </button>
@@ -215,7 +215,7 @@ export default function StudentMentorshipClient() {
                                             <div key={meeting.id} className="border border-slate-200 p-5 rounded-2xl flex flex-col gap-3 hover:shadow-sm transition-shadow">
                                                 <div className="flex justify-between items-start">
                                                     <div>
-                                                        <span className={`text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-lg mb-2 inline-block ${meeting.isPeerMeeting ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                                                        <span className={`text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-lg mb-2 inline-block ${meeting.isPeerMeeting ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
                                                             {meeting.isPeerMeeting ? 'Peer Session' : 'Mentor Session'}
                                                         </span>
                                                         <h4 className="font-bold text-slate-800">{new Date(meeting.date).toLocaleDateString()}</h4>
@@ -292,7 +292,7 @@ export default function StudentMentorshipClient() {
                                         <div key={chat.id} className={`flex ${chat.senderId === currentUser?.id ? 'justify-end' : 'justify-start'}`}>
                                             <div className={`max-w-[80%] p-4 rounded-2xl ${
                                                 chat.senderId === currentUser?.id 
-                                                    ? 'bg-gradient-to-br from-purple-600 to-violet-700 text-white rounded-tr-sm shadow-md shadow-purple-500/15' 
+                                                    ? 'bg-gradient-to-br from-emerald-600 to-violet-700 text-white rounded-tr-sm shadow-md shadow-emerald-500/15' 
                                                     : chat.receiverId === 'group' 
                                                         ? 'bg-amber-50 text-amber-900 border border-amber-200 rounded-tl-sm'
                                                         : 'bg-slate-50 text-slate-800 border border-slate-100 rounded-tl-sm'
@@ -318,7 +318,7 @@ export default function StudentMentorshipClient() {
                                     type="text"
                                     id="menteeMessageInput"
                                     placeholder="Message your mentor..."
-                                    className="flex-1 px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-300 text-sm font-medium transition-all"
+                                    className="flex-1 px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-300 text-sm font-medium transition-all"
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter') {
                                             const input = e.currentTarget;
@@ -345,7 +345,7 @@ export default function StudentMentorshipClient() {
                                         });
                                         input.value = '';
                                     }}
-                                    className="w-12 h-12 bg-gradient-to-br from-purple-500 to-violet-600 text-white rounded-xl flex items-center justify-center hover:shadow-lg hover:shadow-purple-500/25 transition-all shrink-0 hover:scale-105 active:scale-95"
+                                    className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-violet-600 text-white rounded-xl flex items-center justify-center hover:shadow-lg hover:shadow-emerald-500/25 transition-all shrink-0 hover:scale-105 active:scale-95"
                                 >
                                     <Send className="w-5 h-5" />
                                 </button>

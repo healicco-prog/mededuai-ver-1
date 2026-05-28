@@ -56,7 +56,7 @@ export default function UpgradePromptOverlay({ featureName, requiredPlan, curren
       {/* Card */}
       <div className="relative w-full max-w-md bg-white/95 backdrop-blur-2xl border border-white/30 rounded-3xl shadow-2xl shadow-black/20 overflow-hidden">
         {/* Top gradient */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600" />
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 via-blue-500 to-emerald-600" />
         
         {/* Close button */}
         {onClose && (
@@ -140,8 +140,8 @@ export default function UpgradePromptOverlay({ featureName, requiredPlan, curren
             )}
 
             <p className="text-[11px] text-slate-400 text-center">
-              You&apos;re currently on the <span className="font-bold capitalize">{currentPlan}</span> plan.
-              {currentPlan === 'free' && ' 15-day trial features are available.'}
+              You&apos;re currently on the <span className="font-bold capitalize">{currentPlan === 'free' ? 'Free Package' : currentPlan}</span> plan.
+              {currentPlan === 'free' && ' Core modules available if subscribed by your institution.'}
             </p>
           </div>
         </div>

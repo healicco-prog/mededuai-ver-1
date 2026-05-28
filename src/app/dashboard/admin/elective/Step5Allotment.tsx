@@ -145,7 +145,7 @@ export default function Step5Allotment({ store, instId }: { store: any; instId: 
     return (
         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 space-y-6">
             <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center"><Shuffle className="w-5 h-5 text-purple-600" /></div>
+                <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center"><Shuffle className="w-5 h-5 text-emerald-600" /></div>
                 <div><h3 className="text-xl font-bold text-slate-900">Allotment System</h3><p className="text-sm text-slate-500">Select method, configure, and run the allotment engine.</p></div>
             </div>
 
@@ -191,7 +191,7 @@ export default function Step5Allotment({ store, instId }: { store: any; instId: 
                                         <td className="p-3 font-bold text-slate-800">{st.name}</td>
                                         <td className="p-3 text-slate-600 font-mono">{st.regNo}</td>
                                         <td className="p-3 text-center">
-                                            <input type="number" min={1} value={st.meritRank ?? ''} onChange={e => handleUpdateRank(st.id, parseInt(e.target.value) || 0)} className="w-20 px-2 py-1.5 border-2 border-slate-200 rounded-lg text-center font-bold text-sm outline-none focus:border-purple-500" placeholder="—" />
+                                            <input type="number" min={1} value={st.meritRank ?? ''} onChange={e => handleUpdateRank(st.id, parseInt(e.target.value) || 0)} className="w-20 px-2 py-1.5 border-2 border-slate-200 rounded-lg text-center font-bold text-sm outline-none focus:border-emerald-500" placeholder="—" />
                                         </td>
                                     </tr>
                                 ))}
@@ -203,7 +203,7 @@ export default function Step5Allotment({ store, instId }: { store: any; instId: 
 
             {/* Run & Result */}
             <div className="flex gap-3 pt-2">
-                <button onClick={handleRun} className="flex items-center gap-2 px-8 py-3.5 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition-colors shadow-lg shadow-purple-200">
+                <button onClick={handleRun} className="flex items-center gap-2 px-8 py-3.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-200">
                     <Play className="w-5 h-5" /> Run Allotment Engine
                 </button>
                 {allotments.length > 0 && (

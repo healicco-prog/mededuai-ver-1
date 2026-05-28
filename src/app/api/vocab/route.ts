@@ -9,11 +9,11 @@ export async function POST(req: Request) {
 
     try {
         const body = await req.json();
-        const { course, subject, topic, numTerms = 10 } = body;
+        const { course, subject, topic, numTerms = 10, language = 'Hindi', level = 'Basic' } = body;
         
         const count = Math.min(Math.max(Number(numTerms) || 10, 1), 50);
 
-        const promptText = `Generate ${count} key medical vocabulary terms for the topic: ${topic} within ${subject} (${course}).
+        const promptText = `Generate ${count} key medical vocabulary terms for the topic: ${topic} within ${subject} (${course}) at a ${level} difficulty level.
         Categorize the terms appropriately (e.g., Anatomy, Pathology, Pharmacology, General).
         Return ONLY a raw valid JSON array. Do not return markdown blocks or backticks. Format exactly like this:
         [
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
             "category": "General Pathology",
             "meaning": "The cause or set of causes for a disease.",
             "example": "The etiology of the patient's symptoms is currently unknown.",
-            "regional": "कारण (Hindi)"
+            "regional": "Word in ${language} (${language})"
           }
         ]
         `;
@@ -45,8 +45,8 @@ export async function POST(req: Request) {
         return NextResponse.json({
             success: false,
             terms: [
-                { term: 'Mock Etiology', category: 'General', meaning: 'The cause of a disease.', example: 'The mock etiology is unknown.', regional: 'कारण (Hindi)' },
-                { term: 'Mock Pathogenesis', category: 'Pathology', meaning: 'Development of a disease.', example: 'Mock pathogenesis works.', regional: 'रोगजनन (Hindi)' }
+                { term: 'Mock Etiology', category: 'General', meaning: 'The cause of a disease.', example: 'The mock etiology is unknown.', regional: `Mock (${language})` },
+                { term: 'Mock Pathogenesis', category: 'Pathology', meaning: 'Development of a disease.', example: 'Mock pathogenesis works.', regional: `Mock 2 (${language})` }
             ],
             isMock: true
         });

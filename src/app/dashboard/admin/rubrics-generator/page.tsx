@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import {
     ClipboardList, BookOpen, FileText, CheckCircle2,
-    Layers, PenTool, Hash, Download, Copy, RefreshCw, Loader2
+    Layers, PenTool, Hash, Download, Copy, RefreshCw, Loader2,
+    Save, Search, History, CheckCircle, Trash2
 } from 'lucide-react';
 
 const SESSION_TYPES = [
@@ -44,6 +45,30 @@ export default function RubricsGeneratorPage() {
     const [loading, setLoading] = useState(false);
     const [rubric, setRubric] = useState<RubricRow[] | null>(null);
     const [error, setError] = useState('');
+    const [saved, setSaved] = useState(false);
+
+    const [savedRubrics, setSavedRubrics] = useState<any[]>([]);
+    const [savedSearchQuery, setSavedSearchQuery] = useState('');
+    const [isFetchingSaved, setIsFetchingSaved] = useState(true);
+
+    const fetchSavedRubrics = async () => {
+        setIsFetchingSaved(true);
+        try {
+            const res = await fetch('/api/rubrics-generator/saved/all');
+            const data = await res.json();
+            if (data.success) {
+                setSavedRubrics(data.data || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch saved rubrics:", error);
+        } finally {
+            setIsFetchingSaved(false);
+        }
+    };
+
+    React.useEffect(() => {
+        fetchSavedRubrics();
+    }, []);
 
     const handleGenerate = async () => {
         if (!subject || !topic || !totalMarks) {
@@ -87,15 +112,61 @@ export default function RubricsGeneratorPage() {
         }
     };
 
-    const handleCopy = () => {
-        if (!rubric) return;
+    const handleCopy = (rubricData: RubricRow[] = rubric!) => {
+        if (!rubricData) return;
         let text = `Evaluation Rubric\nSubject: ${subject} | Topic: ${topic} | Marks: ${totalMarks}\n\n`;
         text += "Criteria\tExcellent\tGood\tAverage\tPoor\tMarks\n";
-        rubric.forEach(r => {
+        rubricData.forEach(r => {
             text += `${r.criteria}\t${r.excellent}\t${r.good}\t${r.average}\t${r.poor}\t${r.marks}\n`;
         });
         navigator.clipboard.writeText(text);
         alert('Rubric copied to clipboard!');
+    };
+
+    const handleSave = async () => {
+        if (!rubric) return;
+        setSaved(false);
+        try {
+            const finalSessionType = sessionType === 'Type any other' ? customSessionType : sessionType;
+            const res = await fetch('/api/rubrics-generator/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: `${finalSessionType} Rubric`,
+                    course: '', 
+                    subject,
+                    rubricData: { topic, totalMarks, rubric }
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setSaved(true);
+                setTimeout(() => setSaved(false), 3000);
+                fetchSavedRubrics();
+            } else {
+                alert("Failed to save rubric.");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Failed to save rubric.");
+        }
+    };
+
+    const handleDeleteSavedRubric = async (id: string) => {
+        if (!confirm("Are you sure you want to delete this rubric?")) return;
+        try {
+            const res = await fetch(`/api/rubrics-generator/save?id=${id}`, {
+                method: 'DELETE'
+            });
+            const data = await res.json();
+            if (data.success) {
+                fetchSavedRubrics();
+            } else {
+                alert("Failed to delete rubric.");
+            }
+        } catch (error) {
+            console.error("Failed to delete rubric:", error);
+        }
     };
 
     const handlePrint = () => {
@@ -263,7 +334,15 @@ export default function RubricsGeneratorPage() {
                                 </div>
                                 <div className="flex gap-3 print:hidden shrink-0">
                                     <button
-                                        onClick={handleCopy}
+                                        onClick={handleSave}
+                                        className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 rounded-xl transition-all border border-emerald-200 shadow-sm font-bold"
+                                        title="Save Rubric"
+                                    >
+                                        {saved ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+                                        {saved ? 'Saved!' : 'Save'}
+                                    </button>
+                                    <button
+                                        onClick={() => handleCopy(rubric)}
                                         className="p-2.5 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 rounded-xl transition-all border border-slate-200 shadow-sm group"
                                         title="Copy Rubric"
                                     >
@@ -320,6 +399,99 @@ export default function RubricsGeneratorPage() {
                         </div>
                     )}
                 </div>
+            </div>
+
+            {/* Saved Rubrics Section */}
+            <div className="mt-12 space-y-4 animate-in fade-in slide-in-from-bottom-4 pt-8 border-t-2 border-slate-100">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center border border-slate-200 shadow-sm">
+                            <ClipboardList className="w-5 h-5 text-slate-600" />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-bold text-slate-900">Saved Rubrics</h3>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Your previously generated evaluation criteria</p>
+                        </div>
+                    </div>
+                    {/* Search */}
+                    <div className="relative w-full sm:w-64">
+                        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                            type="text"
+                            placeholder="Search saved rubrics..."
+                            value={savedSearchQuery}
+                            onChange={(e) => setSavedSearchQuery(e.target.value)}
+                            className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-300 transition-all font-medium"
+                        />
+                    </div>
+                </div>
+
+                {isFetchingSaved ? (
+                    <div className="flex justify-center items-center py-10">
+                        <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+                    </div>
+                ) : savedRubrics.length === 0 ? (
+                    <div className="text-center py-12 bg-slate-50 rounded-3xl border border-slate-100 shadow-inner">
+                        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-slate-100">
+                            <ClipboardList className="w-8 h-8 text-slate-300" />
+                        </div>
+                        <h4 className="text-slate-500 font-bold text-lg mb-1">Yet to save anything</h4>
+                        <p className="text-slate-400 text-sm">Your saved rubrics will appear here.</p>
+                    </div>
+                ) : (() => {
+                    const filteredSavedRubrics = savedRubrics.filter(item => {
+                        if (!savedSearchQuery) return true;
+                        const search = savedSearchQuery.toLowerCase();
+                        return (item.title || '').toLowerCase().includes(search) || (item.subject || '').toLowerCase().includes(search) || (item.rubric_data?.topic || '').toLowerCase().includes(search);
+                    });
+
+                    if (filteredSavedRubrics.length === 0) {
+                        return (
+                            <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-100">
+                                <p className="text-slate-500 font-medium text-sm">No saved rubrics found matching your search.</p>
+                            </div>
+                        );
+                    }
+
+                    return (
+                        <div className="space-y-4">
+                            {filteredSavedRubrics.map((item) => (
+                                <div key={item.id} className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm transition-all hover:shadow-md">
+                                    <div className="bg-slate-50 p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                        <div>
+                                            <h4 className="font-bold text-slate-900 text-lg sm:text-xl">{item.title || 'Untitled Rubric'}</h4>
+                                            <div className="flex flex-wrap items-center gap-2 mt-2">
+                                                <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-lg">
+                                                    {item.subject}
+                                                </span>
+                                                <span className="text-xs font-bold text-slate-600 bg-slate-200/50 px-2 py-1 rounded-lg">
+                                                    {item.rubric_data?.topic}
+                                                </span>
+                                                <span className="text-xs text-slate-400 font-medium ml-1">
+                                                    {new Date(item.created_at).toLocaleDateString()}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                                            <button
+                                                onClick={() => handleCopy(item.rubric_data?.rubric)}
+                                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white text-slate-700 font-bold h-9 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all text-sm shadow-sm"
+                                            >
+                                                <Copy className="w-4 h-4" /> Copy
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteSavedRubric(item.id)}
+                                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white text-red-600 font-bold h-9 px-4 rounded-xl border border-slate-200 hover:bg-red-50 hover:border-red-200 transition-all text-sm shadow-sm"
+                                            >
+                                                <Trash2 className="w-4 h-4" /> Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    );
+                })()}
             </div>
 
             {/* Global Print Styles to handle isolation of the rubric table */}

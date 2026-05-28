@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { PenTool, Loader2, Sparkles, RefreshCcw, Download, Copy, CheckCircle, FileText, Save, Share2, FileDown, X, Plus, ListChecks, ArrowRight, ArrowLeft, Hash, HelpCircle, Check, Square, CheckSquare } from 'lucide-react';
+import { PenTool, Loader2, Sparkles, RefreshCcw, Download, Copy, CheckCircle, FileText, Save, Share2, FileDown, X, Plus, ListChecks, ArrowRight, ArrowLeft, Hash, HelpCircle, Check, Square, CheckSquare, Search, BookOpen, History } from 'lucide-react';
 import { useCurriculumStore } from '@/store/curriculumStore';
 import { useUserStore } from '@/store/userStore';
 import { tokenService } from '@/lib/tokenService';
@@ -54,6 +54,29 @@ export default function EssayAnswerGenPage() {
     const [saved, setSaved] = useState(false);
     const [shared, setShared] = useState(false);
     const topicInputRef = useRef<HTMLInputElement>(null);
+
+    const [savedAnswersList, setSavedAnswersList] = useState<any[]>([]);
+    const [savedSearchQuery, setSavedSearchQuery] = useState('');
+    const [isFetchingSaved, setIsFetchingSaved] = useState(true);
+
+    const fetchSavedAnswers = async () => {
+        setIsFetchingSaved(true);
+        try {
+            const res = await fetch('/api/essay-answer/saved/all');
+            const data = await res.json();
+            if (data.success) {
+                setSavedAnswersList(data.data || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch saved answers:", error);
+        } finally {
+            setIsFetchingSaved(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchSavedAnswers();
+    }, []);
 
     const activeCourse = coursesList.find(c => c.id === selectedCourseId) || coursesList[0];
     const activeSubject = activeCourse?.subjects.find(s => s.id === selectedSubjectId) || activeCourse?.subjects[0];
@@ -207,25 +230,39 @@ export default function EssayAnswerGenPage() {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
+        if (!result) return;
+        setSaved(false);
         try {
-            const savedAnswers = JSON.parse(localStorage.getItem('mededuai_saved_essay_answers') || '[]');
             const selectedQs = generatedQuestions.filter(q => selectedQuestionIds.has(q.id));
-            savedAnswers.push({
-                id: Date.now(),
-                course: activeCourse?.name,
-                subject: activeSubject?.name,
-                topics: topicsList.join(', '),
-                questions: selectedQs.map(q => q.question),
-                answerType: selectedAnswerType,
-                depth: answerDepth,
-                content: result,
-                createdAt: new Date().toISOString()
+            const res = await fetch('/api/essay-answer/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: topicsList.join(', ') || 'Untitled Essay Answers',
+                    course: activeCourse?.name,
+                    subject: activeSubject?.name,
+                    evalData: {
+                        topics: topicsList.join(', '),
+                        questions: selectedQs.map(q => q.question),
+                        answerType: selectedAnswerType,
+                        depth: answerDepth,
+                        content: result
+                    }
+                })
             });
-            localStorage.setItem('mededuai_saved_essay_answers', JSON.stringify(savedAnswers));
-            setSaved(true);
-            setTimeout(() => setSaved(false), 3000);
-        } catch (err) { console.error(err); }
+            const data = await res.json();
+            if (data.success) {
+                setSaved(true);
+                setTimeout(() => setSaved(false), 3000);
+                fetchSavedAnswers();
+            } else {
+                alert("Failed to save answers.");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Failed to save answers.");
+        }
     };
 
     const handleDownloadPDF = async () => {
@@ -311,11 +348,11 @@ th,td{border:1px solid #ccc;padding:6pt 8pt;text-align:left;}th{background:#f5f3
         <div className="max-w-5xl mx-auto flex flex-col h-[calc(100vh-7rem)]">
             {/* Premium Header */}
             <div className="relative mb-5 flex-shrink-0">
-                <div className="bg-gradient-to-r from-violet-900 via-purple-900 to-fuchsia-900 rounded-3xl p-6 shadow-xl overflow-hidden relative">
+                <div className="bg-gradient-to-r from-violet-900 via-emerald-900 to-fuchsia-900 rounded-3xl p-6 shadow-xl overflow-hidden relative">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
                     <div className="absolute bottom-0 left-0 w-48 h-48 bg-fuchsia-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
                     <div className="relative flex items-center gap-4">
-                        <div className="w-14 h-14 bg-gradient-to-br from-violet-400 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/25">
+                        <div className="w-14 h-14 bg-gradient-to-br from-violet-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/25">
                             <PenTool className="w-7 h-7 text-white" />
                         </div>
                         <div>
@@ -427,7 +464,7 @@ th,td{border:1px solid #ccc;padding:6pt 8pt;text-align:left;}th{background:#f5f3
                             <div className="flex justify-end pt-4 border-t border-slate-100">
                                 <button onClick={handleGenerateQuestions}
                                     disabled={loadingQuestions || (topicsList.length === 0 && !topicInput.trim())}
-                                    className="bg-gradient-to-r from-violet-500 to-purple-600 text-white font-bold h-12 px-8 rounded-xl hover:shadow-lg hover:shadow-violet-500/25 transition-all disabled:opacity-50 flex items-center gap-2 hover:scale-[1.01] active:scale-[0.99]">
+                                    className="bg-gradient-to-r from-violet-500 to-emerald-600 text-white font-bold h-12 px-8 rounded-xl hover:shadow-lg hover:shadow-violet-500/25 transition-all disabled:opacity-50 flex items-center gap-2 hover:scale-[1.01] active:scale-[0.99]">
                                     {loadingQuestions ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
                                     {loadingQuestions ? 'Generating Questions...' : 'Create Questions'}
                                     {!loadingQuestions && <ArrowRight className="w-4 h-4" />}
@@ -494,7 +531,7 @@ th,td{border:1px solid #ccc;padding:6pt 8pt;text-align:left;}th{background:#f5f3
                                 <span className="text-sm font-bold text-violet-600">{selectedQuestionIds.size} question{selectedQuestionIds.size !== 1 ? 's' : ''} selected</span>
                                 <button onClick={() => { if (selectedQuestionIds.size > 0) setCurrentStep(3); else alert('Select at least one question.'); }}
                                     disabled={selectedQuestionIds.size === 0}
-                                    className="bg-gradient-to-r from-violet-500 to-purple-600 text-white font-bold h-11 px-6 rounded-xl hover:shadow-lg hover:shadow-violet-500/25 transition-all disabled:opacity-50 flex items-center gap-2">
+                                    className="bg-gradient-to-r from-violet-500 to-emerald-600 text-white font-bold h-11 px-6 rounded-xl hover:shadow-lg hover:shadow-violet-500/25 transition-all disabled:opacity-50 flex items-center gap-2">
                                     Configure Answers <ArrowRight className="w-4 h-4" />
                                 </button>
                             </div>
@@ -571,7 +608,7 @@ th,td{border:1px solid #ccc;padding:6pt 8pt;text-align:left;}th{background:#f5f3
                                 </button>
                                 <button onClick={handleGenerateAnswers}
                                     disabled={loadingAnswers}
-                                    className="bg-gradient-to-r from-violet-500 to-purple-600 text-white font-bold h-12 px-8 rounded-xl hover:shadow-lg hover:shadow-violet-500/25 transition-all disabled:opacity-50 flex items-center gap-2 hover:scale-[1.01] active:scale-[0.99]">
+                                    className="bg-gradient-to-r from-violet-500 to-emerald-600 text-white font-bold h-12 px-8 rounded-xl hover:shadow-lg hover:shadow-violet-500/25 transition-all disabled:opacity-50 flex items-center gap-2 hover:scale-[1.01] active:scale-[0.99]">
                                     {loadingAnswers ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
                                     {loadingAnswers ? 'Generating Answers...' : `Generate ${selectedQuestionIds.size} Answer${selectedQuestionIds.size !== 1 ? 's' : ''}`}
                                 </button>
@@ -584,7 +621,7 @@ th,td{border:1px solid #ccc;padding:6pt 8pt;text-align:left;}th{background:#f5f3
                 {currentStep === 4 && result && (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-4">
                         <div className="bg-white rounded-3xl border border-violet-200 shadow-lg overflow-hidden">
-                            <div className="bg-gradient-to-r from-violet-50 to-purple-50 p-5 border-b border-violet-100">
+                            <div className="bg-gradient-to-r from-violet-50 to-emerald-50 p-5 border-b border-violet-100">
                                 <div className="flex items-center justify-between flex-wrap gap-4">
                                     <div>
                                         <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -609,6 +646,11 @@ th,td{border:1px solid #ccc;padding:6pt 8pt;text-align:left;}th{background:#f5f3
                                         {saved ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
                                         {saved ? 'Saved!' : 'Save'}
                                     </button>
+                                    <button onClick={() => window.print()} className="font-bold h-10 px-5 rounded-xl transition-all flex items-center gap-2 text-sm shadow-sm bg-white text-slate-700 border border-slate-200 hover:bg-blue-50 hover:border-blue-300 print:hidden ml-2" title="Share as PDF">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> 
+                                        Share as PDF
+                                    </button>
+
                                     <button onClick={handleDownloadPDF}
                                         className="bg-white text-slate-700 font-bold h-10 px-5 rounded-xl border border-slate-200 hover:bg-blue-50 hover:border-blue-300 transition-all flex items-center gap-2 text-sm shadow-sm">
                                         <Download className="w-4 h-4 text-blue-600" /> Download PDF
@@ -648,6 +690,96 @@ th,td{border:1px solid #ccc;padding:6pt 8pt;text-align:left;}th{background:#f5f3
                         </div>
                     </div>
                 )}
+
+                {/* Saved Essay Answers Section */}
+                <div className="mt-12 space-y-4 animate-in fade-in slide-in-from-bottom-4 pt-8 border-t-2 border-slate-100">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center border border-slate-200 shadow-sm">
+                                <FileText className="w-5 h-5 text-slate-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-slate-900">Saved Essay Answers</h3>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Your previously generated model answers</p>
+                            </div>
+                        </div>
+                        {/* Search */}
+                        <div className="relative w-full sm:w-64">
+                            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                            <input
+                                type="text"
+                                placeholder="Search saved answers..."
+                                value={savedSearchQuery}
+                                onChange={(e) => setSavedSearchQuery(e.target.value)}
+                                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-violet-300 transition-all font-medium"
+                            />
+                        </div>
+                    </div>
+
+                    {isFetchingSaved ? (
+                        <div className="flex justify-center items-center py-10">
+                            <Loader2 className="w-6 h-6 animate-spin text-violet-500" />
+                        </div>
+                    ) : savedAnswersList.length === 0 ? (
+                        <div className="text-center py-12 bg-slate-50 rounded-3xl border border-slate-100 shadow-inner">
+                            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-slate-100">
+                                <FileText className="w-8 h-8 text-slate-300" />
+                            </div>
+                            <h4 className="text-slate-500 font-bold text-lg mb-1">Yet to save anything</h4>
+                            <p className="text-slate-400 text-sm">Your saved essay answers will appear here.</p>
+                        </div>
+                    ) : (() => {
+                        const filteredSaved = savedAnswersList.filter(item => {
+                            if (!savedSearchQuery) return true;
+                            const search = savedSearchQuery.toLowerCase();
+                            return (item.title || '').toLowerCase().includes(search) || (item.subject || '').toLowerCase().includes(search) || (item.eval_data?.content || '').toLowerCase().includes(search);
+                        });
+
+                        if (filteredSaved.length === 0) {
+                            return (
+                                <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-100">
+                                    <p className="text-slate-500 font-medium text-sm">No saved answers found matching your search.</p>
+                                </div>
+                            );
+                        }
+
+                        return (
+                            <div className="space-y-4">
+                                {filteredSaved.map((item) => (
+                                    <div key={item.id} className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm transition-all hover:shadow-md">
+                                        <div className="bg-slate-50 p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                            <div>
+                                                <h4 className="font-bold text-slate-900 text-lg sm:text-xl">{item.title || 'Untitled Answer'}</h4>
+                                                <div className="flex flex-wrap items-center gap-2 mt-2">
+                                                    <span className="text-xs font-bold text-violet-700 bg-violet-100 px-2 py-1 rounded-lg">
+                                                        {item.subject}
+                                                    </span>
+                                                    <span className="text-xs font-bold text-slate-600 bg-slate-200/50 px-2 py-1 rounded-lg">
+                                                        {item.eval_data?.depth}
+                                                    </span>
+                                                    <span className="text-xs text-slate-400 font-medium ml-1">
+                                                        {new Date(item.created_at).toLocaleDateString()}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                                                <button
+                                                    onClick={() => handleCopy(item.eval_data?.content)}
+                                                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white text-slate-700 font-bold h-9 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all text-sm shadow-sm"
+                                                >
+                                                    <Copy className="w-4 h-4" /> Copy
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="p-4 sm:p-6 bg-white prose prose-slate prose-sm sm:prose-base max-w-none max-h-96 overflow-y-auto">
+                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.eval_data?.content}</ReactMarkdown>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        );
+                    })()}
+                </div>
             </div>
         </div>
     );

@@ -4,27 +4,27 @@ import { GoogleGenAI } from '@google/genai';
 // MedEduAI – Centralized Gemini AI Configuration
 // ─────────────────────────────────────────────────────────────
 //
-// PRIORITY: If GEMINI_API_KEY is set → use Google AI Studio (API key mode).
-//           Otherwise → fall back to Vertex AI with ADC.
+// PRIORITY: If isCloudRun is true (Cloud Run or K_SERVICE mock) → use Vertex AI (ADC).
+//           Otherwise → fall back to GEMINI_API_KEY (AI Studio).
 //
 // Cloud Run auto-injects GOOGLE_CLOUD_PROJECT which causes the SDK
-// to override API key auth. We MUST delete it at module scope
-// BEFORE anything else captures it.
+// to override API key auth. We ONLY delete it if we specifically want 
+// to use the API key instead of Vertex AI (e.g. local dev).
 // ─────────────────────────────────────────────────────────────
 
 // ─── CRITICAL: Clean environment BEFORE any reads ───────────
-// Cloud Run auto-injects GOOGLE_CLOUD_PROJECT. If an API key is
-// present, purge all project variables to force API-key mode.
+// Cloud Run auto-injects GOOGLE_CLOUD_PROJECT. If we are NOT on Cloud Run 
+// and an API key is present, purge all project variables to force API-key mode.
+const isCloudRun = !!(process.env.K_SERVICE);  // Only use K_SERVICE (not project vars)
 const _apiKey = process.env.GEMINI_API_KEY;
-if (_apiKey) {
+
+if (_apiKey && !isCloudRun) {
     delete process.env.GOOGLE_CLOUD_PROJECT;
     delete process.env.GOOGLE_CLOUD_LOCATION;
     delete process.env.GOOGLE_CLOUD_REGION;
     delete process.env.GCLOUD_PROJECT;
     delete process.env.GCP_PROJECT;
 }
-
-const isCloudRun = !!(process.env.K_SERVICE);  // Only use K_SERVICE (not project vars we just deleted)
 const GCP_PROJECT = process.env.GOOGLE_CLOUD_PROJECT || 'mededuai-prod';
 const GCP_LOCATION = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
 
@@ -32,11 +32,7 @@ let _ai: GoogleGenAI | null = null;
 
 function getAI(): GoogleGenAI {
     if (!_ai) {
-        if (_apiKey) {
-            // ── Google AI Studio / API Key ──────────────────
-            console.log('[MedEduAI AI] Initializing Google AI Studio using API Key (Cloud Run or Local)');
-            _ai = new GoogleGenAI({ apiKey: _apiKey });
-        } else if (isCloudRun) {
+        if (isCloudRun) {
             // ── Production: Vertex AI + ADC (service account) ──────────────
             console.log(`[MedEduAI AI] Initializing Vertex AI (project=${GCP_PROJECT}, location=${GCP_LOCATION})`);
             _ai = new GoogleGenAI({
@@ -44,6 +40,10 @@ function getAI(): GoogleGenAI {
                 project: GCP_PROJECT,
                 location: GCP_LOCATION,
             });
+        } else if (_apiKey) {
+            // ── Google AI Studio / API Key ──────────────────
+            console.log('[MedEduAI AI] Initializing Google AI Studio using API Key (Local)');
+            _ai = new GoogleGenAI({ apiKey: _apiKey });
         } else {
             throw new Error(
                 '[MedEduAI AI] GEMINI_API_KEY is not set for local dev. ' +

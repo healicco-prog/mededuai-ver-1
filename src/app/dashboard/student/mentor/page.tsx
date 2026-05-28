@@ -211,7 +211,7 @@ export default function AIMentorPage() {
 
           {loading && (
              <div className="flex justify-start animate-in fade-in duration-300">
-               <div className="flex gap-3">
+               <div className="flex flex-wrap gap-3">
                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center flex-shrink-0 shadow-md shadow-emerald-500/20">
                    <Bot className="w-5 h-5 text-white animate-pulse" />
                  </div>

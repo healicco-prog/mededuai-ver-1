@@ -12,8 +12,8 @@ const getCategoryDetails = (category: string) => {
         };
     } else if (cat.includes('research')) {
         return {
-            icon: <Activity className="w-5 h-5 text-purple-500" />,
-            badge: 'bg-purple-50 border-purple-100 text-purple-600',
+            icon: <Activity className="w-5 h-5 text-emerald-500" />,
+            badge: 'bg-emerald-50 border-emerald-100 text-emerald-600',
         };
     } else if (cat.includes('care')) {
         return {

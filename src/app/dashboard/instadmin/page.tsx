@@ -111,7 +111,7 @@ export default function InstAdminDashboard() {
 
                 {/* Elective MS Section */}
                 <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                    <div className="px-6 py-5 bg-gradient-to-r from-purple-600 to-fuchsia-600 flex items-center justify-between">
+                    <div className="px-6 py-5 bg-gradient-to-r from-emerald-600 to-fuchsia-600 flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
                                 <BookOpen className="w-5 h-5 text-white" />
@@ -137,12 +137,12 @@ export default function InstAdminDashboard() {
 
                         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
                             <p className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-4">
-                                <Presentation className="w-4 h-4 text-purple-500" />
+                                <Presentation className="w-4 h-4 text-emerald-500" />
                                 Progression Status
                             </p>
                             <div className="flex items-center gap-4 mb-4">
                                 <div className="flex-1 flex flex-col items-center justify-center p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                    <span className="text-2xl font-black text-purple-600">65%</span>
+                                    <span className="text-2xl font-black text-emerald-600">65%</span>
                                     <span className="text-[10px] font-bold text-slate-500 uppercase mt-1">Avg Completion</span>
                                 </div>
                                 <div className="flex-1 flex flex-col items-center justify-center p-3 bg-slate-50 rounded-xl border border-slate-100">

@@ -21,7 +21,7 @@ export default async function AdminMentorshipPage() {
         <div className="h-full flex flex-col">
             {/* Premium Gradient Header */}
             <div className="relative overflow-hidden rounded-3xl mb-8 flex-shrink-0">
-                <div className="absolute inset-0 bg-gradient-to-br from-violet-900 via-purple-800 to-fuchsia-900" />
+                <div className="absolute inset-0 bg-gradient-to-br from-violet-900 via-emerald-800 to-fuchsia-900" />
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(167,139,250,0.3),transparent_60%)]" />
                 <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-fuchsia-500/20 to-transparent rounded-full blur-3xl" />
                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-violet-600/20 to-transparent rounded-full blur-2xl" />

@@ -3,10 +3,11 @@ import { getSupabaseAdmin } from '../../../../lib/supabaseAdmin';
 import { Resend } from 'resend';
 
 const PLAN_TOKENS: Record<string, number> = {
-  free: 10000,
+  free: 0,
   basic: 50000,
   standard: 100000,
   premium: 300000,
+  enterprise: 1000000,
 };
 
 /**

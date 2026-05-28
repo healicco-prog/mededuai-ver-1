@@ -52,7 +52,7 @@ export default function TokenUsageMeter({ balance, allotment, bonusTokens, planT
           <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">AI Tokens</span>
         </div>
         <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider ${
-          planTier === 'premium' ? 'bg-purple-100 text-purple-600' :
+          planTier === 'premium' ? 'bg-emerald-100 text-emerald-600' :
           planTier === 'standard' ? 'bg-emerald-100 text-emerald-600' :
           planTier === 'basic' ? 'bg-blue-100 text-blue-600' :
           'bg-slate-100 text-slate-500'
@@ -80,8 +80,8 @@ export default function TokenUsageMeter({ balance, allotment, bonusTokens, planT
 
       {bonusTokens > 0 && (
         <div className="flex items-center gap-1.5 mb-2">
-          <Zap className="w-3 h-3 text-purple-500" />
-          <span className="text-[10px] font-bold text-purple-600">+{formatTokens(bonusTokens)} bonus</span>
+          <Zap className="w-3 h-3 text-emerald-500" />
+          <span className="text-[10px] font-bold text-emerald-600">+{formatTokens(bonusTokens)} bonus</span>
         </div>
       )}
 

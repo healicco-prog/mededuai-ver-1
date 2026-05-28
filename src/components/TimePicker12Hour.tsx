@@ -34,7 +34,7 @@ export default function TimePicker12Hour({ value, onChange, className, title }: 
     };
 
     return (
-        <div title={title} className={`flex items-center px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus-within:ring-2 focus-within:ring-purple-500/20 focus-within:border-purple-500 transition-all ${className || ''}`}>
+        <div title={title} className={`flex items-center px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all ${className || ''}`}>
             <Clock className="w-4 h-4 text-slate-400 mr-2 shrink-0 hidden sm:block" />
             <select 
                 value={time.h} 

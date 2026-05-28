@@ -20,7 +20,8 @@ import {
     BookOpen,
     X,
     Share2,
-    MapPin
+    MapPin,
+    Loader2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import TimePicker12Hour from '@/components/TimePicker12Hour';
@@ -42,6 +43,94 @@ function to12hr(time: string): string {
 
 export default function TimetablePage() {
     const [activeTab, setActiveTab] = useState<'schedule' | 'today'>('schedule');
+    const [isLoading, setIsLoading] = useState(true);
+
+    React.useEffect(() => {
+        const fetchAllTimetableData = async () => {
+            setIsLoading(true);
+            try {
+                // Fetch formats (classrooms)
+                const resClassrooms = await fetch('/api/classroom-generator/saved/all');
+                const dataClassrooms = await resClassrooms.json();
+                let formats = [];
+                if (dataClassrooms.success && dataClassrooms.data) {
+                    formats = dataClassrooms.data.map((item: any) => ({
+                        id: item.id,
+                        ...item.classroom_data
+                    }));
+                }
+
+                // Fetch schedules
+                const resSchedules = await fetch('/api/timetable/schedules');
+                const dataSchedules = await resSchedules.json();
+                let schedules = [];
+                if (dataSchedules.success && dataSchedules.data) {
+                    schedules = dataSchedules.data.map((item: any) => ({
+                        id: item.id,
+                        formatId: item.format_id,
+                        date: item.date,
+                        topicId: item.topic_id,
+                        topicName: item.topic_name,
+                        competencyNo: item.competency_no,
+                        activity: item.activity,
+                        batch: item.batch,
+                        staffName: item.staff_name
+                    }));
+                }
+
+                // Fetch holidays
+                const resHolidays = await fetch('/api/timetable/holidays');
+                const dataHolidays = await resHolidays.json();
+                let holidays = [];
+                if (dataHolidays.success && dataHolidays.data) {
+                    holidays = dataHolidays.data.map((item: any) => ({
+                        id: item.id,
+                        date: item.date,
+                        details: item.details
+                    }));
+                }
+
+                // Fetch snapshots
+                const resSnapshots = await fetch('/api/timetable/snapshots');
+                const dataSnapshots = await resSnapshots.json();
+                let savedTimetables = [];
+                if (dataSnapshots.success && dataSnapshots.data) {
+                    savedTimetables = dataSnapshots.data.map((item: any) => ({
+                        id: item.id,
+                        formatId: item.format_id,
+                        month: item.month,
+                        instituteName: item.institute_name,
+                        course: item.course,
+                        department: item.department,
+                        classCount: item.class_count,
+                        savedAt: item.saved_at
+                    }));
+                }
+
+                // Set store state directly
+                useTimetableStore.setState({
+                    formats,
+                    schedules,
+                    holidays,
+                    savedTimetables
+                });
+            } catch (err) {
+                console.error("Failed to load timetable data:", err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchAllTimetableData();
+    }, []);
+
+    if (isLoading) {
+        return (
+            <div className="flex justify-center items-center h-[60vh]">
+                <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-7xl mx-auto space-y-6 lg:space-y-8 flex flex-col pb-24 lg:pb-0 min-h-screen lg:h-[calc(100vh-8rem)] pt-4 lg:pt-0">
@@ -630,11 +719,13 @@ function SchedulingTabView() {
     const [quickBatch, setQuickBatch] = useState<string>('');
     const [quickStaff, setQuickStaff] = useState<string>('');
 
-    const handleQuickAdd = () => {
+    const handleQuickAdd = async () => {
         if (!activeFormat || !quickDate || !quickTopic.trim() || !quickStaff.trim()) {
             return alert('Please fill in Date, Topic, and Staff to add a class.');
         }
-        scheduleClass({
+        const tempId = crypto.randomUUID();
+        const payload = {
+            id: tempId,
             date: quickDate,
             formatId: activeFormat.id,
             topicId: `quick-${Date.now()}`,
@@ -643,11 +734,28 @@ function SchedulingTabView() {
             activity: quickActivity.trim() || 'Lecture',
             batch: quickBatch.trim() || 'Full',
             staffName: quickStaff.trim(),
-        });
-        setQuickTopic('');
-        setQuickActivity('');
-        setQuickBatch('');
-        setQuickStaff('');
+        };
+
+        try {
+            const res = await fetch('/api/timetable/schedules', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.success) {
+                scheduleClass(payload);
+                setQuickTopic('');
+                setQuickActivity('');
+                setQuickBatch('');
+                setQuickStaff('');
+            } else {
+                alert("Failed to save scheduled class to database.");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Error scheduling class.");
+        }
     };
 
     const activeFormat = formats.find(f => f.id === selectedFormatId);
@@ -693,24 +801,55 @@ function SchedulingTabView() {
         return days;
     };
 
-    const handleHolidayToggle = (dateStr: string) => {
+    const handleHolidayToggle = async (dateStr: string) => {
         const isHoliday = holidays.some(h => h.date === dateStr);
         if (isHoliday) {
-            removeHoliday(dateStr);
+            try {
+                const res = await fetch(`/api/timetable/holidays?date=${dateStr}`, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                if (data.success) {
+                    removeHoliday(dateStr);
+                } else {
+                    alert("Failed to delete holiday.");
+                }
+            } catch (err) {
+                console.error(err);
+            }
         } else {
             const reason = prompt("Enter holiday name/details:");
-            if (reason) addHoliday(dateStr, reason);
+            if (reason) {
+                try {
+                    const res = await fetch('/api/timetable/holidays', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ date: dateStr, details: reason })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        addHoliday(dateStr, reason);
+                    } else {
+                        alert("Failed to save holiday.");
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
+            }
         }
     };
 
-    const handleSaveDaySchedule = (dateStr: string) => {
+    const handleSaveDaySchedule = async (dateStr: string) => {
         const draft = getDraft(dateStr);
         if (!draft.topicId || !draft.staff || !activeFormat) {
             return alert('Please select a Topic and Staff member to schedule a class.');
         }
         const topic = activeFormat.topicsPool.find(t => t.id === draft.topicId);
         if (!topic) return;
-        scheduleClass({
+
+        const tempId = crypto.randomUUID();
+        const payload = {
+            id: tempId,
             date: dateStr,
             formatId: activeFormat.id,
             topicId: topic.id,
@@ -719,9 +858,26 @@ function SchedulingTabView() {
             activity: draft.activity,
             batch: draft.batch,
             staffName: draft.staff
-        });
-        // Clear only this day's draft
-        setDayDrafts(prev => { const n = { ...prev }; delete n[dateStr]; return n; });
+        };
+
+        try {
+            const res = await fetch('/api/timetable/schedules', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.success) {
+                scheduleClass(payload);
+                // Clear only this day's draft
+                setDayDrafts(prev => { const n = { ...prev }; delete n[dateStr]; return n; });
+            } else {
+                alert("Failed to save scheduled class to database.");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Error saving class schedule.");
+        }
     };
 
     // If no formats exist, prompt user
@@ -794,18 +950,50 @@ function SchedulingTabView() {
                         </div>
                         <div className="flex flex-wrap gap-2">
                             <button 
-                                onClick={() => {
+                                onClick={async () => {
                                     if (!activeFormat || !selectedMonth) return;
                                     const monthClasses = schedules.filter(s => s.date.startsWith(selectedMonth) && s.formatId === activeFormat.id);
-                                    saveTimetable({
+                                    const payload = {
                                         formatId: activeFormat.id,
                                         month: selectedMonth,
                                         instituteName: activeFormat.instituteName,
                                         course: activeFormat.course,
                                         department: activeFormat.department,
                                         classCount: monthClasses.length,
-                                    });
-                                    alert(`Timetable for ${new Date(selectedMonth).toLocaleDateString('default', { month: 'long', year: 'numeric' })} saved successfully!`);
+                                    };
+                                    try {
+                                        const res = await fetch('/api/timetable/snapshots', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify(payload)
+                                        });
+                                        const resData = await res.json();
+                                        if (resData.success) {
+                                            saveTimetable(payload);
+                                            alert(`Timetable for ${new Date(selectedMonth).toLocaleDateString('default', { month: 'long', year: 'numeric' })} saved successfully!`);
+                                            // Refresh snapshots list
+                                            const resSnapshots = await fetch('/api/timetable/snapshots');
+                                            const dataSnapshots = await resSnapshots.json();
+                                            if (dataSnapshots.success && dataSnapshots.data) {
+                                                const updatedSaved = dataSnapshots.data.map((item: any) => ({
+                                                    id: item.id,
+                                                    formatId: item.format_id,
+                                                    month: item.month,
+                                                    instituteName: item.institute_name,
+                                                    course: item.course,
+                                                    department: item.department,
+                                                    classCount: item.class_count,
+                                                    savedAt: item.saved_at
+                                                }));
+                                                useTimetableStore.setState({ savedTimetables: updatedSaved });
+                                            }
+                                        } else {
+                                            alert("Failed to save timetable to database.");
+                                        }
+                                    } catch (err) {
+                                        console.error(err);
+                                        alert("Error saving timetable snapshot.");
+                                    }
                                 }} 
                                 className="bg-emerald-600 text-white font-bold px-4 py-2.5 rounded-xl text-sm shadow-sm hover:bg-emerald-700 flex items-center gap-2 transition"
                             >
@@ -1009,9 +1197,21 @@ function SchedulingTabView() {
                                                                 <p className="text-xs font-bold text-indigo-600 mt-1 flex items-center gap-1"><Users className="w-3 h-3"/> Prof. {sc.staffName}</p>
                                                             </div>
                                                             <button 
-                                                                onClick={() => {
+                                                                onClick={async () => {
                                                                     if (confirm("Remove this scheduled class? Topic will be returned to the pool.")) {
-                                                                        useTimetableStore.getState().deleteScheduledClass(sc.id);
+                                                                        try {
+                                                                            const res = await fetch(`/api/timetable/schedules?id=${sc.id}`, {
+                                                                                method: 'DELETE'
+                                                                            });
+                                                                            const data = await res.json();
+                                                                            if (data.success) {
+                                                                                useTimetableStore.getState().deleteScheduledClass(sc.id);
+                                                                            } else {
+                                                                                alert("Failed to delete scheduled class from database.");
+                                                                            }
+                                                                        } catch (err) {
+                                                                            console.error(err);
+                                                                        }
                                                                     }
                                                                 }} 
                                                                 className="print:hidden text-red-400 hover:bg-red-50 p-2 rounded-lg transition opacity-0 group-hover:opacity-100"
@@ -1094,14 +1294,21 @@ function SchedulingTabView() {
             )}
 
             {/* Saved Timetables Section */}
-            {savedTimetables.length > 0 && (
-                <div className="space-y-4 print:hidden">
-                    <div className="border-b border-slate-100 pb-3">
-                        <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                            <CheckCircle2 className="w-5 h-5 text-emerald-500" /> Saved Timetables
-                        </h3>
-                        <p className="text-sm text-slate-500 font-medium">Month-wise saved timetables across all classrooms.</p>
+            <div className="space-y-4 print:hidden pt-8 border-t border-slate-100">
+                <div className="border-b border-slate-100 pb-3">
+                    <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-500" /> Saved Timetables
+                    </h3>
+                    <p className="text-sm text-slate-500 font-medium">Month-wise saved timetables across all classrooms.</p>
+                </div>
+
+                {savedTimetables.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center p-8 bg-slate-50 border border-dashed border-slate-200 rounded-2xl text-center">
+                        <Calendar className="w-10 h-10 text-slate-300 mb-2" />
+                        <p className="text-sm font-bold text-slate-400">Yet to save anything</p>
+                        <p className="text-xs text-slate-300">Save a monthly timetable snapshot to archive it here.</p>
                     </div>
+                ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {[...savedTimetables]
                             .sort((a, b) => b.month.localeCompare(a.month))
@@ -1114,9 +1321,21 @@ function SchedulingTabView() {
                                                 <CalendarDays className="w-5 h-5 text-indigo-600" />
                                             </div>
                                             <button
-                                                onClick={() => {
+                                                onClick={async () => {
                                                     if (confirm('Delete this saved timetable?')) {
-                                                        deleteSavedTimetable(st.id);
+                                                        try {
+                                                            const res = await fetch(`/api/timetable/snapshots?id=${st.id}`, {
+                                                                method: 'DELETE'
+                                                            });
+                                                            const data = await res.json();
+                                                            if (data.success) {
+                                                                deleteSavedTimetable(st.id);
+                                                            } else {
+                                                                alert("Failed to delete saved timetable from database.");
+                                                            }
+                                                        } catch (err) {
+                                                            console.error(err);
+                                                        }
                                                     }
                                                 }}
                                                 className="text-slate-300 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition opacity-0 group-hover:opacity-100"
@@ -1148,8 +1367,8 @@ function SchedulingTabView() {
                                 );
                             })}
                     </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
     );
 }

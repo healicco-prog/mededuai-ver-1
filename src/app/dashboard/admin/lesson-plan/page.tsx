@@ -10,12 +10,33 @@ const teachingAidsList = ['PowerPoint Presentation', 'Whiteboard / Blackboard', 
 const assessmentMethodsList = ['Oral questions', 'MCQs', 'Case discussion', 'Short answer questions', 'Quiz'];
 
 export default function LessonPlanGenerator() {
-    const { lessonPlans, saveLessonPlan, deleteLessonPlan } = useLessonPlanStore();
     const coursesList = useCurriculumStore(s => s.coursesList);
     const [view, setView] = useState<'list' | 'editor'>('list');
     const [searchQuery, setSearchQuery] = useState('');
     const [subjectFilter, setSubjectFilter] = useState('');
     const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+
+    const [savedPlans, setSavedPlans] = useState<any[]>([]);
+    const [isFetchingSaved, setIsFetchingSaved] = useState(true);
+
+    const fetchSavedPlans = async () => {
+        setIsFetchingSaved(true);
+        try {
+            const res = await fetch('/api/lesson-plan/saved/all');
+            const data = await res.json();
+            if (data.success) {
+                setSavedPlans(data.data || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch saved plans:", error);
+        } finally {
+            setIsFetchingSaved(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchSavedPlans();
+    }, []);
 
     // AI Modal State
     const [showAIModal, setShowAIModal] = useState(false);
@@ -25,35 +46,61 @@ export default function LessonPlanGenerator() {
     const [activePlan, setActivePlan] = useState<LessonPlan>(defaultLessonPlan());
     const [tagInput, setTagInput] = useState('');
 
+    const handleSaveToDb = async (plan: LessonPlan) => {
+        try {
+            const res = await fetch('/api/lesson-plan/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: plan.id && plan.id.length > 10 ? plan.id : undefined,
+                    topicTitle: plan.topicTitle || plan.generalInfo.topic || 'Untitled Topic',
+                    course: plan.generalInfo.course || 'MBBS',
+                    subject: plan.generalInfo.subject || '',
+                    planData: plan
+                })
+            });
+            const data = await res.json();
+            if (data.success && data.data) {
+                if (!plan.id || plan.id.length <= 10) {
+                    setActivePlan(prev => ({ ...prev, id: data.data.id }));
+                }
+                fetchSavedPlans();
+            }
+        } catch (error) {
+            console.error("Failed to save plan:", error);
+        }
+    };
+
     // --- Autosave ---
     useEffect(() => {
         if (view === 'editor' && (activePlan.topicTitle || activePlan.generalInfo.topic)) {
             const timer = setTimeout(() => {
-                saveLessonPlan(activePlan);
+                handleSaveToDb(activePlan);
             }, 2000);
             return () => clearTimeout(timer);
         }
-    }, [activePlan, view, saveLessonPlan]);
+    }, [activePlan, view]);
 
     // --- Filtering & Sorting ---
-    const allSubjects = Array.from(new Set(lessonPlans.map(p => p.generalInfo.subject).filter(Boolean)));
+    const allSubjects = Array.from(new Set(savedPlans.map(p => p.subject).filter(Boolean)));
 
-    const filteredPlans = lessonPlans
+    const filteredPlans = savedPlans
         .filter(p => {
-            if (subjectFilter && p.generalInfo.subject !== subjectFilter) return false;
+            const plan = p.plan_data || {};
+            if (subjectFilter && p.subject !== subjectFilter) return false;
             if (!searchQuery) return true;
             const q = searchQuery.toLowerCase();
             return (
-                p.topicTitle?.toLowerCase().includes(q) ||
-                p.generalInfo?.course?.toLowerCase().includes(q) ||
-                p.generalInfo?.subject?.toLowerCase().includes(q) ||
-                p.tags?.some(tag => tag.toLowerCase().includes(q)) ||
-                p.learningObjectives?.some(obj => obj.toLowerCase().includes(q))
+                p.topic_title?.toLowerCase().includes(q) ||
+                p.course?.toLowerCase().includes(q) ||
+                p.subject?.toLowerCase().includes(q) ||
+                plan.tags?.some((tag: string) => tag.toLowerCase().includes(q)) ||
+                plan.learningObjectives?.some((obj: string) => obj.toLowerCase().includes(q))
             );
         })
         .sort((a, b) => {
-            const dateA = new Date(a.createdAt).getTime();
-            const dateB = new Date(b.createdAt).getTime();
+            const dateA = new Date(a.created_at).getTime();
+            const dateB = new Date(b.created_at).getTime();
             return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
         });
 
@@ -63,25 +110,37 @@ export default function LessonPlanGenerator() {
         setView('editor');
     };
 
-    const handleEdit = (plan: LessonPlan) => {
-        setActivePlan(JSON.parse(JSON.stringify(plan)));
+    const handleEdit = (planRow: any) => {
+        const plan = JSON.parse(JSON.stringify(planRow.plan_data));
+        plan.id = planRow.id; // Map UUID
+        setActivePlan(plan);
         setView('editor');
     };
 
-    const handleDuplicate = (plan: LessonPlan, e: React.MouseEvent) => {
+    const handleDuplicate = async (planRow: any, e: React.MouseEvent) => {
         e.stopPropagation();
-        const duplicate = JSON.parse(JSON.stringify(plan));
-        duplicate.id = Date.now().toString();
+        const duplicate = JSON.parse(JSON.stringify(planRow.plan_data));
+        duplicate.id = ''; // New id
         duplicate.createdAt = new Date().toISOString();
-        duplicate.topicTitle = `${duplicate.topicTitle} (Copy)`;
+        duplicate.topicTitle = `${planRow.topic_title} (Copy)`;
         duplicate.generalInfo.topic = duplicate.topicTitle;
-        saveLessonPlan(duplicate);
+        await handleSaveToDb(duplicate);
     };
 
-    const handleDelete = (id: string, e: React.MouseEvent) => {
+    const handleDelete = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
         if (confirm("Are you sure you want to delete this lesson plan?")) {
-            deleteLessonPlan(id);
+            try {
+                const res = await fetch(`/api/lesson-plan/save?id=${id}`, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                if (data.success) {
+                    fetchSavedPlans();
+                }
+            } catch (error) {
+                console.error("Failed to delete lesson plan:", error);
+            }
         }
     };
 
@@ -150,7 +209,7 @@ export default function LessonPlanGenerator() {
                 newPlan.suggestedReading = data.plan.suggestedReading || newPlan.suggestedReading;
 
                 setActivePlan(newPlan);
-                saveLessonPlan(newPlan); // Initial save
+                handleSaveToDb(newPlan); // Initial save
                 setShowAIModal(false);
                 setAiForm({ course: 'MBBS', subject: '', topic: '' });
                 setView('editor');
@@ -194,16 +253,16 @@ export default function LessonPlanGenerator() {
                                 <h2 className="text-3xl font-extrabold text-white tracking-tight">Teaching Database</h2>
                                 <p className="text-teal-200/80 mt-1.5 font-medium">Manage and export your structured academic lesson plans.</p>
                             </div>
-                            <div className="flex gap-3">
+                            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto mt-4 md:mt-0">
                                 <button
                                     onClick={() => setShowAIModal(true)}
-                                    className="bg-white/10 backdrop-blur-sm text-white font-bold h-12 px-6 rounded-xl hover:bg-white/20 transition-all flex items-center justify-center gap-2 border border-white/20"
+                                    className="bg-white/10 backdrop-blur-sm text-white font-bold h-12 px-6 rounded-xl hover:bg-white/20 transition-all flex items-center justify-center gap-2 border border-white/20 whitespace-nowrap w-full sm:w-auto"
                                 >
                                     <Sparkles className="w-5 h-5" /> Generate with AI
                                 </button>
                                 <button
                                     onClick={handleCreateNew}
-                                    className="bg-white text-teal-900 font-bold h-12 px-6 rounded-xl hover:bg-teal-50 transition-all flex items-center justify-center gap-2 shadow-lg"
+                                    className="bg-white text-teal-900 font-bold h-12 px-6 rounded-xl hover:bg-teal-50 transition-all flex items-center justify-center gap-2 shadow-lg whitespace-nowrap w-full sm:w-auto"
                                 >
                                     <Plus className="w-5 h-5" /> Create New Plan
                                 </button>
@@ -241,53 +300,62 @@ export default function LessonPlanGenerator() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredPlans.length === 0 && (
+                        {isFetchingSaved ? (
+                            <div className="col-span-full text-center py-20 flex justify-center items-center">
+                                <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
+                            </div>
+                        ) : filteredPlans.length === 0 ? (
                             <div className="col-span-full text-center py-20 bg-white rounded-3xl border border-dashed border-slate-300 flex flex-col items-center justify-center gap-4">
                                 <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-2">
                                     <FileText className="w-8 h-8" />
                                 </div>
-                                <p className="text-lg text-slate-500 font-medium">No lesson plans found. Create one manually or generate with AI.</p>
+                                <h4 className="text-slate-500 font-bold text-lg mb-1">Yet to save anything</h4>
+                                <p className="text-slate-400 text-sm">Your saved lesson plans will appear here.</p>
                                 <div className="flex gap-4 mt-2">
                                     <button onClick={handleCreateNew} className="bg-blue-600 text-white font-bold h-10 px-6 rounded-xl hover:bg-blue-700 transition-all">Create New Plan</button>
                                     <button onClick={() => setShowAIModal(true)} className="bg-indigo-100 text-indigo-700 font-bold h-10 px-6 rounded-xl hover:bg-indigo-200 transition-all flex items-center gap-2"><Sparkles className="w-4 h-4" /> Generate with AI</button>
                                 </div>
                             </div>
-                        )}
-                        {filteredPlans.map(plan => (
-                            <div key={plan.id} onClick={() => handleEdit(plan)} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group flex flex-col select-none">
-                                <div className="flex items-start gap-3 mb-4">
-                                    <div className="w-12 h-12 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl flex items-center justify-center text-blue-600 border border-blue-100/50 flex-shrink-0">
-                                        <FileText className="w-6 h-6" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h3 className="font-bold text-slate-900 truncate text-lg" title={plan.topicTitle || 'Untitled Topic'}>{plan.topicTitle || 'Untitled Topic'}</h3>
-                                        <p className="text-sm text-slate-500 flex items-center gap-1"><Clock className="w-3 h-3" /> {new Date(plan.createdAt).toLocaleDateString()}</p>
-                                    </div>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-600 uppercase tracking-wider mb-6">
-                                    <span className="bg-slate-100 px-2.5 py-1 rounded-md">{plan.generalInfo.course || 'Course'}</span>
-                                    {plan.generalInfo.subject && <span className="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-md">{plan.generalInfo.subject}</span>}
-                                    {plan.generalInfo.teacherName && <span className="text-slate-400 capitalize normal-case text-xs font-medium ml-auto">By {plan.generalInfo.teacherName}</span>}
-                                </div>
-                                <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
-                                    <button onClick={(e) => { e.stopPropagation(); handleEdit(plan); }} className="text-sm font-bold text-blue-600 hover:underline">Edit Plan</button>
-                                    <div className="flex items-center gap-1">
-                                        <button onClick={(e) => handleDuplicate(plan, e)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Duplicate"><Copy className="w-4 h-4" /></button>
-                                        <div className="relative group/share">
-                                            <button onClick={(e) => e.stopPropagation()} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Share"><Share2 className="w-4 h-4" /></button>
-                                            <div className="absolute bottom-full right-0 mb-2 bg-white border border-slate-200 shadow-xl rounded-xl p-2 hidden group-hover/share:flex flex-col gap-1 z-10 w-40">
-                                                <button onClick={(e) => handleShare('email', plan, e)} className="flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-50 p-2 rounded-lg w-full text-left font-medium"><Mail className="w-4 h-4 text-slate-400" /> Email</button>
-                                                <button onClick={(e) => handleShare('whatsapp', plan, e)} className="flex items-center gap-2 text-sm text-slate-700 hover:bg-emerald-50 text-emerald-700 p-2 rounded-lg w-full text-left font-medium"><MessageCircle className="w-4 h-4" /> WhatsApp</button>
-                                                <button onClick={(e) => handleShare('linkedin', plan, e)} className="flex items-center gap-2 text-sm text-slate-700 hover:bg-blue-50 text-blue-700 p-2 rounded-lg w-full text-left font-medium"><Globe className="w-4 h-4" /> LinkedIn</button>
-                                                <div className="h-px bg-slate-100 my-1"></div>
-                                                <button onClick={(e) => handleExportPDF(e, plan)} className="flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-50 p-2 rounded-lg w-full text-left font-medium"><Download className="w-4 h-4 text-slate-400" /> Export PDF</button>
+                        ) : (
+                            filteredPlans.map(planRow => {
+                                const plan = planRow.plan_data || {};
+                                return (
+                                    <div key={planRow.id} onClick={() => handleEdit(planRow)} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group flex flex-col select-none">
+                                        <div className="flex items-start gap-3 mb-4">
+                                            <div className="w-12 h-12 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl flex items-center justify-center text-blue-600 border border-blue-100/50 flex-shrink-0">
+                                                <FileText className="w-6 h-6" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="font-bold text-slate-900 truncate text-lg" title={planRow.topic_title || 'Untitled Topic'}>{planRow.topic_title || 'Untitled Topic'}</h3>
+                                                <p className="text-sm text-slate-500 flex items-center gap-1"><Clock className="w-3 h-3" /> {new Date(planRow.created_at).toLocaleDateString()}</p>
                                             </div>
                                         </div>
-                                        <button onClick={(e) => handleDelete(plan.id, e)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                                        <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-600 uppercase tracking-wider mb-6">
+                                            <span className="bg-slate-100 px-2.5 py-1 rounded-md">{planRow.course || 'Course'}</span>
+                                            {planRow.subject && <span className="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-md">{planRow.subject}</span>}
+                                            {plan.generalInfo?.teacherName && <span className="text-slate-400 capitalize normal-case text-xs font-medium ml-auto">By {plan.generalInfo.teacherName}</span>}
+                                        </div>
+                                        <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
+                                            <button onClick={(e) => { e.stopPropagation(); handleEdit(planRow); }} className="text-sm font-bold text-blue-600 hover:underline">Edit Plan</button>
+                                            <div className="flex items-center gap-1">
+                                                <button onClick={(e) => handleDuplicate(planRow, e)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Duplicate"><Copy className="w-4 h-4" /></button>
+                                                <div className="relative group/share">
+                                                    <button onClick={(e) => e.stopPropagation()} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Share"><Share2 className="w-4 h-4" /></button>
+                                                    <div className="absolute bottom-full right-0 mb-2 bg-white border border-slate-200 shadow-xl rounded-xl p-2 hidden group-hover/share:flex flex-col gap-1 z-10 w-40">
+                                                        <button onClick={(e) => handleShare('email', plan, e)} className="flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-50 p-2 rounded-lg w-full text-left font-medium"><Mail className="w-4 h-4 text-slate-400" /> Email</button>
+                                                        <button onClick={(e) => handleShare('whatsapp', plan, e)} className="flex items-center gap-2 text-sm text-slate-700 hover:bg-emerald-50 text-emerald-700 p-2 rounded-lg w-full text-left font-medium"><MessageCircle className="w-4 h-4" /> WhatsApp</button>
+                                                        <button onClick={(e) => handleShare('linkedin', plan, e)} className="flex items-center gap-2 text-sm text-slate-700 hover:bg-blue-50 text-blue-700 p-2 rounded-lg w-full text-left font-medium"><Globe className="w-4 h-4" /> LinkedIn</button>
+                                                        <div className="h-px bg-slate-100 my-1"></div>
+                                                        <button onClick={(e) => handleExportPDF(e, plan)} className="flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-50 p-2 rounded-lg w-full text-left font-medium"><Download className="w-4 h-4 text-slate-400" /> Export PDF</button>
+                                                    </div>
+                                                </div>
+                                                <button onClick={(e) => handleDelete(planRow.id, e)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
-                        ))}
+                                );
+                            })
+                        )}
                     </div>
                 </div>
             )}

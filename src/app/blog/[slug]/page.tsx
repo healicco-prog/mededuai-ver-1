@@ -10,17 +10,35 @@ export async function generateMetadata(
     const blog = await blogService.getBlogBySlug(slug);
     if (!blog) return { title: 'Post Not Found' };
 
+    const title = blog?.meta_title || (blog?.title ? `${blog.title} | MedEduAI Blog` : 'MedEduAI Blog Article');
+    let description = blog?.excerpt || blog?.title || 'Explore the latest articles on MedEduAI.';
+    if (description.length > 200) description = description.substring(0, 197) + '...';
+
+    // Handle Pexels fallback and resizing for strict Facebook OG requirements (1200x630)
+    let rawImage = blog?.featured_image || 'https://images.pexels.com/photos/4386467/pexels-photo-4386467.jpeg?auto=compress&cs=tinysrgb';
+    if (rawImage.includes('pexels.com')) {
+        // Strip existing size params and enforce 1200x630
+        rawImage = rawImage.split('&w=')[0].split('?')[0] + '?auto=compress&cs=tinysrgb&w=1200&h=630&fit=crop';
+    }
+
     return {
-        title: blog?.meta_title || (blog?.title ? `${blog.title} | MedEduAI Blog` : 'MedEduAI Blog Article'),
-        description: blog?.excerpt || 'A MedEduAI Blog Post',
+        title: title,
+        description: description,
         keywords: blog?.primary_keyword ? [blog.primary_keyword, ...(blog.secondary_keywords?.split(',') || []), ...(blog.tags?.split(',') || [])] : undefined,
         authors: [{ name: blog?.author_name || 'MedEduAI Team' }],
         openGraph: {
             title: blog?.meta_title || blog?.title || 'MedEduAI Blog Article',
-            description: blog?.excerpt || 'A MedEduAI Blog Post',
+            description: description,
             url: `https://mededuai.com/blog/${slug}`,
             siteName: 'MedEduAI',
-            images: blog?.featured_image ? [{ url: blog.featured_image, width: 1200, height: 630 }] : undefined,
+            images: [
+                {
+                    url: rawImage,
+                    width: 1200,
+                    height: 630,
+                    alt: title
+                }
+            ],
             type: 'article',
             publishedTime: blog?.created_at,
             authors: [blog?.author_name || 'MedEduAI'],
@@ -29,8 +47,8 @@ export async function generateMetadata(
         twitter: {
             card: 'summary_large_image',
             title: blog?.meta_title || blog?.title || 'MedEduAI Blog Article',
-            description: blog?.excerpt || 'A MedEduAI Blog Post',
-            images: blog?.featured_image ? [blog.featured_image] : undefined,
+            description: description,
+            images: [rawImage],
         }
     };
 }

@@ -6,9 +6,9 @@ export default function ClassroomGeneratorPage() {
         <div className="max-w-7xl mx-auto space-y-8">
             {/* Premium Gradient Header */}
             <div className="relative overflow-hidden rounded-3xl">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-800 to-violet-900" />
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-emerald-800 to-violet-900" />
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(129,140,248,0.3),transparent_60%)]" />
-                <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-purple-500/20 to-transparent rounded-full blur-3xl" />
+                <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-emerald-500/20 to-transparent rounded-full blur-3xl" />
                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-indigo-600/20 to-transparent rounded-full blur-2xl" />
 
                 <div className="relative z-10 px-8 py-10 flex flex-col md:flex-row md:items-center justify-between gap-6">

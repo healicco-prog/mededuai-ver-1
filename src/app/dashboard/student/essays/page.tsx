@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { FileText, Loader2, PenTool, Sparkles, RefreshCcw, Download, Share2, ChevronDown, ChevronUp, Clock, Copy, CheckCircle, Save } from 'lucide-react';
+import { FileText, Loader2, PenTool, Sparkles, RefreshCcw, Download, Share2, ChevronDown, ChevronUp, Clock, Copy, CheckCircle, Save, History, Search } from 'lucide-react';
 import { useCurriculumStore } from '@/store/curriculumStore';
 import { useUserStore } from '@/store/userStore';
 import { tokenService } from '@/lib/tokenService';
@@ -35,6 +35,10 @@ export default function EssayGeneratorPage() {
     const [copied, setCopied] = useState(false);
     const [saved, setSaved] = useState(false);
 
+    const [savedEssays, setSavedEssays] = useState<any[]>([]);
+    const [savedSearchQuery, setSavedSearchQuery] = useState('');
+    const [isFetchingSaved, setIsFetchingSaved] = useState(true);
+
     const activeCourse = coursesList.find(c => c.id === selectedCourseId) || coursesList[0];
     const activeSubject = activeCourse?.subjects.find(s => s.id === selectedSubjectId) || activeCourse?.subjects[0];
     const allTopics = activeSubject?.sections.flatMap(s => s.topics) || [];
@@ -55,6 +59,25 @@ export default function EssayGeneratorPage() {
             setSelectedTopicId(activeSubject.sections[0].topics[0].id);
         }
     }, [activeSubject, selectedTopicId]);
+
+    const fetchSavedEssays = async () => {
+        setIsFetchingSaved(true);
+        try {
+            const res = await fetch('/api/essays/saved/all');
+            const data = await res.json();
+            if (data.success && data.savedRecords) {
+                setSavedEssays(data.savedRecords);
+            }
+        } catch (e) {
+            console.error('Error fetching saved essays:', e);
+        } finally {
+            setIsFetchingSaved(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchSavedEssays();
+    }, []);
 
     const handleGenerate = async () => {
         if (!currentUser) return;
@@ -106,6 +129,36 @@ export default function EssayGeneratorPage() {
         navigator.clipboard.writeText(text);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+    };
+
+    const handleSave = async () => {
+        if (!result) return;
+        try {
+            const res = await fetch('/api/essays/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    course: activeCourse?.name,
+                    subject: activeSubject?.name,
+                    topic: activeTopic?.name,
+                    paperType: selectedPaperType,
+                    difficulty,
+                    questions: result,
+                    answerKey
+                })
+            });
+            const data = await res.json();
+            if (data.success && data.savedRecord) {
+                setSavedEssays(prev => [data.savedRecord, ...prev]);
+                setSaved(true);
+                setTimeout(() => setSaved(false), 3000);
+            } else {
+                alert('Failed to save: ' + (data.error || 'Unknown error'));
+            }
+        } catch (err) {
+            console.error('Error saving essay:', err);
+            alert('An error occurred while saving.');
+        }
     };
 
     const handleExportPDF = async (content: string, title: string) => {
@@ -277,30 +330,17 @@ export default function EssayGeneratorPage() {
                                 </div>
                                 <div className="flex gap-2">
                                     <button
-                                        onClick={() => {
-                                            try {
-                                                const savedEssays = JSON.parse(localStorage.getItem('mededuai_saved_essays') || '[]');
-                                                savedEssays.push({
-                                                    id: Date.now(),
-                                                    course: activeCourse?.name,
-                                                    subject: activeSubject?.name,
-                                                    topic: activeTopic?.name,
-                                                    paperType: selectedPaperType,
-                                                    difficulty,
-                                                    questions: result,
-                                                    answerKey,
-                                                    createdAt: new Date().toISOString()
-                                                });
-                                                localStorage.setItem('mededuai_saved_essays', JSON.stringify(savedEssays));
-                                                setSaved(true);
-                                                setTimeout(() => setSaved(false), 3000);
-                                            } catch (err) { console.error(err); }
-                                        }}
+                                        onClick={handleSave}
                                         className={`font-bold h-9 px-4 rounded-xl transition-all flex items-center gap-2 text-sm shadow-sm ${saved ? 'bg-emerald-600 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-emerald-50 hover:border-emerald-300'}`}
                                     >
                                         {saved ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
                                         {saved ? 'Saved!' : 'Save'}
                                     </button>
+                                    <button onClick={() => window.print()} className="font-bold h-10 px-5 rounded-xl transition-all flex items-center gap-2 text-sm shadow-sm bg-white text-slate-700 border border-slate-200 hover:bg-blue-50 hover:border-blue-300 print:hidden ml-2" title="Share as PDF">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> 
+                                        Share as PDF
+                                    </button>
+
                                     <button
                                         onClick={() => handleCopy(result)}
                                         className="bg-white text-slate-600 font-bold h-9 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all flex items-center gap-2 text-sm shadow-sm"
@@ -357,6 +397,115 @@ export default function EssayGeneratorPage() {
                         </div>
                     </div>
                 )}
+                {/* Saved Essays Section */}
+                <div className="mt-12 space-y-4 animate-in fade-in slide-in-from-bottom-4 pt-8 border-t-2 border-slate-100">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center border border-slate-200 shadow-sm">
+                                <History className="w-5 h-5 text-slate-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-slate-900">Saved Essays</h3>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Your previously generated questions</p>
+                            </div>
+                        </div>
+                        <div className="relative w-full sm:w-64">
+                            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                            <input
+                                type="text"
+                                placeholder="Search saved essays..."
+                                value={savedSearchQuery}
+                                onChange={(e) => setSavedSearchQuery(e.target.value)}
+                                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-300 transition-all font-medium"
+                            />
+                        </div>
+                    </div>
+
+                    {isFetchingSaved ? (
+                        <div className="flex justify-center items-center py-10">
+                            <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+                        </div>
+                    ) : savedEssays.length === 0 ? (
+                        <div className="text-center py-12 bg-slate-50 rounded-3xl border border-slate-100 shadow-inner">
+                            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-slate-100">
+                                <History className="w-8 h-8 text-slate-300" />
+                            </div>
+                            <h4 className="text-slate-500 font-bold text-lg mb-1">Yet to save anything</h4>
+                            <p className="text-slate-400 text-sm">Your saved essays will appear here.</p>
+                        </div>
+                    ) : (() => {
+                            const filtered = savedEssays.filter(e => {
+                                if (!savedSearchQuery) return true;
+                                const q = savedSearchQuery.toLowerCase();
+                                return (e.course || '').toLowerCase().includes(q) || (e.subject || '').toLowerCase().includes(q) || (e.topic || '').toLowerCase().includes(q) || (e.questions || '').toLowerCase().includes(q);
+                            });
+                            
+                            if (filtered.length === 0) {
+                                return (
+                                    <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-100">
+                                        <p className="text-slate-500 font-medium text-sm">No saved essays found matching your search.</p>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div className="space-y-4">
+                                    {filtered.map(essay => (
+                                        <div key={essay.id} className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm transition-all hover:shadow-md">
+                                            <div className="bg-slate-50 p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                                <div>
+                                                    <h4 className="font-bold text-slate-900 text-lg sm:text-xl">{essay.topic || 'Untitled Paper'}</h4>
+                                                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                                                        <span className="text-xs font-bold text-indigo-700 bg-indigo-100 px-2 py-1 rounded-lg">
+                                                            {PAPER_TYPES.find(p => p.id === essay.paper_type)?.label || essay.paper_type}
+                                                        </span>
+                                                        <span className="text-xs font-bold text-slate-600 bg-slate-200/50 px-2 py-1 rounded-lg">
+                                                            {essay.difficulty}
+                                                        </span>
+                                                        <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-lg">
+                                                            {essay.subject}
+                                                        </span>
+                                                        <span className="text-xs text-slate-400 font-medium ml-1">
+                                                            {new Date(essay.created_at).toLocaleDateString()}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-wrap gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                                                    <button
+                                                        onClick={() => handleExportPDF(essay.questions + (essay.answer_key ? '\n\nAnswer Key:\n' + essay.answer_key : ''), `Essay_${essay.topic?.replace(/\s+/g, '_')}`)}
+                                                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-indigo-50 text-indigo-700 font-bold h-9 px-4 rounded-xl border border-indigo-200 hover:bg-indigo-100 transition-all text-sm shadow-sm"
+                                                    >
+                                                        <Download className="w-4 h-4" /> PDF
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleCopy(essay.questions)}
+                                                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white text-slate-700 font-bold h-9 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all text-sm shadow-sm"
+                                                    >
+                                                        <Copy className="w-4 h-4" /> Copy
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className="p-4 sm:p-6 bg-white prose prose-slate prose-sm sm:prose-base max-w-none">
+                                                <h5 className="font-bold text-slate-800 border-b border-slate-100 pb-2 mb-4">Questions</h5>
+                                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{essay.questions}</ReactMarkdown>
+                                                
+                                                {essay.answer_key && (
+                                                    <details className="mt-6 pt-4 border-t border-slate-100">
+                                                        <summary className="font-bold text-emerald-600 cursor-pointer hover:text-emerald-700 flex items-center gap-2">
+                                                            <CheckCircle className="w-4 h-4" /> View Answer Key
+                                                        </summary>
+                                                        <div className="mt-4 p-4 bg-slate-50 rounded-xl">
+                                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{essay.answer_key}</ReactMarkdown>
+                                                        </div>
+                                                    </details>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            );
+                        })()}
+                </div>
             </div>
         </div>
     );

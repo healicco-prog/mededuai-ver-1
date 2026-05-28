@@ -53,7 +53,7 @@ const ALL_SECTIONS: Section[] = [
         key: "masteradmin",
         title: "Master Admin",
         color: "purple",
-        bgGradient: "from-purple-600 to-purple-800",
+        bgGradient: "from-emerald-600 to-emerald-800",
         icon: BrainCircuit,
         modules: [
             { label: "Master Admin Dashboard", href: "/dashboard/masteradmin", icon: LayoutDashboard },
@@ -163,7 +163,7 @@ function SidebarItem({ icon: Icon, label, href, badge }: { icon: any; label: str
             </div>
             <span className="flex-1 text-left truncate">{label}</span>
             {badge && (
-                <span className="text-[9px] font-bold bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                <span className="text-[9px] font-bold bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded-md uppercase tracking-wider">
                     {badge}
                 </span>
             )}
@@ -294,7 +294,7 @@ export default function ControlPanelPage() {
             <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50 flex items-center justify-center p-4">
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
                     <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-200/40 rounded-full blur-3xl" />
-                    <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-200/30 rounded-full blur-3xl" />
+                    <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-200/30 rounded-full blur-3xl" />
                 </div>
                 <div className="relative w-full max-w-md">
                     <div className="text-center mb-10">
@@ -422,7 +422,7 @@ export default function ControlPanelPage() {
                             <div className="pt-4 pb-2 px-3">
                                 <p className={`text-[10px] font-bold uppercase tracking-widest ${
                                     section.key === 'superadmin' ? 'text-rose-500' :
-                                    section.key === 'masteradmin' ? 'text-purple-400' :
+                                    section.key === 'masteradmin' ? 'text-emerald-400' :
                                     section.key === 'instadmin' ? 'text-amber-500' :
                                     section.key === 'deptadmin' ? 'text-teal-500' :
                                     section.key === 'teaching' ? 'text-blue-500' :
@@ -479,7 +479,7 @@ export default function ControlPanelPage() {
                             </div>
                             <div className="flex items-center gap-1.5 justify-end mb-0.5">
                                 <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider leading-none">{authLabel}</p>
-                                <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md leading-none bg-purple-100 text-purple-600">PREMIUM</span>
+                                <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md leading-none bg-emerald-100 text-emerald-600">PREMIUM</span>
                             </div>
                         </div>
                         <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center border border-slate-200">
@@ -518,11 +518,11 @@ export default function ControlPanelPage() {
                             </div>
                         </div>
                         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex items-start gap-4">
-                            <div className="w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center flex-shrink-0">
-                                <Users className="w-6 h-6 text-purple-600" aria-hidden="true" />
+                            <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center flex-shrink-0">
+                                <Users className="w-6 h-6 text-emerald-600" aria-hidden="true" />
                             </div>
                             <div>
-                                <p className="text-[10px] font-bold text-purple-600 uppercase tracking-widest mb-1">Active Users</p>
+                                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Active Users</p>
                                 <p className="text-3xl font-extrabold text-slate-900">—</p>
                                 <p className="text-xs text-slate-500 mt-1">View in dashboard</p>
                             </div>
@@ -607,7 +607,7 @@ export default function ControlPanelPage() {
                                             {mod.label}
                                         </span>
                                         {mod.badge && (
-                                            <span className="text-[8px] font-bold bg-purple-100 text-purple-600 px-1 py-0.5 rounded uppercase tracking-wider flex-shrink-0">
+                                            <span className="text-[8px] font-bold bg-emerald-100 text-emerald-600 px-1 py-0.5 rounded uppercase tracking-wider flex-shrink-0">
                                                 {mod.badge}
                                             </span>
                                         )}

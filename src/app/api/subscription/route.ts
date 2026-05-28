@@ -31,9 +31,9 @@ export async function GET(req: NextRequest) {
   // If no subscription exists, create a trial one
   if (!data) {
     const trialEnd = new Date();
-    trialEnd.setDate(trialEnd.getDate() + 15);
+    trialEnd.setMonth(trialEnd.getMonth() + 1);
     const resetDate = new Date();
-    resetDate.setDate(resetDate.getDate() + 30);
+    resetDate.setMonth(resetDate.getMonth() + 1);
 
     // Fetch user role
     const { data: profile } = await supabaseAdmin
@@ -53,18 +53,20 @@ export async function GET(req: NextRequest) {
     } else if (normalizedRole === 'deptadmin' || normalizedRole === 'departmentadmin') {
       defaultPlanTier = 'premium';
     } else if (normalizedRole === 'instadmin' || normalizedRole === 'institutionadmin') {
-      defaultPlanTier = 'premium';
+      defaultPlanTier = 'enterprise';
     }
 
-    let defaultTokens = 50000; // Free / Basic 
+    let defaultTokens = 0; // Free
     if (isUnlimitedAdmin) {
       defaultTokens = 999999999; // Unlimited for admins
+    } else if (defaultPlanTier === 'enterprise') {
+      defaultTokens = 1000000;
     } else if (defaultPlanTier === 'premium') {
       defaultTokens = 300000;
     } else if (defaultPlanTier === 'standard') {
       defaultTokens = 100000;
-    } else if (defaultPlanTier === 'enterprise') {
-      defaultTokens = 1000000;
+    } else if (defaultPlanTier === 'basic') {
+      defaultTokens = 50000;
     }
 
     const { data: newSub, error: insertError } = await supabaseAdmin

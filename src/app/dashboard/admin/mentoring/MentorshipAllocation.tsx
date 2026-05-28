@@ -228,7 +228,7 @@ export default function MentorshipAllocation() {
                                         className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors"
                                     >
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 text-white rounded-xl flex items-center justify-center font-black text-sm shadow-md">
+                                            <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-emerald-600 text-white rounded-xl flex items-center justify-center font-black text-sm shadow-md">
                                                 {year.split('-')[0].slice(2)}
                                             </div>
                                             <div className="text-left">

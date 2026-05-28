@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from 'react';
-import { Plus, Upload, Trash2, ChevronLeft, Save, FileSpreadsheet, Image as ImageIcon, Users, BookOpen, Clock, Building, UserCircle, GraduationCap, X, Download, Pencil, Check } from 'lucide-react';
+import { Plus, Upload, Trash2, ChevronLeft, Save, FileSpreadsheet, Image as ImageIcon, Users, BookOpen, Clock, Building, UserCircle, GraduationCap, X, Download, Pencil, Check, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import TimePicker12Hour from '@/components/TimePicker12Hour';
 import { useTimetableStore, TimetableFormat, WeeklyClassSlot, TopicCompetency, StudentEntry } from '@/store/timetableStore';
@@ -112,6 +112,7 @@ export default function ClassroomManagerClient() {
     const [editingFormatId, setEditingFormatId] = useState<string | null>(null);
     const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
     const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
+    const [isSyncing, setIsSyncing] = useState(true);
 
     const emptyForm = (): FormData => ({
         name: '', course: '', year: '', department: '',
@@ -122,6 +123,29 @@ export default function ClassroomManagerClient() {
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const studentFileRef = useRef<HTMLInputElement>(null);
+
+    const syncClassrooms = async () => {
+        setIsSyncing(true);
+        try {
+            const res = await fetch('/api/classroom-generator/saved/all');
+            const data = await res.json();
+            if (data.success && data.data) {
+                const dbFormats = data.data.map((item: any) => ({
+                    id: item.id,
+                    ...item.classroom_data
+                }));
+                useTimetableStore.setState({ formats: dbFormats });
+            }
+        } catch (err) {
+            console.error("Failed to sync classrooms:", err);
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
+    React.useEffect(() => {
+        syncClassrooms();
+    }, []);
 
     // ── CRUD handlers ──────────────────────────────────────────────────────────
     const handleCreateNew = () => {
@@ -136,25 +160,79 @@ export default function ClassroomManagerClient() {
         setIsCreating(true);
     };
 
-    const handleDelete = (formatId: string) => {
+    const handleDelete = async (formatId: string) => {
         if (confirm('Delete this classroom and all associated schedules?')) {
-            deleteFormat(formatId);
+            try {
+                const res = await fetch(`/api/classroom-generator/save?id=${formatId}`, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                if (data.success) {
+                    deleteFormat(formatId); // Cascade deletion in local store
+                    syncClassrooms();
+                } else {
+                    alert("Failed to delete classroom from database.");
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Error deleting classroom.");
+            }
         }
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!formData.name || !formData.course) {
             alert('Classroom Name and Course are required.');
             return;
         }
-        const data = formToFormatData(formData);
-        if (editingFormatId) {
-            updateFormat(editingFormatId, data);
-        } else {
-            addFormat(data);
+        
+        let classroomId = editingFormatId;
+        if (!classroomId) {
+            classroomId = crypto.randomUUID();
         }
-        setIsCreating(false);
-        setEditingFormatId(null);
+
+        const data = formToFormatData(formData);
+        const classroomPayload = {
+            id: classroomId,
+            name: formData.name,
+            course: formData.course,
+            classroomData: {
+                ...data,
+                id: classroomId,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            }
+        };
+
+        try {
+            const res = await fetch('/api/classroom-generator/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(classroomPayload)
+            });
+            const resData = await res.json();
+            if (resData.success) {
+                if (editingFormatId) {
+                    updateFormat(editingFormatId, data);
+                } else {
+                    // Update zustand store state directly with the payload to avoid temporary mismatches
+                    useTimetableStore.setState({
+                        formats: [
+                            ...formats.filter(f => f.id !== classroomId),
+                            classroomPayload.classroomData
+                        ]
+                    });
+                }
+                setIsCreating(false);
+                setEditingFormatId(null);
+                syncClassrooms();
+            } else {
+                alert("Failed to save classroom to database.");
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Error saving classroom.");
+        }
     };
 
     // ── Slot helpers ───────────────────────────────────────────────────────────
@@ -256,30 +334,34 @@ export default function ClassroomManagerClient() {
             <div>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                     <div>
-                        <h2 className="text-2xl font-bold text-slate-800">Classroom Generator</h2>
+                        <h2 className="text-2xl font-bold text-slate-800">Classrooms</h2>
                         <p className="text-sm text-slate-500">Create and manage your institutional classrooms.</p>
                     </div>
                     <button
                         onClick={handleCreateNew}
-                        className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-purple-700 transition-colors shadow-sm"
+                        className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-emerald-700 transition-colors shadow-sm"
                     >
                         <Plus className="w-5 h-5" />
                         Create New Classroom
                     </button>
                 </div>
 
-                {formats.length === 0 ? (
+                {isSyncing ? (
+                    <div className="flex justify-center items-center py-20 bg-white rounded-3xl border border-slate-200 shadow-sm">
+                        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+                    </div>
+                ) : formats.length === 0 ? (
                     <div className="bg-white p-12 rounded-3xl border border-slate-200 shadow-sm text-center">
-                        <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                            <BookOpen className="w-8 h-8 text-purple-600" />
+                        <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                            <BookOpen className="w-8 h-8 text-emerald-600" />
                         </div>
-                        <h3 className="text-lg font-bold text-slate-800 mb-2">No Classrooms Found</h3>
+                        <h3 className="text-lg font-bold text-slate-800 mb-2">Yet to save anything</h3>
                         <p className="text-slate-500 mb-6 max-w-sm mx-auto">
                             Start creating classrooms to enroll students and track curriculum progression efficiently.
                         </p>
                         <button
                             onClick={handleCreateNew}
-                            className="bg-purple-50 text-purple-600 font-bold px-6 py-3 rounded-xl hover:bg-purple-100 transition-colors inline-block"
+                            className="bg-emerald-50 text-emerald-600 font-bold px-6 py-3 rounded-xl hover:bg-emerald-100 transition-colors inline-block"
                         >
                             Build Your First Classroom
                         </button>
@@ -306,7 +388,7 @@ export default function ClassroomManagerClient() {
                                 </div>
                                 <div className="flex items-center gap-4 mb-4">
                                     <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200">
-                                        <GraduationCap className="text-purple-600" />
+                                        <GraduationCap className="text-emerald-600" />
                                     </div>
                                     <div>
                                         <h3 className="font-bold text-lg text-slate-800">{fmt.instituteName}</h3>
@@ -323,7 +405,7 @@ export default function ClassroomManagerClient() {
                                         <span>{fmt.facultyMembers.length > 0 ? fmt.facultyMembers.join(', ') : 'No Faculty Assigned'}</span>
                                     </div>
                                     <div className="flex items-center gap-2 text-sm text-slate-600">
-                                        <Users className="w-4 h-4 text-purple-500" />
+                                        <Users className="w-4 h-4 text-emerald-500" />
                                         <span>{(fmt.studentsList || []).length} Enrolled Students</span>
                                     </div>
                                     <div className="flex items-center gap-2 text-sm text-slate-600">
@@ -367,7 +449,7 @@ export default function ClassroomManagerClient() {
                 </div>
                 <button
                     onClick={handleSave}
-                    className="flex items-center gap-2 bg-purple-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-purple-700 transition-colors shadow-sm"
+                    className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-emerald-700 transition-colors shadow-sm"
                 >
                     <Save className="w-5 h-5" />
                     {editingFormatId ? 'Save Changes' : 'Create Classroom'}
@@ -379,7 +461,7 @@ export default function ClassroomManagerClient() {
                 {/* General Information */}
                 <section>
                     <div className="flex items-center gap-2 mb-6 border-b border-slate-100 pb-2">
-                        <GraduationCap className="text-purple-600 w-5 h-5" />
+                        <GraduationCap className="text-emerald-600 w-5 h-5" />
                         <h3 className="text-lg font-bold text-slate-800">General Information</h3>
                     </div>
 
@@ -391,7 +473,7 @@ export default function ClassroomManagerClient() {
                                     type="text"
                                     value={formData.name}
                                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all font-medium"
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium"
                                     placeholder="e.g. Anatomy Batch A"
                                 />
                             </div>
@@ -402,7 +484,7 @@ export default function ClassroomManagerClient() {
                                         type="text"
                                         value={formData.course}
                                         onChange={(e) => setFormData(prev => ({ ...prev, course: e.target.value }))}
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all font-medium"
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium"
                                         placeholder="e.g. Human Anatomy"
                                     />
                                 </div>
@@ -412,7 +494,7 @@ export default function ClassroomManagerClient() {
                                         type="text"
                                         value={formData.year}
                                         onChange={(e) => setFormData(prev => ({ ...prev, year: e.target.value }))}
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all font-medium"
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium"
                                         placeholder="e.g. MBBS 1st Year"
                                     />
                                 </div>
@@ -426,7 +508,7 @@ export default function ClassroomManagerClient() {
                                     type="text"
                                     value={formData.department}
                                     onChange={(e) => setFormData(prev => ({ ...prev, department: e.target.value }))}
-                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all font-medium"
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium"
                                     placeholder="e.g. Anatomy"
                                 />
                             </div>
@@ -443,7 +525,7 @@ export default function ClassroomManagerClient() {
                                                     newF[i] = e.target.value;
                                                     setFormData(prev => ({ ...prev, faculty: newF }));
                                                 }}
-                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all font-medium"
+                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium"
                                                 placeholder="Assigned Faculty"
                                             />
                                             <button
@@ -460,7 +542,7 @@ export default function ClassroomManagerClient() {
                                     ))}
                                     <button
                                         onClick={() => setFormData(prev => ({ ...prev, faculty: [...prev.faculty, ''] }))}
-                                        className="flex items-center gap-2 text-sm text-purple-600 font-bold hover:text-purple-700 transition-colors"
+                                        className="flex items-center gap-2 text-sm text-emerald-600 font-bold hover:text-emerald-700 transition-colors"
                                     >
                                         <Plus className="w-4 h-4" /> Add Faculty
                                     </button>
@@ -482,14 +564,14 @@ export default function ClassroomManagerClient() {
                         <select
                             value={newSlot.day}
                             onChange={e => setNewSlot(prev => ({ ...prev, day: e.target.value as WeeklyClassSlot['day'] }))}
-                            className="w-full sm:flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 focus:outline-none font-bold text-slate-700 text-sm"
+                            className="w-full sm:flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none font-bold text-slate-700 text-sm"
                         >
                             {WEEK_DAYS.map(d => <option key={d}>{d}</option>)}
                         </select>
                         <TimePicker12Hour
                             value={newSlot.fromTime}
                             onChange={val => setNewSlot(prev => ({ ...prev, fromTime: val }))}
-                            className="w-full sm:w-auto focus-within:ring-purple-500/20 focus-within:border-purple-500"
+                            className="w-full sm:w-auto focus-within:ring-emerald-500/20 focus-within:border-emerald-500"
                             title="Start Time"
                         />
                         <span className="text-slate-400 font-bold hidden sm:block">–</span>
@@ -497,12 +579,12 @@ export default function ClassroomManagerClient() {
                             <TimePicker12Hour
                                 value={newSlot.toTime}
                                 onChange={val => setNewSlot(prev => ({ ...prev, toTime: val }))}
-                                className="flex-1 focus-within:ring-purple-500/20 focus-within:border-purple-500"
+                                className="flex-1 focus-within:ring-emerald-500/20 focus-within:border-emerald-500"
                                 title="End Time"
                             />
                             <button
                                 onClick={handleAddSlot}
-                                className="bg-purple-100 text-purple-700 p-2.5 rounded-xl hover:bg-purple-200 font-bold shrink-0 transition-colors"
+                                className="bg-emerald-100 text-emerald-700 p-2.5 rounded-xl hover:bg-emerald-200 font-bold shrink-0 transition-colors"
                             >
                                 <Plus className="w-5 h-5" />
                             </button>
@@ -513,7 +595,7 @@ export default function ClassroomManagerClient() {
                         <div className="flex flex-wrap gap-2 pt-4">
                             {formData.classDays.map(slot => (
                                 <div key={slot.id} className="bg-white border border-slate-200 font-bold text-xs text-slate-700 px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm">
-                                    <span className="text-purple-600">{slot.day}:</span> {to12hr(slot.fromTime)} – {to12hr(slot.toTime)}
+                                    <span className="text-emerald-600">{slot.day}:</span> {to12hr(slot.fromTime)} – {to12hr(slot.toTime)}
                                     <button onClick={() => handleRemoveSlot(slot.id)} className="text-slate-400 hover:text-red-500 ml-1">
                                         <X className="w-3 h-3" />
                                     </button>
@@ -530,7 +612,7 @@ export default function ClassroomManagerClient() {
                             <BookOpen className="text-emerald-500 w-5 h-5" />
                             <h3 className="text-lg font-bold text-slate-800">Curriculum Topics</h3>
                         </div>
-                        <div className="flex gap-3">
+                        <div className="flex flex-wrap gap-3">
                             <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx,.xls,.csv" onChange={handleUploadTopics} />
                             <button onClick={handleDownloadTopicsTemplate} className="flex items-center gap-2 text-emerald-700 px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-emerald-50 transition-colors">
                                 <Download className="w-4 h-4" /> Download Template
@@ -593,7 +675,7 @@ export default function ClassroomManagerClient() {
                             <Users className="text-blue-500 w-5 h-5" />
                             <h3 className="text-lg font-bold text-slate-800">Enrolled Students</h3>
                         </div>
-                        <div className="flex gap-3">
+                        <div className="flex flex-wrap gap-3">
                             <input type="file" ref={studentFileRef} className="hidden" accept=".xlsx,.xls,.csv" onChange={handleUploadStudents} />
                             <button onClick={handleDownloadStudentsTemplate} className="flex items-center gap-2 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-blue-50 transition-colors">
                                 <Download className="w-4 h-4" /> Download Template
@@ -671,7 +753,7 @@ export default function ClassroomManagerClient() {
                     </button>
                     <button
                         onClick={handleSave}
-                        className="flex items-center gap-2 bg-purple-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-purple-700 transition-colors shadow-sm text-lg"
+                        className="flex items-center gap-2 bg-emerald-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors shadow-sm text-lg"
                     >
                         <Save className="w-5 h-5" />
                         {editingFormatId ? 'Save Changes' : 'Generate Classroom'}

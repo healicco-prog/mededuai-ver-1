@@ -1,9 +1,14 @@
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ClipboardType, Loader2, Save, History, Calendar, ChevronDown, ChevronUp, Trash2, CheckCircle, BrainCircuit, FileText, Sparkles } from 'lucide-react';
 
 interface PaperConfig { id: string; name: string; topics: string; }
-interface SavedEssayExam { id: string; subject: string; date: string; papers: { id: string; name: string; questions: string[] }[]; }
+interface SavedEssayExam {
+    id: string;
+    subject: string;
+    date: string;
+    papers: { id: string; name: string; questions: string[] }[];
+}
 
 export default function EssayGeneratorPage() {
     const [subject, setSubject] = useState('');
@@ -15,7 +20,9 @@ export default function EssayGeneratorPage() {
     const [numQs, setNumQs] = useState(5);
     const [loading, setLoading] = useState(false);
     const [generatedPapers, setGeneratedPapers] = useState<{ id: string; name: string; questions: string[] }[]>([]);
+    
     const [savedExams, setSavedExams] = useState<SavedEssayExam[]>([]);
+    const [isFetchingSaved, setIsFetchingSaved] = useState(true);
     const [expandedExamId, setExpandedExamId] = useState<string | null>(null);
 
     const essayTypes = [
@@ -23,12 +30,44 @@ export default function EssayGeneratorPage() {
         "Case-Based / Clinical Scenario Questions", "Ethical and Social Issue Essays", "Comparative / Critical Analysis Questions"
     ];
 
+    const fetchSavedExams = async () => {
+        setIsFetchingSaved(true);
+        try {
+            const res = await fetch('/api/essays/saved/all');
+            const data = await res.json();
+            if (data.success && data.savedRecords) {
+                const mapped: SavedEssayExam[] = data.savedRecords.map((r: any) => ({
+                    id: r.id,
+                    subject: r.subject || 'Blank Subject',
+                    date: new Date(r.created_at).toLocaleDateString('en-US', {
+                        year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                    }),
+                    papers: r.questions || []
+                }));
+                setSavedExams(mapped);
+            }
+        } catch (error) {
+            console.error("Failed to fetch saved exams:", error);
+        } finally {
+            setIsFetchingSaved(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchSavedExams();
+    }, []);
+
     const handleNumPapersChange = (val: number) => {
         setNumPapers(val);
         setPaperConfigs(prev => {
             const newConfigs = [...prev];
-            if (val > prev.length) { for (let i = prev.length; i < val; i++) newConfigs.push({ id: `${Date.now()}-${i}`, name: `Paper ${i+1}`, topics: '' }); }
-            else if (val < prev.length) newConfigs.splice(val);
+            if (val > prev.length) {
+                for (let i = prev.length; i < val; i++) {
+                    newConfigs.push({ id: `${Date.now()}-${i}`, name: `Paper ${i+1}`, topics: '' });
+                }
+            } else if (val < prev.length) {
+                newConfigs.splice(val);
+            }
             return newConfigs;
         });
         setIsConfigSaved(false);
@@ -42,30 +81,94 @@ export default function EssayGeneratorPage() {
     };
 
     const updatePaperTopic = (index: number, topics: string) => {
-        const newConfigs = [...paperConfigs]; newConfigs[index].topics = topics; setPaperConfigs(newConfigs);
+        const newConfigs = [...paperConfigs];
+        newConfigs[index].topics = topics;
+        setPaperConfigs(newConfigs);
     };
 
-    const saveConfig = () => { if (!subject) { alert("Please type a subject."); return; } setIsConfigSaved(true); setSelectedPaperId('all'); };
+    const saveConfig = () => {
+        if (!subject) {
+            alert("Please type a subject.");
+            return;
+        }
+        setIsConfigSaved(true);
+        setSelectedPaperId('all');
+    };
 
     const handleGenerate = async () => {
-        const papersToGenerate = selectedPaperId === 'all' ? paperConfigs.filter(p => p.topics) : paperConfigs.filter(p => p.id === selectedPaperId && p.topics);
-        if (papersToGenerate.length === 0) { alert("Please ensure selected paper(s) have topics."); return; }
-        setLoading(true); setGeneratedPapers([]);
+        const papersToGenerate = selectedPaperId === 'all'
+            ? paperConfigs.filter(p => p.topics)
+            : paperConfigs.filter(p => p.id === selectedPaperId && p.topics);
+
+        if (papersToGenerate.length === 0) {
+            alert("Please ensure selected paper(s) have topics.");
+            return;
+        }
+        setLoading(true);
+        setGeneratedPapers([]);
         try {
             const results = await Promise.all(papersToGenerate.map(async (paper) => {
-                const res = await fetch('/api/essay-generator', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subject, topics: paper.topics, essayType, numQs }) });
+                const res = await fetch('/api/essay-generator', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ subject, topics: paper.topics, essayType, numQs })
+                });
                 const data = await res.json();
                 return { id: paper.id, name: paper.name, questions: data.success && data.questions ? data.questions : [] };
             }));
             setGeneratedPapers(results.filter(r => r.questions.length > 0));
-        } catch (error) { console.error(error); } finally { setLoading(false); }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleSaveExam = () => {
+    const handleSaveExam = async () => {
         if (generatedPapers.length === 0) return;
-        setSavedExams(prev => [{ id: Date.now().toString(), subject: subject || 'Blank Subject', date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }), papers: [...generatedPapers] }, ...prev]);
-        setGeneratedPapers([]);
-        alert("Exam saved securely!");
+        try {
+            const res = await fetch('/api/essays/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    course: 'MBBS',
+                    subject: subject || 'Blank Subject',
+                    topic: paperConfigs.map(c => c.topics).filter(Boolean).join(', ') || 'N/A',
+                    paperType: essayType,
+                    difficulty: 'Standard',
+                    questions: generatedPapers
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setGeneratedPapers([]);
+                alert("Exam saved securely!");
+                fetchSavedExams();
+            } else {
+                alert("Failed to save exam to database.");
+            }
+        } catch (error) {
+            console.error("Failed to save exam:", error);
+            alert("Failed to save exam.");
+        }
+    };
+
+    const handleDeleteExam = async (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!confirm("Are you sure you want to delete this saved exam?")) return;
+        try {
+            const res = await fetch(`/api/essays/save?id=${id}`, {
+                method: 'DELETE'
+            });
+            const data = await res.json();
+            if (data.success) {
+                fetchSavedExams();
+            } else {
+                alert("Failed to delete exam.");
+            }
+        } catch (error) {
+            console.error("Failed to delete exam:", error);
+        }
     };
 
     return (
@@ -194,6 +297,11 @@ export default function EssayGeneratorPage() {
                                 className="bg-gradient-to-r from-slate-800 to-slate-900 text-white font-bold h-11 px-6 rounded-xl hover:shadow-lg transition-all flex items-center gap-2 text-sm">
                                 <Save className="w-4 h-4" /> Save Entire Draft
                             </button>
+                                    <button onClick={() => window.print()} className="font-bold h-10 px-5 rounded-xl transition-all flex items-center gap-2 text-sm shadow-sm bg-white text-slate-700 border border-slate-200 hover:bg-blue-50 hover:border-blue-300 print:hidden ml-2" title="Share as PDF">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> 
+                                        Share as PDF
+                                    </button>
+
                         </div>
                         
                         {generatedPapers.map(paper => (
@@ -217,31 +325,50 @@ export default function EssayGeneratorPage() {
                 )}
 
                 {/* 4. HISTORY */}
-                {savedExams.length > 0 && (
-                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 pt-8 border-t-2 border-slate-100">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200">
-                                <History className="w-5 h-5 text-slate-600" />
-                            </div>
-                            <div>
-                                <h3 className="text-xl font-bold text-slate-900">Archived Examination Drafts</h3>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Your securely saved offline history</p>
-                            </div>
+                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 pt-8 border-t-2 border-slate-100">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 shadow-sm">
+                            <History className="w-5 h-5 text-slate-600" />
                         </div>
+                        <div>
+                            <h3 className="text-xl font-bold text-slate-900">Saved Essay Exams</h3>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Your previously generated essay papers</p>
+                        </div>
+                    </div>
 
-                        {savedExams.map(exam => (
+                    {isFetchingSaved ? (
+                        <div className="flex justify-center items-center py-10">
+                            <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+                        </div>
+                    ) : savedExams.length === 0 ? (
+                        <div className="text-center py-12 bg-slate-50 rounded-3xl border border-slate-100 shadow-inner">
+                            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-slate-100">
+                                <FileText className="w-8 h-8 text-slate-300" />
+                            </div>
+                            <h4 className="text-slate-500 font-bold text-lg mb-1">Yet to save anything</h4>
+                            <p className="text-slate-400 text-sm">Your saved exams will appear here.</p>
+                        </div>
+                    ) : (
+                        savedExams.map(exam => (
                             <div key={exam.id} className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all">
                                 <div className="p-5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
                                     onClick={() => setExpandedExamId(expandedExamId === exam.id ? null : exam.id)}>
                                     <div>
-                                        <h4 className="font-bold text-slate-900 text-lg">{exam.subject} <span className="text-slate-400 font-medium ml-1">Essays</span></h4>
-                                        <div className="flex items-center gap-3 mt-2">
+                                        <h4 className="font-bold text-slate-900 text-lg flex items-center gap-2">
+                                            {exam.subject} <span className="text-slate-400 font-medium text-sm">Essays</span>
+                                        </h4>
+                                        <div className="flex flex-wrap items-center gap-3 mt-2">
                                             <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-100 px-2.5 py-1.5 rounded-lg"><Calendar className="w-3 h-3" /> {exam.date}</span>
                                             <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest bg-blue-50 px-2.5 py-1.5 rounded-lg border border-blue-100">{exam.papers.length} Papers</span>
                                         </div>
                                     </div>
-                                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500">
-                                        {expandedExamId === exam.id ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={(e) => handleDeleteExam(exam.id, e)} className="w-10 h-10 rounded-xl bg-white hover:bg-red-50 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-600 transition-colors" title="Delete">
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                        <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500">
+                                            {expandedExamId === exam.id ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                                        </div>
                                     </div>
                                 </div>
                                 {expandedExamId === exam.id && (
@@ -262,9 +389,9 @@ export default function EssayGeneratorPage() {
                                     </div>
                                 )}
                             </div>
-                        ))}
-                    </div>
-                )}
+                        ))
+                    )}
+                </div>
             </div>
         </div>
     );

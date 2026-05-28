@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
       plan_tier: sub.plan_tier || 'free',
       billing_status: sub.billing_status || 'trialing',
       ai_tokens_balance: sub.ai_tokens_balance ?? 0,
-      ai_tokens_allotment: sub.ai_tokens_allotment ?? 10000,
+      ai_tokens_allotment: sub.ai_tokens_allotment ?? 0,
       bonus_tokens: sub.bonus_tokens ?? 0,
       trial_end_date: sub.trial_end_date || '',
     };

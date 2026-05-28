@@ -245,14 +245,14 @@ export default function MenteeManager() {
     const typeBadge = (type: MenteeType) => type === 'peer_mentee' ? (
         <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 ring-1 ring-amber-200 uppercase tracking-widest"><UsersRound className="w-3 h-3" /> Peer</span>
     ) : (
-        <span className="inline-flex items-center gap-1 rounded-lg bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-700 ring-1 ring-purple-200 uppercase tracking-widest"><GraduationCap className="w-3 h-3" /> Mentee</span>
+        <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-200 uppercase tracking-widest"><GraduationCap className="w-3 h-3" /> Mentee</span>
     );
 
     const ModalInput = ({ label, value, onChange, placeholder, type = 'text' }: { label: string; value: string; onChange: (v: string) => void; placeholder: string; type?: string }) => (
         <div>
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">{label}</label>
             <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all" />
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all" />
         </div>
     );
 
@@ -261,7 +261,7 @@ export default function MenteeManager() {
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Role Type</label>
             <div className="flex gap-2">
                 <button type="button" onClick={() => onChange('mentee')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 text-sm font-bold transition-all ${value === 'mentee' ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}>
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 text-sm font-bold transition-all ${value === 'mentee' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}>
                     <GraduationCap className="w-4 h-4" /> Mentee
                 </button>
                 <button type="button" onClick={() => onChange('peer_mentee')}
@@ -283,20 +283,20 @@ export default function MenteeManager() {
                     <button onClick={handleDownloadTemplate} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-colors shadow-sm">
                         <Download className="w-5 h-5" /> Template
                     </button>
-                    <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-colors shadow-sm">
+                    <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-colors shadow-sm">
                         <Plus className="w-5 h-5" /> Add Manual
                     </button>
                 </div>
             </div>
 
             {/* RLS Info Banner */}
-            <div className="bg-gradient-to-r from-purple-50 to-violet-50 border border-purple-200 rounded-2xl p-4 mb-6 flex items-start gap-3">
-                <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center text-purple-600 shrink-0 mt-0.5">
+            <div className="bg-gradient-to-r from-emerald-50 to-violet-50 border border-emerald-200 rounded-2xl p-4 mb-6 flex items-start gap-3">
+                <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 shrink-0 mt-0.5">
                     <Shield className="w-5 h-5" />
                 </div>
                 <div>
-                    <h4 className="text-sm font-bold text-purple-900 mb-0.5">Email-Based Access (RLS)</h4>
-                    <p className="text-xs text-purple-700/80 leading-relaxed">
+                    <h4 className="text-sm font-bold text-emerald-900 mb-0.5">Email-Based Access (RLS)</h4>
+                    <p className="text-xs text-emerald-700/80 leading-relaxed">
                         Both <strong>Mentee</strong> and <strong>Peer Mentee</strong> roles access the <strong>Student/Learning dashboard</strong> via their registered Email ID.
                         Row Level Security ensures each student sees only their own mentorship data, meetings, and assessments.
                     </p>
@@ -313,7 +313,7 @@ export default function MenteeManager() {
                             value={uploadYear}
                             onChange={(e) => setUploadYear(e.target.value)}
                             placeholder="Select Year"
-                            className="bg-white border-2 border-purple-200 text-slate-800 rounded-xl px-4 py-2 font-bold outline-none focus:border-purple-500 min-w-[140px] text-sm"
+                            className="bg-white border-2 border-emerald-200 text-slate-800 rounded-xl px-4 py-2 font-bold outline-none focus:border-emerald-500 min-w-[140px] text-sm"
                         />
                         <datalist id="uploadYearOptions">
                             <option value="2021-2022" /><option value="2022-2023" /><option value="2023-2024" />
@@ -322,9 +322,9 @@ export default function MenteeManager() {
                     </div>
                     <div className="flex items-center gap-2">
                         <label className="font-bold text-slate-700 text-sm">2. Type:</label>
-                        <div className="flex gap-1 bg-white border-2 border-purple-200 rounded-xl p-0.5">
+                        <div className="flex gap-1 bg-white border-2 border-emerald-200 rounded-xl p-0.5">
                             <button onClick={() => setUploadType('mentee')}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${uploadType === 'mentee' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}>
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${uploadType === 'mentee' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}>
                                 Mentee
                             </button>
                             <button onClick={() => setUploadType('peer_mentee')}
@@ -342,9 +342,9 @@ export default function MenteeManager() {
                     onDrop={handleDrop}
                     className={`w-full max-w-2xl border-2 border-dashed rounded-2xl p-8 text-center transition-all ${
                         !uploadYear ? 'bg-slate-100 border-slate-300 opacity-60 cursor-not-allowed' :
-                        isDragging ? 'bg-purple-100 border-purple-400 cursor-copy' :
-                        uploadSuccess ? 'bg-purple-50 border-purple-300' :
-                        'bg-purple-50 border-purple-200 hover:bg-purple-100/50 cursor-pointer group'
+                        isDragging ? 'bg-emerald-100 border-emerald-400 cursor-copy' :
+                        uploadSuccess ? 'bg-emerald-50 border-emerald-300' :
+                        'bg-emerald-50 border-emerald-200 hover:bg-emerald-100/50 cursor-pointer group'
                     }`}
                 >
                     <input type="file" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
@@ -357,16 +357,16 @@ export default function MenteeManager() {
                         </>
                     ) : uploadSuccess ? (
                         <div className="animate-in zoom-in fade-in duration-300">
-                            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 border border-purple-200 shadow-sm text-purple-600"><CheckCircle2 className="w-8 h-8" /></div>
-                            <h3 className="text-lg font-bold text-purple-900 mb-1">Upload Successful!</h3>
-                            <p className="text-sm text-purple-700">Students added as {uploadType === 'peer_mentee' ? 'Peer Mentees' : 'Mentees'}.</p>
+                            <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-200 shadow-sm text-emerald-600"><CheckCircle2 className="w-8 h-8" /></div>
+                            <h3 className="text-lg font-bold text-emerald-900 mb-1">Upload Successful!</h3>
+                            <p className="text-sm text-emerald-700">Students added as {uploadType === 'peer_mentee' ? 'Peer Mentees' : 'Mentees'}.</p>
                         </div>
                     ) : (
                         <>
-                            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 border border-purple-100 shadow-sm group-hover:scale-105 transition-transform"><FileUp className="w-8 h-8 text-purple-600" /></div>
-                            <h3 className="text-lg font-bold text-purple-900 mb-1">3. Upload {uploadType === 'peer_mentee' ? 'Peer Mentees' : 'Mentees'} List (Excel/CSV)</h3>
-                            <p className="text-sm text-purple-700">Drag and drop or click to browse</p>
-                            <p className="text-xs text-purple-600/70 mt-4">Required columns: Registration Number, Student Name, Email ID, Mobile Number</p>
+                            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 border border-emerald-100 shadow-sm group-hover:scale-105 transition-transform"><FileUp className="w-8 h-8 text-emerald-600" /></div>
+                            <h3 className="text-lg font-bold text-emerald-900 mb-1">3. Upload {uploadType === 'peer_mentee' ? 'Peer Mentees' : 'Mentees'} List (Excel/CSV)</h3>
+                            <p className="text-sm text-emerald-700">Drag and drop or click to browse</p>
+                            <p className="text-xs text-emerald-600/70 mt-4">Required columns: Registration Number, Student Name, Email ID, Mobile Number</p>
                         </>
                     )}
                 </div>
@@ -375,10 +375,10 @@ export default function MenteeManager() {
             {/* Student Roster Table */}
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
                 <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-50">
-                    <h3 className="font-bold text-slate-800 flex items-center gap-2"><Users className="w-5 h-5 text-purple-600" /> Student Roster</h3>
+                    <h3 className="font-bold text-slate-800 flex items-center gap-2"><Users className="w-5 h-5 text-emerald-600" /> Student Roster</h3>
                     <div className="flex flex-col sm:flex-row w-full md:w-auto gap-3 items-center">
                         {hasUnsavedChanges && (
-                            <button onClick={handleSaveList} className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg font-bold hover:bg-purple-700 transition-colors shadow-sm text-sm animate-in fade-in zoom-in duration-300">
+                            <button onClick={handleSaveList} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-sm text-sm animate-in fade-in zoom-in duration-300">
                                 <Save className="w-4 h-4" /> Save Changes
                             </button>
                         )}
@@ -396,7 +396,7 @@ export default function MenteeManager() {
                             value={yearFilter === 'All' ? '' : yearFilter}
                             onChange={(e) => setYearFilter(e.target.value === '' ? 'All' : e.target.value)}
                             placeholder="Year (All)"
-                            className="bg-white border border-slate-200 text-slate-700 rounded-lg px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-purple-500 h-[38px] w-full sm:w-auto"
+                            className="bg-white border border-slate-200 text-slate-700 rounded-lg px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500 h-[38px] w-full sm:w-auto"
                         />
                         <datalist id="yearFilterOptions">
                             <option value="2021-2022" /><option value="2022-2023" /><option value="2023-2024" />
@@ -405,7 +405,7 @@ export default function MenteeManager() {
                         <div className="relative w-full sm:w-64">
                             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                             <input type="text" placeholder="Search name or reg..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none bg-white h-[38px]" />
+                                className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white h-[38px]" />
                         </div>
                     </div>
                 </div>
@@ -427,7 +427,7 @@ export default function MenteeManager() {
                                 <tr key={mentee.id} className="hover:bg-slate-50/50 transition-colors group">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold flex-shrink-0 ${mentee.type === 'peer_mentee' ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700'}`}>
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold flex-shrink-0 ${mentee.type === 'peer_mentee' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
                                                 {mentee.type === 'peer_mentee' ? <UsersRound className="w-5 h-5" /> : <GraduationCap className="w-5 h-5" />}
                                             </div>
                                             <span className="font-bold text-slate-900">{mentee.name}</span>
@@ -442,14 +442,14 @@ export default function MenteeManager() {
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex flex-col gap-1 text-sm text-slate-500">
-                                            <span className="flex items-center gap-2 break-all hover:text-purple-600"><Mail className="w-3.5 h-3.5 flex-shrink-0" /> {mentee.email}</span>
-                                            <span className="flex items-center gap-2 break-all hover:text-purple-600"><Phone className="w-3.5 h-3.5 flex-shrink-0" /> {mentee.phone}</span>
+                                            <span className="flex items-center gap-2 break-all hover:text-emerald-600"><Mail className="w-3.5 h-3.5 flex-shrink-0" /> {mentee.email}</span>
+                                            <span className="flex items-center gap-2 break-all hover:text-emerald-600"><Phone className="w-3.5 h-3.5 flex-shrink-0" /> {mentee.phone}</span>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="relative inline-block" ref={openMenuId === mentee.id ? menuRef : undefined}>
                                             <button onClick={() => setOpenMenuId(openMenuId === mentee.id ? null : mentee.id)}
-                                                className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors">
+                                                className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors">
                                                 <MoreVertical className="w-5 h-5" />
                                             </button>
                                             <AnimatePresence>
@@ -494,9 +494,9 @@ export default function MenteeManager() {
                         onClick={() => setEditingMentee(null)}>
                         <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
                             onClick={e => e.stopPropagation()} className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg mx-4 overflow-hidden">
-                            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-purple-50 to-white">
+                            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-white">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center text-purple-600"><Edit3 className="w-5 h-5" /></div>
+                                    <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600"><Edit3 className="w-5 h-5" /></div>
                                     <div>
                                         <h3 className="text-lg font-bold text-slate-900">Edit Student</h3>
                                         <p className="text-xs text-slate-500 font-medium">Update student information</p>
@@ -510,7 +510,7 @@ export default function MenteeManager() {
                                 <TypeSelector value={editForm.type} onChange={v => setEditForm(p => ({ ...p, type: v }))} />
                                 <div className="relative">
                                     <ModalInput label="Email (RLS Access Key)" value={editForm.email} onChange={v => setEditForm(p => ({ ...p, email: v }))} placeholder="email@student.mededuai.com" type="email" />
-                                    <div className="mt-1.5 flex items-center gap-1.5 text-[10px] font-bold text-purple-600">
+                                    <div className="mt-1.5 flex items-center gap-1.5 text-[10px] font-bold text-emerald-600">
                                         <Shield className="w-3 h-3" /> This email grants Student dashboard access via RLS
                                     </div>
                                 </div>
@@ -518,7 +518,7 @@ export default function MenteeManager() {
                             </div>
                             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/50">
                                 <button onClick={() => setEditingMentee(null)} className="px-5 py-2.5 text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
-                                <button onClick={handleEditSave} className="px-5 py-2.5 text-sm font-bold text-white bg-purple-600 rounded-xl hover:bg-purple-700 transition-colors shadow-sm flex items-center gap-2">
+                                <button onClick={handleEditSave} className="px-5 py-2.5 text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors shadow-sm flex items-center gap-2">
                                     <CheckCircle2 className="w-4 h-4" /> Save Changes
                                 </button>
                             </div>
@@ -535,9 +535,9 @@ export default function MenteeManager() {
                         onClick={() => setShowAddModal(false)}>
                         <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
                             onClick={e => e.stopPropagation()} className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg mx-4 overflow-hidden max-h-[90vh] overflow-y-auto">
-                            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-purple-50 to-white sticky top-0 z-10">
+                            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-white sticky top-0 z-10">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center text-purple-600"><UserPlus className="w-5 h-5" /></div>
+                                    <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600"><UserPlus className="w-5 h-5" /></div>
                                     <div>
                                         <h3 className="text-lg font-bold text-slate-900">Add Student</h3>
                                         <p className="text-xs text-slate-500 font-medium">Create a new mentee or peer mentee</p>
@@ -552,7 +552,7 @@ export default function MenteeManager() {
                                     <div>
                                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Year</label>
                                         <input list="addYearOptions" value={addForm.year} onChange={(e) => setAddForm(p => ({ ...p, year: e.target.value }))} placeholder="Year"
-                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all" />
+                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all" />
                                         <datalist id="addYearOptions">
                                             <option value="2021-2022" /><option value="2022-2023" /><option value="2023-2024" />
                                             <option value="2024-2025" /><option value="2025-2026" />
@@ -562,7 +562,7 @@ export default function MenteeManager() {
                                 <TypeSelector value={addForm.type} onChange={v => setAddForm(p => ({ ...p, type: v }))} />
                                 <div className="relative">
                                     <ModalInput label="Email (RLS Access Key)" value={addForm.email} onChange={v => setAddForm(p => ({ ...p, email: v }))} placeholder="email@student.mededuai.com" type="email" />
-                                    <div className="mt-1.5 flex items-center gap-1.5 text-[10px] font-bold text-purple-600">
+                                    <div className="mt-1.5 flex items-center gap-1.5 text-[10px] font-bold text-emerald-600">
                                         <Shield className="w-3 h-3" /> This email grants Student dashboard access via RLS
                                     </div>
                                 </div>
@@ -570,7 +570,7 @@ export default function MenteeManager() {
                             </div>
                             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/50 sticky bottom-0">
                                 <button onClick={() => setShowAddModal(false)} className="px-5 py-2.5 text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
-                                <button onClick={handleAddManual} disabled={!addForm.name.trim() || !addForm.regNo.trim()} className="px-5 py-2.5 text-sm font-bold text-white bg-purple-600 rounded-xl hover:bg-purple-700 transition-colors shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <button onClick={handleAddManual} disabled={!addForm.name.trim() || !addForm.regNo.trim()} className="px-5 py-2.5 text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                                     <CheckCircle2 className="w-4 h-4" /> Add Student
                                 </button>
                             </div>

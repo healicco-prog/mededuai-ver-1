@@ -79,7 +79,7 @@ export default function Step3Students({ store, instId }: { store: any; instId: s
             {/* Group Division */}
             <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5">
                 <label className="block text-xs font-bold text-indigo-600 uppercase tracking-wider mb-3">Student Division</label>
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-3">
                     <button onClick={() => handleGroupSelect('manual')} className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${groupMode === 'manual' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-100'}`}>Divide into Groups (1 & 2)</button>
                     <button onClick={() => handleGroupSelect('none')} className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${groupMode === 'none' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-100'}`}>No Division</button>
                 </div>

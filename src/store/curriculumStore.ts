@@ -1,5 +1,18 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { get, set, del } from 'idb-keyval';
+
+const idbStorage = {
+  getItem: async (name: string): Promise<string | null> => {
+    return (await get(name)) || null;
+  },
+  setItem: async (name: string, value: string): Promise<void> => {
+    await set(name, value);
+  },
+  removeItem: async (name: string): Promise<void> => {
+    await del(name);
+  },
+};
 
 export type Topic = { id: string, name: string, generatedNotes?: Record<string, string> };
 export type Section = { id: string, name: string, topics: Topic[] };
@@ -3387,6 +3400,13 @@ const bscNursingSubjects: Subject[] = [
 
 export type Course = { id: string, name: string, subjects: Subject[], lmsNotesStructure: LMSNotesStructureItem[] };
 
+// Static curriculum — always up-to-date, never stale from localStorage migrations.
+// Notes pages should use this as the BASE for the store+DB merge.
+export const staticCoursesList: Course[] = [
+    { id: 'MBBS', name: 'MBBS', subjects: [...mbbsSubjects], lmsNotesStructure: [...defaultLMSStructure] },
+    { id: 'BDS', name: 'BDS', subjects: [...bdsSubjects], lmsNotesStructure: [...defaultLMSStructure] },
+];
+
 interface CurriculumState {
     coursesList: Course[];
     setCoursesList: (updater: Course[] | ((prev: Course[]) => Course[])) => void;
@@ -3405,7 +3425,8 @@ export const useCurriculumStore = create<CurriculumState>()(
             })),
         }),
         {
-            name: 'curriculum-storage', // key in local storage
+            name: 'curriculum-storage', // key in indexedDB
+            storage: createJSONStorage(() => idbStorage),
             version: 27, // bump to purge l10 (PPT) from all persisted lmsNotesStructure
             migrate: (persistedState: any, version: number) => {
                 if (version === 0 && persistedState.coursesList) {

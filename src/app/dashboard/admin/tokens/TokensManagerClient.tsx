@@ -9,13 +9,13 @@ const PLAN_ALLOTMENTS: Record<string, number> = {
     standard: 100_000,
     premium: 300_000,
     enterprise: 1_000_000,
-    free: 10_000,
+    free: 0,
 };
 
 const PLAN_COLORS: Record<string, string> = {
     basic: 'bg-blue-100 text-blue-700',
     standard: 'bg-emerald-100 text-emerald-700',
-    premium: 'bg-purple-100 text-purple-700',
+    premium: 'bg-emerald-100 text-emerald-700',
     enterprise: 'bg-amber-100 text-amber-700',
     free: 'bg-slate-100 text-slate-600',
 };
@@ -281,7 +281,9 @@ export default function TokensManagerClient() {
                                                             {u.plan_tier}
                                                         </span>
                                                         {u.billing_status === 'trialing' && !isUnlimited && (
-                                                            <span className="ml-1 px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded text-[9px] font-bold uppercase">Trial</span>
+                                                            <span className="ml-1 px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded text-[9px] font-bold uppercase">
+                                                                Trial {u.trial_end_date ? `(${Math.max(0, Math.ceil((new Date(u.trial_end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))}d)` : ''}
+                                                            </span>
                                                         )}
                                                     </td>
                                                     {isUnlimited ? (
@@ -336,13 +338,13 @@ export default function TokensManagerClient() {
             {activeTab === 'plans' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {[
-                        { tier: 'basic', label: 'Basic', tokens: 50_000, roles: 'Learning – Student only (LMS Notes & Mentorship)', period: 'per month' },
-                        { tier: 'standard', label: 'Standard', tokens: 100_000, roles: 'Learning (all) – Student & Teaching – Teacher', period: 'per month' },
-                        { tier: 'premium', label: 'Premium', tokens: 300_000, roles: 'Department Head (all Dept Admin features)', period: 'per month' },
-                        { tier: 'enterprise', label: 'Enterprise', tokens: 1_000_000, roles: 'Institution Head – Mentoring, Elective, LogBook MS', period: 'per month' },
-                        { tier: 'free', label: 'Free Trial', tokens: 10_000, roles: '15-day trial – limited features', period: 'trial period' },
+                        { tier: 'basic', label: 'Basic', tokens: 50_000, roles: 'Free package + LMS Notes (Rs 200) – Student only', period: 'per month' },
+                        { tier: 'standard', label: 'Standard', tokens: 100_000, roles: 'Free package + All features of Learning (Student) / Teaching (Teacher)', period: 'per month' },
+                        { tier: 'premium', label: 'Premium', tokens: 300_000, roles: 'Free package + All features of Department Head', period: 'per month' },
+                        { tier: 'enterprise', label: 'Enterprise', tokens: 1_000_000, roles: 'Mentoring MS, Elective MS, Log Book MS (if approved by Super Admin)', period: 'per month' },
+                        { tier: 'free', label: 'Free Package', tokens: 0, roles: 'Mentorship MS, Elective MS, Logbook MS (If Institution Subscribed)', period: 'per month' },
                     ].map(plan => (
-                        <div key={plan.tier} className={`bg-white p-6 rounded-3xl border-2 shadow-sm ${plan.tier === 'premium' ? 'border-purple-200' : plan.tier === 'standard' ? 'border-emerald-200' : 'border-slate-200'}`}>
+                        <div key={plan.tier} className={`bg-white p-6 rounded-3xl border-2 shadow-sm ${plan.tier === 'premium' ? 'border-emerald-200' : plan.tier === 'standard' ? 'border-emerald-200' : 'border-slate-200'}`}>
                             <div className={`inline-block px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider mb-4 ${PLAN_COLORS[plan.tier]}`}>{plan.label}</div>
                             <div className="text-3xl font-extrabold text-slate-900 mb-1">
                                 {plan.tokens >= 100_000 ? `${(plan.tokens / 100_000).toFixed(0)} Lakh` : `${(plan.tokens / 1000).toFixed(0)}K`}
@@ -452,7 +454,22 @@ export default function TokensManagerClient() {
                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Role</label>
                                 <select
                                     value={draft.role}
-                                    onChange={e => setDraft(d => d ? { ...d, role: e.target.value } : d)}
+                                    onChange={e => {
+                                        const newRole = e.target.value;
+                                        setDraft(d => {
+                                            if (!d) return d;
+                                            let validPlans: string[];
+                                            switch (newRole.toLowerCase()) {
+                                                case 'student': validPlans = ['free', 'basic', 'standard']; break;
+                                                case 'teacher': validPlans = ['free', 'standard']; break;
+                                                case 'deptadmin': validPlans = ['free', 'premium']; break;
+                                                case 'instadmin': validPlans = ['enterprise']; break;
+                                                default: validPlans = ['free', 'basic', 'standard', 'premium', 'enterprise']; break;
+                                            }
+                                            const newPlan = validPlans.includes(d.plan_tier) ? d.plan_tier : validPlans[0];
+                                            return { ...d, role: newRole, plan_tier: newPlan, ai_tokens_allotment: PLAN_ALLOTMENTS[newPlan] ?? d.ai_tokens_allotment };
+                                        });
+                                    }}
                                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-semibold text-slate-800 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                                 >
                                     <option value="student">Student</option>
@@ -473,11 +490,25 @@ export default function TokensManagerClient() {
                                         onChange={e => handlePlanChange(e.target.value)}
                                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-semibold text-slate-800 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                                     >
-                                        <option value="free">Free</option>
-                                        <option value="basic">Basic</option>
-                                        <option value="standard">Standard</option>
-                                        <option value="premium">Premium</option>
-                                        <option value="enterprise">Enterprise</option>
+                                        {(() => {
+                                            let validPlans: string[];
+                                            switch (draft.role.toLowerCase()) {
+                                                case 'student': validPlans = ['free', 'basic', 'standard']; break;
+                                                case 'teacher': validPlans = ['free', 'standard']; break;
+                                                case 'deptadmin': validPlans = ['free', 'premium']; break;
+                                                case 'instadmin': validPlans = ['enterprise']; break;
+                                                default: validPlans = ['free', 'basic', 'standard', 'premium', 'enterprise']; break;
+                                            }
+                                            return [
+                                                { id: 'free', label: 'Free' },
+                                                { id: 'basic', label: 'Basic' },
+                                                { id: 'standard', label: 'Standard' },
+                                                { id: 'premium', label: 'Premium' },
+                                                { id: 'enterprise', label: 'Enterprise' }
+                                            ].filter(p => validPlans.includes(p.id)).map(p => (
+                                                <option key={p.id} value={p.id}>{p.label}</option>
+                                            ));
+                                        })()}
                                     </select>
                                 </div>
                                 <div>
@@ -529,7 +560,7 @@ export default function TokensManagerClient() {
                                             onClick={() => setDraft(d => d ? { ...d, ai_tokens_balance: tokens, ai_tokens_allotment: tokens } : d)}
                                             className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all hover:scale-105 ${PLAN_COLORS[tier] || 'bg-slate-100 text-slate-600'} border-transparent`}
                                         >
-                                            {tier}: {tokens >= 100_000 ? `${tokens / 100_000}L` : `${tokens / 1000}K`}
+                                            {tier}: {tokens === 0 ? '0' : tokens >= 100_000 ? `${tokens / 100_000}L` : `${tokens / 1000}K`}
                                         </button>
                                     ))}
                                 </div>

@@ -451,7 +451,7 @@ export default function LandingPage() {
               Simple, Transparent Pricing
             </div>
             <h2 className="text-3xl md:text-5xl font-bold text-white mb-6 tracking-tight">Plans for Every Role</h2>
-            <p className="text-slate-400 max-w-2xl mx-auto text-lg">Start with a 15-day free trial including 10,000 AI tokens. No credit card required. Upgrade anytime.</p>
+            <p className="text-slate-400 max-w-2xl mx-auto text-lg">Start with a 1-month free trial of premium features. No credit card required. Upgrade anytime.</p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
@@ -539,23 +539,23 @@ export default function LandingPage() {
             </div>
 
             {/* Premium */}
-            <div className="bg-slate-950/60 backdrop-blur-sm border border-white/10 rounded-3xl p-7 hover:border-purple-500/30 transition-all duration-500 group">
+            <div className="bg-slate-950/60 backdrop-blur-sm border border-white/10 rounded-3xl p-7 hover:border-emerald-500/30 transition-all duration-500 group">
               <div className="flex items-center gap-3 mb-5">
-                <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20">
-                  <Crown className="w-5 h-5 text-purple-400" />
+                <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                  <Crown className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div>
                   <h3 className="font-bold text-white text-lg">Premium</h3>
-                  <p className="text-[11px] text-purple-400 font-medium">Department Heads</p>
+                  <p className="text-[11px] text-emerald-400 font-medium">Department Heads</p>
                 </div>
               </div>
               <div className="flex items-baseline gap-1 mb-4">
                 <span className="text-4xl font-extrabold text-white">₹1,000</span>
                 <span className="text-slate-500 font-medium">/month</span>
               </div>
-              <div className="flex items-center gap-2 mb-5 p-2.5 bg-purple-500/5 border border-purple-500/10 rounded-xl">
-                <Zap className="w-4 h-4 text-purple-400" />
-                <span className="text-xs font-bold text-purple-300">3,00,000 AI tokens/month</span>
+              <div className="flex items-center gap-2 mb-5 p-2.5 bg-emerald-500/5 border border-emerald-500/10 rounded-xl">
+                <Zap className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs font-bold text-emerald-300">3,00,000 AI tokens/month</span>
               </div>
               <div className="space-y-2 mb-6">
                 <PricingFeature text="All features of Basic" />
@@ -612,7 +612,7 @@ export default function LandingPage() {
           <div className="bg-slate-950/60 backdrop-blur-sm border border-white/10 rounded-3xl overflow-hidden">
             <div className="p-6 border-b border-white/5">
               <h3 className="text-xl font-bold text-white">Complete Feature Comparison</h3>
-              <p className="text-sm text-slate-500 mt-1">All plans include a 15-day free trial with 10,000 AI tokens</p>
+              <p className="text-sm text-slate-500 mt-1">All new accounts include a 1-month free trial based on your role.</p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[700px]">
@@ -621,7 +621,7 @@ export default function LandingPage() {
                     <th className="text-left py-4 px-6 text-sm font-bold text-slate-400">Feature</th>
                     <th className="text-center py-4 px-4 text-sm font-bold text-blue-400">Basic</th>
                     <th className="text-center py-4 px-4 text-sm font-bold text-cyan-400">Standard</th>
-                    <th className="text-center py-4 px-4 text-sm font-bold text-purple-400">Premium</th>
+                    <th className="text-center py-4 px-4 text-sm font-bold text-emerald-400">Premium</th>
                     <th className="text-center py-4 px-4 text-sm font-bold text-amber-400">Enterprise</th>
                   </tr>
                 </thead>
@@ -663,14 +663,14 @@ export default function LandingPage() {
                     <td className="py-4 px-6 text-white font-bold">AI Tokens / Month</td>
                     <td className="text-center py-4 px-4 text-blue-300 font-bold">50K</td>
                     <td className="text-center py-4 px-4 text-cyan-300 font-bold">1 Lakh</td>
-                    <td className="text-center py-4 px-4 text-purple-300 font-bold">3 Lakh</td>
+                    <td className="text-center py-4 px-4 text-emerald-300 font-bold">3 Lakh</td>
                     <td className="text-center py-4 px-4 text-amber-300 font-bold">Custom</td>
                   </tr>
                   <tr className="bg-cyan-500/5">
                     <td className="py-4 px-6 text-white font-bold">Monthly Price</td>
                     <td className="text-center py-4 px-4 text-blue-300 font-bold">₹200</td>
                     <td className="text-center py-4 px-4 text-cyan-300 font-bold">₹500</td>
-                    <td className="text-center py-4 px-4 text-purple-300 font-bold">₹1,000</td>
+                    <td className="text-center py-4 px-4 text-emerald-300 font-bold">₹1,000</td>
                     <td className="text-center py-4 px-4 text-amber-300 font-bold">Call Us</td>
                   </tr>
                 </tbody>

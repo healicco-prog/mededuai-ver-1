@@ -23,16 +23,15 @@ interface PlanFeature {
 
 const PLAN_FEATURES: PlanFeature[] = [
   // LEARNING
-  { name: 'LMS Notes', free: true, basic: true, standard: true, premium: true, enterprise: true },
-  { name: 'Notes Creator', free: true, basic: true, standard: true, premium: true, enterprise: true },
-  { name: 'Mentorship MS', free: true, basic: true, standard: true, premium: true, enterprise: true },
-  { name: 'AI MentorPro', free: '15-day trial', basic: false, standard: true, premium: true, enterprise: true },
-  { name: 'Viva Simulator', free: '15-day trial', basic: false, standard: true, premium: true, enterprise: true },
-  { name: 'Vocabulary', free: '15-day trial', basic: false, standard: true, premium: true, enterprise: true },
-  { name: 'Reflection Generator', free: '15-day trial', basic: false, standard: true, premium: true, enterprise: true },
-  { name: 'Essay Qs Generator', free: '15-day trial', basic: false, standard: true, premium: true, enterprise: true },
-  { name: 'MCQs Generator', free: '15-day trial', basic: false, standard: true, premium: true, enterprise: true },
-  { name: 'Self-Evaluation', free: '15-day trial', basic: false, standard: true, premium: true, enterprise: true },
+  { name: 'LMS Notes', free: false, basic: true, standard: true, premium: true, enterprise: true },
+  { name: 'Notes Creator', free: false, basic: false, standard: true, premium: true, enterprise: true },
+  { name: 'AI MentorPro', free: false, basic: false, standard: true, premium: true, enterprise: true },
+  { name: 'Viva Simulator', free: false, basic: false, standard: true, premium: true, enterprise: true },
+  { name: 'Vocabulary', free: false, basic: false, standard: true, premium: true, enterprise: true },
+  { name: 'Reflection Generator', free: false, basic: false, standard: true, premium: true, enterprise: true },
+  { name: 'Essay Qs Generator', free: false, basic: false, standard: true, premium: true, enterprise: true },
+  { name: 'MCQs Generator', free: false, basic: false, standard: true, premium: true, enterprise: true },
+  { name: 'Self-Evaluation', free: false, basic: false, standard: true, premium: true, enterprise: true },
   // TEACHING
   { name: 'Lesson Plan', free: false, basic: false, standard: true, premium: true, enterprise: true },
   { name: 'Rubrics Generator', free: false, basic: false, standard: true, premium: true, enterprise: true },
@@ -44,10 +43,10 @@ const PLAN_FEATURES: PlanFeature[] = [
   { name: 'Q-Paper Dev', free: false, basic: false, standard: false, premium: true, enterprise: true },
   { name: 'EMS – Essay', free: false, basic: false, standard: false, premium: true, enterprise: true },
   { name: 'EMR – MCQs', free: false, basic: false, standard: false, premium: true, enterprise: true },
-  // ENTERPRISE
-  { name: 'Mentoring MS', free: false, basic: false, standard: false, premium: false, enterprise: true },
-  { name: 'Elective MS', free: false, basic: false, standard: false, premium: false, enterprise: true },
-  { name: 'Log Book MS', free: false, basic: false, standard: false, premium: false, enterprise: true },
+  // MS MODULES
+  { name: 'Mentoring MS', free: 'If Subscribed', basic: 'If Subscribed', standard: 'If Subscribed', premium: 'If Subscribed', enterprise: true },
+  { name: 'Elective MS', free: 'If Subscribed', basic: 'If Subscribed', standard: 'If Subscribed', premium: 'If Subscribed', enterprise: true },
+  { name: 'Log Book MS', free: 'If Subscribed', basic: 'If Subscribed', standard: 'If Subscribed', premium: 'If Subscribed', enterprise: true },
 ];
 
 export default function UpgradePage() {
@@ -214,7 +213,7 @@ export default function UpgradePage() {
       )}
 
       {/* Top-up Banner */}
-      <div className="mb-10 bg-gradient-to-r from-indigo-500 via-purple-500 to-fuchsia-500 rounded-3xl p-1 shadow-lg">
+      <div className="mb-10 bg-gradient-to-r from-indigo-500 via-emerald-500 to-fuchsia-500 rounded-3xl p-1 shadow-lg">
         <div className="bg-white rounded-[23px] p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
           <div className="absolute -right-10 -top-10 w-40 h-40 bg-fuchsia-100 rounded-full blur-3xl opacity-50 pointer-events-none" />
           
@@ -283,7 +282,7 @@ export default function UpgradePage() {
                 <div className={`p-2.5 rounded-xl ${
                   key === 'basic' ? 'bg-blue-50 text-blue-600' :
                   key === 'standard' ? 'bg-emerald-50 text-emerald-600' :
-                  key === 'premium' ? 'bg-purple-50 text-purple-600' :
+                  key === 'premium' ? 'bg-emerald-50 text-emerald-600' :
                   'bg-amber-50 text-amber-600'
                 }`}>
                   <Icon className="w-5 h-5" />
@@ -367,10 +366,10 @@ export default function UpgradePage() {
             <thead>
               <tr className="border-b border-slate-100">
                 <th className="text-left py-4 px-6 text-sm font-bold text-slate-700">Feature</th>
-                <th className="text-center py-4 px-4 text-sm font-bold text-slate-400">Free Trial</th>
+                <th className="text-center py-4 px-4 text-sm font-bold text-slate-400">Free Package</th>
                 <th className="text-center py-4 px-4 text-sm font-bold text-blue-600">Basic ₹200</th>
                 <th className="text-center py-4 px-4 text-sm font-bold text-emerald-600">Standard ₹500</th>
-                <th className="text-center py-4 px-4 text-sm font-bold text-purple-600">Premium ₹1000</th>
+                <th className="text-center py-4 px-4 text-sm font-bold text-emerald-600">Premium ₹1000</th>
                 <th className="text-center py-4 px-4 text-sm font-bold text-amber-600">Enterprise</th>
               </tr>
             </thead>
@@ -394,10 +393,10 @@ export default function UpgradePage() {
               {/* Token row */}
               <tr className="border-t-2 border-slate-200 bg-cyan-50/30">
                 <td className="py-4 px-6 text-sm font-bold text-slate-900">AI Tokens / Month</td>
-                <td className="text-center py-4 px-4 text-sm font-bold text-slate-500">10,000</td>
+                <td className="text-center py-4 px-4 text-sm font-bold text-slate-500">0</td>
                 <td className="text-center py-4 px-4 text-sm font-bold text-blue-600">50,000</td>
                 <td className="text-center py-4 px-4 text-sm font-bold text-emerald-600">1,00,000</td>
-                <td className="text-center py-4 px-4 text-sm font-bold text-purple-600">3,00,000</td>
+                <td className="text-center py-4 px-4 text-sm font-bold text-emerald-600">3,00,000</td>
                 <td className="text-center py-4 px-4 text-sm font-bold text-amber-600">Custom</td>
               </tr>
               <tr className="bg-cyan-50/30">
@@ -405,7 +404,7 @@ export default function UpgradePage() {
                 <td className="text-center py-4 px-4 text-sm font-bold text-slate-500">Free</td>
                 <td className="text-center py-4 px-4 text-sm font-bold text-blue-600">₹200/mo</td>
                 <td className="text-center py-4 px-4 text-sm font-bold text-emerald-600">₹500/mo</td>
-                <td className="text-center py-4 px-4 text-sm font-bold text-purple-600">₹1,000/mo</td>
+                <td className="text-center py-4 px-4 text-sm font-bold text-emerald-600">₹1,000/mo</td>
                 <td className="text-center py-4 px-4 text-sm font-bold text-amber-600">Call Us</td>
               </tr>
             </tbody>
@@ -418,7 +417,7 @@ export default function UpgradePage() {
         <h2 className="text-xl font-extrabold text-slate-900 mb-6">Frequently Asked Questions</h2>
         <div className="grid md:grid-cols-2 gap-4">
           {[
-            { q: 'What happens after my trial ends?', a: 'After 15 days, you\'ll be downgraded to the Free tier with no AI tokens. Upgrade anytime to restore access.' },
+            { q: 'Can I use the Free Package forever?', a: 'Yes! The Free Package is perpetual and gives you access to core MS modules if your institution has subscribed.' },
             { q: 'Can I change my plan later?', a: 'Yes! You can upgrade or downgrade at any time. Upgrades take effect immediately with a new token allotment.' },
             { q: 'Do unused tokens roll over?', a: 'No. Tokens reset to your plan\'s allotment each month (strict SaaS billing). Use them before they reset!' },
             { q: 'What if my payment fails?', a: 'We\'ll retry up to 3 times. If payment continues to fail, your account will be downgraded to Free.' },

@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { FilePenLine as FileEdit, Loader2, Sparkles, RefreshCcw, Download, Copy, CheckCircle, BookOpen, Save, Share2, FileDown, X, Plus } from 'lucide-react';
+import { FilePenLine as FileEdit, Loader2, Sparkles, RefreshCcw, Download, Copy, CheckCircle, BookOpen, Save, Share2, FileDown, X, Plus, Search, History } from 'lucide-react';
 import { useCurriculumStore } from '@/store/curriculumStore';
 import { useUserStore } from '@/store/userStore';
 import { tokenService } from '@/lib/tokenService';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import SavedNotesModal from '@/components/SavedNotesModal';
 
 const NOTE_STYLES = [
     { id: 'comprehensive', label: 'Comprehensive Notes', desc: 'Detailed, textbook-style notes covering all aspects' },
@@ -35,8 +34,11 @@ export default function NotesCreatorPage() {
     const [copied, setCopied] = useState(false);
     const [saved, setSaved] = useState(false);
     const [shared, setShared] = useState(false);
-    const [showSavedModal, setShowSavedModal] = useState(false);
     const topicInputRef = useRef<HTMLInputElement>(null);
+
+    const [savedNotes, setSavedNotes] = useState<any[]>([]);
+    const [savedSearchQuery, setSavedSearchQuery] = useState('');
+    const [isFetchingSaved, setIsFetchingSaved] = useState(true);
 
     const activeCourse = coursesList.find(c => c.id === selectedCourseId) || coursesList[0];
     const activeSubject = activeCourse?.subjects.find(s => s.id === selectedSubjectId) || activeCourse?.subjects[0];
@@ -59,6 +61,25 @@ export default function NotesCreatorPage() {
             localStorage.setItem('mededuai_selected_subject', activeSubject.name);
         }
     }, [activeCourse, activeSubject]);
+
+    const fetchSavedNotes = async () => {
+        setIsFetchingSaved(true);
+        try {
+            const res = await fetch('/api/notes-creator/saved/all');
+            const data = await res.json();
+            if (data.success && data.savedRecords) {
+                setSavedNotes(data.savedRecords);
+            }
+        } catch (e) {
+            console.error('Error fetching saved notes:', e);
+        } finally {
+            setIsFetchingSaved(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchSavedNotes();
+    }, []);
 
     const handleAddTopic = () => {
         const trimmed = topicInput.trim();
@@ -153,24 +174,32 @@ export default function NotesCreatorPage() {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
+        if (!result) return;
         try {
-            const savedNotes = JSON.parse(localStorage.getItem('mededuai_saved_notes') || '[]');
-            savedNotes.push({
-                id: Date.now(),
-                course: activeCourse?.name,
-                subject: activeSubject?.name,
-                topics: topicsList.join(', '),
-                style: selectedStyle,
-                depth,
-                content: result,
-                createdAt: new Date().toISOString()
+            const res = await fetch('/api/notes-creator/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    course: activeCourse?.name || '',
+                    subject: activeSubject?.name || '',
+                    topic: topicsList.join(', ') || topicInput || '',
+                    style: selectedStyle,
+                    depth,
+                    content: result
+                })
             });
-            localStorage.setItem('mededuai_saved_notes', JSON.stringify(savedNotes));
-            setSaved(true);
-            setTimeout(() => setSaved(false), 3000);
+            const data = await res.json();
+            if (data.success && data.savedRecord) {
+                setSavedNotes(prev => [data.savedRecord, ...prev]);
+                setSaved(true);
+                setTimeout(() => setSaved(false), 3000);
+            } else {
+                alert('Failed to save: ' + (data.error || 'Unknown error'));
+            }
         } catch (err) {
-            console.error(err);
+            console.error('Error saving notes:', err);
+            alert('An error occurred while saving.');
         }
     };
 
@@ -271,26 +300,7 @@ th,td{border:1px solid #ccc;padding:6pt 8pt;text-align:left;}th{background:#ecfd
                             <p className="text-emerald-300/80 text-sm font-medium">AI-powered study notes tailored to your curriculum</p>
                         </div>
                     </div>
-                    
-                    <div className="absolute top-6 right-6 z-10 hidden sm:block">
-                        <button 
-                            onClick={() => setShowSavedModal(true)} 
-                            className="flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm border border-white/20"
-                        >
-                            <BookOpen className="w-4 h-4" /> Saved Notes Library
-                        </button>
-                    </div>
                 </div>
-            </div>
-
-            {/* Mobile Saved Notes Button */}
-            <div className="sm:hidden mb-4">
-                <button 
-                    onClick={() => setShowSavedModal(true)} 
-                    className="w-full flex justify-center items-center gap-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 px-4 py-3 rounded-xl text-sm font-bold transition-all shadow-sm"
-                >
-                    <BookOpen className="w-4 h-4" /> View Saved Notes Library
-                </button>
             </div>
 
             <div className="flex-1 overflow-y-auto pb-8 space-y-6">
@@ -513,9 +523,85 @@ th,td{border:1px solid #ccc;padding:6pt 8pt;text-align:left;}th{background:#ecfd
                         </div>
                     </div>
                 )}
-            </div>
 
-            <SavedNotesModal isOpen={showSavedModal} onClose={() => setShowSavedModal(false)} />
+                {/* Saved Notes Section */}
+                <div className="mt-12 space-y-4 animate-in fade-in slide-in-from-bottom-4 pt-8 border-t-2 border-slate-100">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center border border-slate-200 shadow-sm">
+                                <BookOpen className="w-5 h-5 text-slate-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-slate-900">Saved Notes</h3>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Your previously generated notes</p>
+                            </div>
+                        </div>
+                        {/* Search */}
+                        <div className="relative w-full sm:w-64">
+                            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                            <input
+                                type="text"
+                                placeholder="Search saved notes..."
+                                value={savedSearchQuery}
+                                onChange={(e) => setSavedSearchQuery(e.target.value)}
+                                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-300 transition-all font-medium"
+                            />
+                        </div>
+                    </div>
+
+                    {isFetchingSaved ? (
+                        <div className="flex justify-center items-center py-10">
+                            <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+                        </div>
+                    ) : savedNotes.length === 0 ? (
+                        <div className="text-center py-12 bg-slate-50 rounded-3xl border border-slate-100 shadow-inner">
+                            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-slate-100">
+                                <BookOpen className="w-8 h-8 text-slate-300" />
+                            </div>
+                            <h4 className="text-slate-500 font-bold text-lg mb-1">Yet to save anything</h4>
+                            <p className="text-slate-400 text-sm">Your saved notes will appear here.</p>
+                        </div>
+                    ) : filteredSavedNotes.length === 0 ? (
+                        <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-100">
+                            <p className="text-slate-500 font-medium text-sm">No saved notes found matching your search.</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {filteredSavedNotes.map((note) => (
+                                <div key={note.id} className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm transition-all hover:shadow-md">
+                                    <div className="bg-slate-50 p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                        <div>
+                                            <h4 className="font-bold text-slate-900 text-lg sm:text-xl">{note.topic || 'Untitled Note'}</h4>
+                                            <div className="flex flex-wrap items-center gap-2 mt-2">
+                                                <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-lg">
+                                                    {note.subject}
+                                                </span>
+                                                <span className="text-xs font-bold text-slate-600 bg-slate-200/50 px-2 py-1 rounded-lg">
+                                                    {note.depth}
+                                                </span>
+                                                <span className="text-xs text-slate-400 font-medium ml-1">
+                                                    {new Date(note.created_at).toLocaleDateString()}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                                            <button
+                                                onClick={() => handleCopy(note.content)}
+                                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white text-slate-700 font-bold h-9 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all text-sm shadow-sm"
+                                            >
+                                                <Copy className="w-4 h-4" /> Copy
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="p-4 sm:p-6 bg-white prose prose-slate prose-sm sm:prose-base max-w-none">
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{note.content}</ReactMarkdown>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }

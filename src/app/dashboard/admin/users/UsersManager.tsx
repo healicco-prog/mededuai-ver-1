@@ -28,7 +28,7 @@ const ROLE_COLORS: Record<string, string> = {
     teacher: 'bg-emerald-100 text-emerald-700',
     deptadmin: 'bg-blue-100 text-blue-700', department_admin: 'bg-blue-100 text-blue-700',
     instadmin: 'bg-blue-100 text-blue-700', institution_admin: 'bg-blue-100 text-blue-700',
-    masteradmin: 'bg-purple-100 text-purple-700', master_admin: 'bg-purple-100 text-purple-700',
+    masteradmin: 'bg-emerald-100 text-emerald-700', master_admin: 'bg-emerald-100 text-emerald-700',
     superadmin: 'bg-rose-100 text-rose-700', super_admin: 'bg-rose-100 text-rose-700',
 };
 

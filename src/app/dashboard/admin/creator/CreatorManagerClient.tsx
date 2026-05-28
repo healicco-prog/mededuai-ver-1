@@ -12,6 +12,8 @@ const MEDEDUAI_PROJECT_REF = 'yrelfdwkjtaidtoulwrj';
 
 const normalizeStr = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
 
+const API_BASE_URL = process.env.NODE_ENV === 'development' ? '' : 'https://mededuai-backend-434817580915.us-central1.run.app';
+
 export default function LMSCreatorAdmin() {
     const fetchAuthHeaders = getAuthHeaders;
     // ── Hydration guard: prevents Zustand persist rehydration mismatch crash ──
@@ -464,8 +466,7 @@ export default function LMSCreatorAdmin() {
                     // typical generation is 60–180s; 480s covers worst-case top-up rounds.
                     const timeoutId = setTimeout(() => controller.abort(), 480000);
 
-                    const CLOUD_RUN_URL = 'https://mededuai-backend-434817580915.us-central1.run.app';
-                    const response = await fetch(`${CLOUD_RUN_URL}/api/creator`, {
+                    const response = await fetch(`${API_BASE_URL}/api/creator`, {
                         method: 'POST',
                         headers: await fetchAuthHeaders(needsRefresh),
                         credentials: 'include',
@@ -518,8 +519,7 @@ export default function LMSCreatorAdmin() {
                             for (let s = 0; s < retries; s++) {
                                 try {
                                     const authH = await fetchAuthHeaders(s > 0);
-                                    const CLOUD_RUN_URL = 'https://mededuai-backend-434817580915.us-central1.run.app';
-                                    const saveRes = await fetch(`${CLOUD_RUN_URL}/api/creator/save`, {
+                                    const saveRes = await fetch(`${API_BASE_URL}/api/creator/save`, {
                                         method: 'POST',
                                         headers: authH,
                                         credentials: 'include',
@@ -555,10 +555,9 @@ export default function LMSCreatorAdmin() {
                             const retryDelay = 3000 * Math.pow(2, attempt - 1);
                             await cooldown(retryDelay);
                         } else {
-                            // All retries exhausted
-                            engineCourse.lmsNotesStructure.filter((item: any) => item.id !== 'l10').forEach(item => {
-                                fetchedNotes[item.id] = `Generation failed after ${maxTopicRetries} attempts: ${errorMsg}`;
-                            });
+                            // All retries exhausted. Do not inject error text into fetchedNotes
+                            // to prevent the UI from marking it as done.
+                            success = false;
                         }
                     }
                 } catch (err: any) {
@@ -569,9 +568,7 @@ export default function LMSCreatorAdmin() {
                         const retryDelay = isAbort ? 5000 : 3000 * Math.pow(2, attempt - 1);
                         await cooldown(retryDelay);
                     } else {
-                        engineCourse.lmsNotesStructure.filter((item: any) => item.id !== 'l10').forEach(item => {
-                            fetchedNotes[item.id] = `${isAbort ? 'Timeout' : 'Network error'} after ${maxTopicRetries} attempts: ${err.message || 'Unknown error'}`;
-                        });
+                        success = false;
                     }
                 }
             }
@@ -591,32 +588,34 @@ export default function LMSCreatorAdmin() {
 
             const result = await generateSingleTopic(topicId, i);
 
-            // Commit result for this topic immediately so the UI updates
-            setCoursesList(prev => prev.map(c => {
-                if (c.id === engineCourse.id) {
-                    return {
-                        ...c, subjects: c.subjects.map(s => {
-                            if (s.id === engineSubject.id) {
-                                return {
-                                    ...s, sections: s.sections.map(sec => {
-                                        if (sec.id === (topicSectionMap.get(result.topicId)?.id || engineSection?.id)) {
-                                            return {
-                                                ...sec, topics: sec.topics.map(t => {
-                                                    if (t.id === result.topicId) return { ...t, generatedNotes: result.notes };
-                                                    return t;
-                                                })
-                                            };
-                                        }
-                                        return sec;
-                                    })
-                                };
-                            }
-                            return s;
-                        })
-                    };
-                }
-                return c;
-            }));
+            // Commit result for this topic immediately so the UI updates only if successful
+            if (result.success && Object.keys(result.notes).length > 0) {
+                setCoursesList(prev => prev.map(c => {
+                    if (c.id === engineCourse.id) {
+                        return {
+                            ...c, subjects: c.subjects.map(s => {
+                                if (s.id === engineSubject.id) {
+                                    return {
+                                        ...s, sections: s.sections.map(sec => {
+                                            if (sec.id === (topicSectionMap.get(result.topicId)?.id || engineSection?.id)) {
+                                                return {
+                                                    ...sec, topics: sec.topics.map(t => {
+                                                        if (t.id === result.topicId) return { ...t, generatedNotes: result.notes };
+                                                        return t;
+                                                    })
+                                                };
+                                            }
+                                            return sec;
+                                        })
+                                    };
+                                }
+                                return s;
+                            })
+                        };
+                    }
+                    return c;
+                }));
+            }
 
             completedCount += 1;
             setProgress(Math.round((completedCount / totalTopics) * 100));
@@ -759,8 +758,7 @@ export default function LMSCreatorAdmin() {
                 let headers = await fetchAuthHeaders(shouldRefresh);
                 if (shouldRefresh) lastTokenRefresh = Date.now();
 
-                const CLOUD_RUN_URL = 'https://mededuai-backend-434817580915.us-central1.run.app';
-                let processRes = await fetch(`${CLOUD_RUN_URL}/api/creator/batch-process`, {
+                let processRes = await fetch(`${API_BASE_URL}/api/creator/batch-process`, {
                     method: 'POST',
                     headers,
                     credentials: 'include',
@@ -784,7 +782,7 @@ export default function LMSCreatorAdmin() {
                     console.warn('[Batch Loop] Unauthorized (401 or body) — refreshing token and retrying once');
                     headers = await fetchAuthHeaders(true);
                     lastTokenRefresh = Date.now();
-                    processRes = await fetch(`${CLOUD_RUN_URL}/api/creator/batch-process`, {
+                    processRes = await fetch(`${API_BASE_URL}/api/creator/batch-process`, {
                         method: 'POST',
                         headers,
                         credentials: 'include',
@@ -1091,6 +1089,37 @@ export default function LMSCreatorAdmin() {
     useEffect(() => {
         loadExistingNotes();
     }, [loadExistingNotes]);
+
+    // ── Cleanup previously failed generations from local store ──
+    useEffect(() => {
+        if (!storeHydrated) return;
+        setCoursesList(prev => {
+            let changed = false;
+            const newCourses = prev.map(c => ({
+                ...c,
+                subjects: c.subjects.map(s => ({
+                    ...s,
+                    sections: s.sections.map(sec => ({
+                        ...sec,
+                        topics: sec.topics.map(t => {
+                            if (t.generatedNotes) {
+                                const hasError = Object.values(t.generatedNotes).some(val => 
+                                    typeof val === 'string' && (val.includes('Generation failed after') || val.includes('Timeout after') || val.includes('Network error after'))
+                                );
+                                if (hasError) {
+                                    changed = true;
+                                    const { generatedNotes, ...rest } = t;
+                                    return rest as typeof t;
+                                }
+                            }
+                            return t;
+                        })
+                    }))
+                }))
+            }));
+            return changed ? newCourses : prev;
+        });
+    }, [storeHydrated, setCoursesList]);
 
     // ── DB Health Check on mount ─────────────────────────────────────────
     useEffect(() => {

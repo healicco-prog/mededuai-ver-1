@@ -400,7 +400,7 @@ export default function BlogManagerClient({ currentUserRole }: { currentUserRole
                             </button>
                         )}
                     </h3>
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap gap-3">
                         <button onClick={() => setEditingBlog(null)} className="px-4 py-2 text-slate-500 hover:bg-slate-200 rounded-xl font-bold flex items-center gap-2 text-sm">
                             <XCircle className="w-4 h-4" /> Cancel
                         </button>
@@ -578,7 +578,7 @@ export default function BlogManagerClient({ currentUserRole }: { currentUserRole
 
                             {/* Search controls & pills */}
                             <div className="p-6 border-b border-slate-100 bg-white shrink-0 space-y-4">
-                                <div className="flex gap-3">
+                                <div className="flex flex-wrap gap-3">
                                     <input
                                         type="text"
                                         value={imageSearchQuery}
@@ -699,7 +699,7 @@ export default function BlogManagerClient({ currentUserRole }: { currentUserRole
                         <p className="text-xs text-slate-500">{blogs.length} articles total</p>
                     </div>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-3">
                     {currentUserRole === 'superadmin' && (
                         <button onClick={() => setShowBulkModal(true)} className="px-5 py-2.5 bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold rounded-xl transition-colors shadow-sm flex items-center gap-2 hover:bg-indigo-100">
                             <Sparkles className="w-4 h-4" /> Bulk AI Blogs

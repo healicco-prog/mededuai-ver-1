@@ -38,8 +38,8 @@ function getHomeUrl(role: string): string {
   const map: Record<string, string> = {
     superadmin: '/dashboard/admin',
     masteradmin: '/dashboard/admin',
-    instadmin: '/dashboard/admin',
-    deptadmin: '/dashboard/admin',
+    instadmin: '/dashboard/instadmin',
+    deptadmin: '/dashboard/deptadmin',
     teacher: '/dashboard/teacher',
     student: '/dashboard/student',
   };

@@ -32,7 +32,6 @@ export async function GET() {
         const { data, error } = await supabase
             .from('lms_content')
             .select('topic_id, course, subject, section, topic, version, last_generated_at')
-            .not('detailed_notes', 'is', null)
             .order('course').order('subject').order('version').order('topic');
 
         if (!error) {
@@ -58,7 +57,6 @@ export async function GET() {
             const { data, error } = await supabase
                 .from('lms_content')
                 .select('topic_id, course, subject, topic, version, last_generated_at')
-                .not('detailed_notes', 'is', null)
                 .order('course').order('subject').order('version').order('topic');
 
             if (!error && data) {
@@ -100,8 +98,7 @@ export async function GET() {
             try {
                 const { data, error } = await supabase
                     .from('lms_content')
-                    .select('topic_id, course, subject, topic, introduction, detailed_notes')
-                    .not('detailed_notes', 'is', null);
+                    .select('topic_id, course, subject, topic, introduction, detailed_notes');
 
                 if (!error && data) {
                     rows = data.map((r: any) => ({ ...r, section: 'General', version: new Date().getFullYear().toString() }));
@@ -110,8 +107,21 @@ export async function GET() {
         }
     }
 
+    // ── Determine which topic_ids have actual generated content ──
+    // hasNotes=true only when at least one content field is non-null.
+    const hasContentSet = new Set<string>();
+    try {
+        const { data: contentRows } = await supabase
+            .from('lms_content')
+            .select('topic_id')
+            .or('introduction.not.is.null,detailed_notes.not.is.null,summary.not.is.null,marks_10_questions.not.is.null,marks_1_mcqs.not.is.null,flashcards.not.is.null');
+        for (const r of (contentRows ?? [])) {
+            if (r.topic_id) hasContentSet.add(r.topic_id);
+        }
+    } catch { /* graceful: topics default to hasNotes=false */ }
+
     // ── Build hierarchy: course → subjects → versions → sections → topics ──
-    type TopicEntry  = { id: string; name: string };
+    type TopicEntry  = { id: string; name: string; hasNotes: boolean };
     type SectionMap  = Record<string, TopicEntry[]>;
     type VersionEntry = { id: string; name: string; sections: SectionMap };
     type VersionMap  = Record<string, VersionEntry>;
@@ -153,7 +163,11 @@ export async function GET() {
 
         const alreadyExists = versionEntry.sections[sectionName].some(t => t.id === topicId);
         if (!alreadyExists) {
-            versionEntry.sections[sectionName].push({ id: topicId, name: topicName });
+            versionEntry.sections[sectionName].push({
+                id: topicId,
+                name: topicName,
+                hasNotes: hasContentSet.has(topicId),
+            });
         }
     }
 

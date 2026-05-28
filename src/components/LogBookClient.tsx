@@ -609,7 +609,7 @@ export default function LogBookClient({ role, userId }: Props) {
                                     </button>
                                 )}
                                 {selectedLogbook.status === 'hod_approved' && canApproveAsHoI(role) && (
-                                    <button onClick={() => approveLogbook('institution')} className="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-bold hover:bg-purple-700 flex items-center gap-1">
+                                    <button onClick={() => approveLogbook('institution')} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 flex items-center gap-1">
                                         <BadgeCheck className="w-3.5 h-3.5" /> Institution Approve
                                     </button>
                                 )}
@@ -786,7 +786,7 @@ function StatusPill({ status }: { status: Logbook['status'] }) {
         draft:                  { label: 'Draft',                cls: 'bg-slate-100 text-slate-700' },
         faculty_approved:       { label: 'Faculty Approved',     cls: 'bg-emerald-100 text-emerald-700' },
         hod_approved:           { label: 'HoD Approved',         cls: 'bg-indigo-100 text-indigo-700' },
-        institution_approved:   { label: 'Institution Approved', cls: 'bg-purple-100 text-purple-700' },
+        institution_approved:   { label: 'Institution Approved', cls: 'bg-emerald-100 text-emerald-700' },
         finalized:              { label: 'Finalized · PDF Ready',cls: 'bg-amber-100 text-amber-700' },
     };
     const m = map[status];

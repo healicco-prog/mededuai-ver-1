@@ -1,15 +1,16 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { FileText, Loader2, Save, Send, CheckCircle, BrainCircuit, ShieldAlert, History, Calendar, ChevronDown, ChevronUp, Share2, Download, Sparkles, PenLine } from 'lucide-react';
+import { FileText, Loader2, Save, Send, CheckCircle, BrainCircuit, ShieldAlert, History, Calendar, ChevronDown, ChevronUp, Share2, Download, Sparkles, PenLine, Search } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { tokenService } from '@/lib/tokenService';
 
 interface GeneratedReflection {
     id: string;
-    date: string;
+    created_at: string;
     subject: string;
     topic: string;
+    competency: string;
     content: {
         description: string;
         feelings: string;
@@ -33,17 +34,26 @@ export default function ReflectionGeneratorPage() {
     const [currentReflectionDraft, setCurrentReflectionDraft] = useState<GeneratedReflection | null>(null);
 
     const [savedReflections, setSavedReflections] = useState<GeneratedReflection[]>([]);
-    const [expandedRefId, setExpandedRefId] = useState<string | null>(null);
+    const [savedSearchQuery, setSavedSearchQuery] = useState('');
+    const [isFetchingSaved, setIsFetchingSaved] = useState(true);
+
+    const fetchSavedReflections = async () => {
+        setIsFetchingSaved(true);
+        try {
+            const res = await fetch('/api/reflection-generator/saved/all');
+            const data = await res.json();
+            if (data.success && data.savedRecords) {
+                setSavedReflections(data.savedRecords);
+            }
+        } catch (e) {
+            console.error('Error fetching saved reflections:', e);
+        } finally {
+            setIsFetchingSaved(false);
+        }
+    };
 
     useEffect(() => {
-        try {
-            const stored = localStorage.getItem('mededuai_saved_reflections');
-            if (stored) {
-                setSavedReflections(JSON.parse(stored));
-            }
-        } catch (error) {
-            console.error(error);
-        }
+        fetchSavedReflections();
     }, []);
 
     const handleGenerate = async () => {
@@ -96,21 +106,32 @@ export default function ReflectionGeneratorPage() {
         }
     };
 
-    const handleSaveReflection = () => {
+    const handleSaveReflection = async () => {
         if (!currentReflectionDraft) return;
 
-        setSavedReflections(prev => {
-            const next = [currentReflectionDraft, ...prev];
-            try {
-                localStorage.setItem('mededuai_saved_reflections', JSON.stringify(next));
-            } catch (err) {
-                console.error(err);
+        try {
+            const res = await fetch('/api/reflection-generator/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    subject: currentReflectionDraft.subject,
+                    topic: currentReflectionDraft.topic,
+                    competency: currentReflectionDraft.competency || competency,
+                    content: currentReflectionDraft.content
+                })
+            });
+            const data = await res.json();
+            if (data.success && data.savedRecord) {
+                setSavedReflections(prev => [data.savedRecord, ...prev]);
+                alert("Reflection saved successfully!");
+                setCurrentReflectionDraft(null);
+            } else {
+                alert('Failed to save: ' + (data.error || 'Unknown error'));
             }
-            return next;
-        });
-        setCurrentReflectionDraft(null);
-
-        alert("Reflection saved successfully!");
+        } catch (err) {
+            console.error('Error saving reflection:', err);
+            alert('An error occurred while saving.');
+        }
     };
 
     const handleExportPDF = async (elementId: string, title: string, share: boolean = false) => {
@@ -318,6 +339,11 @@ export default function ReflectionGeneratorPage() {
                                         >
                                             <Save className="w-4 h-4" /> Save
                                         </button>
+                                    <button onClick={() => window.print()} className="font-bold h-10 px-5 rounded-xl transition-all flex items-center gap-2 text-sm shadow-sm bg-white text-slate-700 border border-slate-200 hover:bg-blue-50 hover:border-blue-300 print:hidden ml-2" title="Share as PDF">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> 
+                                        Share as PDF
+                                    </button>
+
                                     </div>
                                 </div>
                             </div>
@@ -335,71 +361,107 @@ export default function ReflectionGeneratorPage() {
                 )}
 
                 {/* History */}
-                {savedReflections.length > 0 && (
-                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 pt-8 border-t-2 border-slate-100">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="w-12 h-12 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center border border-slate-200 shadow-sm">
-                                <History className="w-6 h-6 text-slate-600" />
+                <div className="mt-12 space-y-4 animate-in fade-in slide-in-from-bottom-4 pt-8 border-t-2 border-slate-100">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center border border-slate-200 shadow-sm">
+                                <History className="w-5 h-5 text-slate-600" />
                             </div>
                             <div>
                                 <h3 className="text-xl font-bold text-slate-900">Saved Reflections</h3>
                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Your previously generated reflections</p>
                             </div>
                         </div>
-
-                        {savedReflections.map(ref => (
-                            <div key={ref.id} className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm transition-all hover:shadow-md">
-                                <div 
-                                    className="p-5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
-                                    onClick={() => setExpandedRefId(expandedRefId === ref.id ? null : ref.id)}
-                                >
-                                    <div>
-                                        <h4 className="font-bold text-slate-900 text-lg">{ref.subject} — {ref.topic}</h4>
-                                        <div className="flex items-center gap-3 mt-2">
-                                            <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-widest bg-slate-100 px-2.5 py-1 rounded-lg">
-                                                <Calendar className="w-3.5 h-3.5" />
-                                                {ref.date}
-                                            </span>
-                                            <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100">
-                                                6 Sections
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 transition-transform">
-                                        {expandedRefId === ref.id ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                                    </div>
-                                </div>
-
-                                {expandedRefId === ref.id && (
-                                    <div className="px-6 pb-6 border-t border-slate-100 bg-slate-50">
-                                        <div className="flex gap-2 mt-4 mb-3 justify-end">
-                                            <button
-                                                onClick={() => handleExportPDF(`saved-reflection-${ref.id}`, `Reflection_${ref.subject.replace(/\s+/g, '_')}`, false)}
-                                                className="bg-white text-slate-700 font-bold h-9 px-4 rounded-xl hover:bg-slate-50 border border-slate-200 transition-all flex items-center gap-2 text-sm shadow-sm"
-                                            >
-                                                <Download className="w-3.5 h-3.5" /> Save PDF
-                                            </button>
-                                            <button
-                                                onClick={() => handleExportPDF(`saved-reflection-${ref.id}`, `Reflection_${ref.subject.replace(/\s+/g, '_')}`, true)}
-                                                className="bg-emerald-100 text-emerald-700 font-bold h-9 px-4 rounded-xl hover:bg-emerald-200 transition-all flex items-center gap-2 text-sm"
-                                            >
-                                                <Share2 className="w-3.5 h-3.5" /> Share
-                                            </button>
-                                        </div>
-                                        <div id={`saved-reflection-${ref.id}`} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                                            <SectionBlock title="Description of the Experience" num={1} content={ref.content.description} color={sectionColors[0]} />
-                                            <SectionBlock title="Feelings and Initial Reactions" num={2} content={ref.content.feelings} color={sectionColors[1]} />
-                                            <SectionBlock title="Evaluation of the Experience" num={3} content={ref.content.evaluation} color={sectionColors[2]} />
-                                            <SectionBlock title="Analysis (Critical Thinking)" num={4} content={ref.content.analysis} color={sectionColors[3]} />
-                                            <SectionBlock title="Learning Points" num={5} content={ref.content.learningPoints} color={sectionColors[4]} />
-                                            <SectionBlock title="Action Plan (Future Improvement)" num={6} content={ref.content.actionPlan} isLast color={sectionColors[5]} />
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
+                        <div className="relative w-full sm:w-64">
+                            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                            <input
+                                type="text"
+                                placeholder="Search saved reflections..."
+                                value={savedSearchQuery}
+                                onChange={(e) => setSavedSearchQuery(e.target.value)}
+                                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-300 transition-all font-medium"
+                            />
+                        </div>
                     </div>
-                )}
+
+                    {isFetchingSaved ? (
+                        <div className="flex justify-center items-center py-10">
+                            <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+                        </div>
+                    ) : savedReflections.length === 0 ? (
+                        <div className="text-center py-12 bg-slate-50 rounded-3xl border border-slate-100 shadow-inner">
+                            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-slate-100">
+                                <History className="w-8 h-8 text-slate-300" />
+                            </div>
+                            <h4 className="text-slate-500 font-bold text-lg mb-1">Yet to save anything</h4>
+                            <p className="text-slate-400 text-sm">Your saved reflections will appear here.</p>
+                        </div>
+                    ) : (() => {
+                            const filtered = savedReflections.filter(r => {
+                                if (!savedSearchQuery) return true;
+                                const q = savedSearchQuery.toLowerCase();
+                                return (r.subject || '').toLowerCase().includes(q) || (r.topic || '').toLowerCase().includes(q) || (r.competency || '').toLowerCase().includes(q);
+                            });
+                            
+                            if (filtered.length === 0) {
+                                return (
+                                    <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-100">
+                                        <p className="text-slate-500 font-medium text-sm">No saved reflections found matching your search.</p>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div className="space-y-6">
+                                    {filtered.map(ref => (
+                                        <div key={ref.id} className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm transition-all hover:shadow-md">
+                                        <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50">
+                                            <div>
+                                                <h4 className="font-bold text-slate-900 text-lg sm:text-xl">{ref.subject} — {ref.topic}</h4>
+                                                <div className="flex flex-wrap items-center gap-2 mt-2">
+                                                    <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-widest bg-white border border-slate-200 px-2.5 py-1 rounded-lg">
+                                                        <Calendar className="w-3.5 h-3.5" />
+                                                        {ref.created_at ? new Date(ref.created_at).toLocaleDateString() : 'N/A'}
+                                                    </span>
+                                                    {ref.competency && (
+                                                        <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-lg">
+                                                            {ref.competency}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => handleExportPDF(`saved-reflection-${ref.id}`, `Reflection_${ref.subject?.replace(/\s+/g, '_')}`, false)}
+                                                    className="bg-white text-slate-700 font-bold h-9 px-4 rounded-xl hover:bg-slate-50 border border-slate-200 transition-all flex items-center gap-2 text-sm shadow-sm"
+                                                >
+                                                    <Download className="w-3.5 h-3.5" /> PDF
+                                                </button>
+                                                <button
+                                                    onClick={() => handleExportPDF(`saved-reflection-${ref.id}`, `Reflection_${ref.subject?.replace(/\s+/g, '_')}`, true)}
+                                                    className="bg-emerald-100 text-emerald-700 font-bold h-9 px-4 rounded-xl hover:bg-emerald-200 transition-all flex items-center gap-2 text-sm"
+                                                >
+                                                    <Share2 className="w-3.5 h-3.5" /> Share
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="px-4 sm:px-6 pb-6 bg-white">
+                                            <div id={`saved-reflection-${ref.id}`} className="mt-6">
+                                                <SectionBlock title="Description of the Experience" num={1} content={ref.content.description} color={sectionColors[0]} />
+                                                <SectionBlock title="Feelings and Initial Reactions" num={2} content={ref.content.feelings} color={sectionColors[1]} />
+                                                <SectionBlock title="Evaluation of the Experience" num={3} content={ref.content.evaluation} color={sectionColors[2]} />
+                                                <SectionBlock title="Analysis (Critical Thinking)" num={4} content={ref.content.analysis} color={sectionColors[3]} />
+                                                <SectionBlock title="Learning Points" num={5} content={ref.content.learningPoints} color={sectionColors[4]} />
+                                                <SectionBlock title="Action Plan (Future Improvement)" num={6} content={ref.content.actionPlan} isLast color={sectionColors[5]} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        );
+                        })()}
+                </div>
             </div>
         </div>
     );

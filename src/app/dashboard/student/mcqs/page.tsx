@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { ListChecks, Loader2, Sparkles, CheckCircle, XCircle, RefreshCcw, Trophy, BarChart3, ChevronRight, Target, Save, Copy, Download } from 'lucide-react';
+import { ListChecks, Loader2, Sparkles, CheckCircle, XCircle, RefreshCcw, Trophy, BarChart3, ChevronRight, Target, Save, Copy, Download, History, Search } from 'lucide-react';
 import { useCurriculumStore } from '@/store/curriculumStore';
 import { useUserStore } from '@/store/userStore';
 import { tokenService } from '@/lib/tokenService';
@@ -35,8 +35,11 @@ export default function McqGeneratorPage() {
     const [answers, setAnswers] = useState<(number | null)[]>([]);
     const [answered, setAnswered] = useState(false);
     const [showExplanation, setShowExplanation] = useState(false);
-    const [saved, setSaved] = useState(false);
     const [copied, setCopied] = useState(false);
+
+    const [savedMcqs, setSavedMcqs] = useState<any[]>([]);
+    const [savedSearchQuery, setSavedSearchQuery] = useState('');
+    const [isFetchingSaved, setIsFetchingSaved] = useState(true);
 
     const activeCourse = coursesList.find(c => c.id === selectedCourseId) || coursesList[0];
     const activeSubject = activeCourse?.subjects.find(s => s.id === selectedSubjectId) || activeCourse?.subjects[0];
@@ -58,6 +61,25 @@ export default function McqGeneratorPage() {
             setSelectedTopicId(activeSubject.sections[0].topics[0].id);
         }
     }, [activeSubject, selectedTopicId]);
+
+    const fetchSavedMcqs = async () => {
+        setIsFetchingSaved(true);
+        try {
+            const res = await fetch('/api/mcqs/saved/all');
+            const data = await res.json();
+            if (data.success && data.savedRecords) {
+                setSavedMcqs(data.savedRecords);
+            }
+        } catch (e) {
+            console.error('Error fetching saved MCQs:', e);
+        } finally {
+            setIsFetchingSaved(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchSavedMcqs();
+    }, []);
 
     const handleGenerate = async () => {
         if (!currentUser) return;
@@ -147,6 +169,37 @@ export default function McqGeneratorPage() {
         setSelectedAnswer(null);
         setAnswered(false);
         setShowExplanation(false);
+    };
+
+    const handleSave = async () => {
+        if (mcqs.length === 0) return;
+        try {
+            const res = await fetch('/api/mcqs/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    course: activeCourse?.name,
+                    subject: activeSubject?.name,
+                    topic: activeTopic?.name,
+                    difficulty,
+                    score,
+                    totalQuestions: totalQ,
+                    percentage: pct,
+                    mcqsData: mcqs.map((m, i) => ({ question: m.question, options: m.options, correctAnswer: m.correctAnswer, userAnswer: answers[i], explanation: m.explanation }))
+                })
+            });
+            const data = await res.json();
+            if (data.success && data.savedRecord) {
+                setSavedMcqs(prev => [data.savedRecord, ...prev]);
+                setSaved(true);
+                setTimeout(() => setSaved(false), 3000);
+            } else {
+                alert('Failed to save: ' + (data.error || 'Unknown error'));
+            }
+        } catch (err) {
+            console.error('Error saving MCQ results:', err);
+            alert('An error occurred while saving.');
+        }
     };
 
     const currentMcq = mcqs[currentQuestionIndex];
@@ -403,29 +456,17 @@ export default function McqGeneratorPage() {
                         {/* Actions */}
                         <div className="flex flex-wrap gap-3 justify-center pt-4">
                             <button
-                                onClick={() => {
-                                    try {
-                                        const savedQuizzes = JSON.parse(localStorage.getItem('mededuai_saved_mcq_results') || '[]');
-                                        savedQuizzes.push({
-                                            id: Date.now(),
-                                            course: activeCourse?.name,
-                                            subject: activeSubject?.name,
-                                            topic: activeTopic?.name,
-                                            difficulty,
-                                            score, totalQ, pct,
-                                            mcqs: mcqs.map((m, i) => ({ question: m.question, options: m.options, correctAnswer: m.correctAnswer, userAnswer: answers[i], explanation: m.explanation })),
-                                            createdAt: new Date().toISOString()
-                                        });
-                                        localStorage.setItem('mededuai_saved_mcq_results', JSON.stringify(savedQuizzes));
-                                        setSaved(true);
-                                        setTimeout(() => setSaved(false), 3000);
-                                    } catch (err) { console.error(err); }
-                                }}
+                                onClick={handleSave}
                                 className={`font-bold h-12 px-6 rounded-xl transition-all flex items-center gap-2 shadow-sm ${saved ? 'bg-emerald-600 text-white' : 'bg-white text-slate-700 border border-slate-200 hover:bg-emerald-50 hover:border-emerald-300'}`}
                             >
                                 {saved ? <CheckCircle className="w-5 h-5" /> : <Save className="w-5 h-5" />}
                                 {saved ? 'Saved!' : 'Save Results'}
                             </button>
+                                    <button onClick={() => window.print()} className="font-bold h-10 px-5 rounded-xl transition-all flex items-center gap-2 text-sm shadow-sm bg-white text-slate-700 border border-slate-200 hover:bg-blue-50 hover:border-blue-300 print:hidden ml-2" title="Share as PDF">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> 
+                                        Share as PDF
+                                    </button>
+
                             <button
                                 onClick={() => {
                                     const text = mcqs.map((m, i) => `Q${i+1}: ${m.question}\nYour Answer: ${answers[i] !== null ? m.options[answers[i]!] : 'Skipped'}\nCorrect: ${m.options[m.correctAnswer]}\nExplanation: ${m.explanation}`).join('\n\n');
@@ -433,7 +474,7 @@ export default function McqGeneratorPage() {
                                     setCopied(true);
                                     setTimeout(() => setCopied(false), 2000);
                                 }}
-                                className="bg-white text-slate-700 font-bold h-12 px-6 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm"
+                                className="bg-white text-slate-700 font-bold h-12 px-6 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm whitespace-nowrap"
                             >
                                 {copied ? <CheckCircle className="w-5 h-5 text-emerald-500" /> : <Copy className="w-5 h-5" />}
                                 {copied ? 'Copied!' : 'Copy Results'}
@@ -445,6 +486,101 @@ export default function McqGeneratorPage() {
                                 <RefreshCcw className="w-5 h-5" /> New Quiz
                             </button>
                         </div>
+                    </div>
+                )}
+
+                {/* Saved MCQs Section */}
+                {phase === 'setup' && (
+                    <div className="mt-12 space-y-4 animate-in fade-in slide-in-from-bottom-4 pt-8 border-t-2 border-slate-100">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center border border-slate-200 shadow-sm">
+                                    <History className="w-5 h-5 text-slate-600" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold text-slate-900">Saved Quiz Results</h3>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Your past performance history</p>
+                                </div>
+                            </div>
+                            <div className="relative w-full sm:w-64">
+                                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                                <input
+                                    type="text"
+                                    placeholder="Search saved quizzes..."
+                                    value={savedSearchQuery}
+                                    onChange={(e) => setSavedSearchQuery(e.target.value)}
+                                    className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-300 transition-all font-medium"
+                                />
+                            </div>
+                        </div>
+
+                        {isFetchingSaved ? (
+                            <div className="flex justify-center items-center py-10">
+                                <Loader2 className="w-6 h-6 animate-spin text-rose-500" />
+                            </div>
+                        ) : savedMcqs.length === 0 ? (
+                            <div className="text-center py-12 bg-slate-50 rounded-3xl border border-slate-100 shadow-inner">
+                                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-slate-100">
+                                    <History className="w-8 h-8 text-slate-300" />
+                                </div>
+                                <h4 className="text-slate-500 font-bold text-lg mb-1">Yet to save anything</h4>
+                                <p className="text-slate-400 text-sm">Your saved quizzes will appear here.</p>
+                            </div>
+                        ) : (() => {
+                            const filtered = savedMcqs.filter(q => {
+                                if (!savedSearchQuery) return true;
+                                const search = savedSearchQuery.toLowerCase();
+                                return (q.course || '').toLowerCase().includes(search) || (q.subject || '').toLowerCase().includes(search) || (q.topic || '').toLowerCase().includes(search);
+                            });
+                            
+                            if (filtered.length === 0) {
+                                return (
+                                    <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-100">
+                                        <p className="text-slate-500 font-medium text-sm">No saved quizzes found matching your search.</p>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div className="space-y-4">
+                                    {filtered.map(quiz => (
+                                        <div key={quiz.id} className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm transition-all hover:shadow-md p-5 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
+                                            <div className="flex items-center gap-5 w-full sm:w-auto">
+                                                <div className={`w-16 h-16 flex-shrink-0 rounded-2xl flex items-center justify-center font-bold text-xl shadow-sm ${quiz.percentage >= 80 ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : quiz.percentage >= 50 ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-red-100 text-red-700 border border-red-200'}`}>
+                                                    {quiz.percentage}%
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-bold text-slate-900 text-lg sm:text-xl line-clamp-1">{quiz.topic || 'General Quiz'}</h4>
+                                                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                                                        <span className="text-xs font-bold text-rose-700 bg-rose-100 px-2 py-1 rounded-lg">
+                                                            {quiz.difficulty}
+                                                        </span>
+                                                        <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded-lg">
+                                                            {quiz.score}/{quiz.total_questions} Correct
+                                                        </span>
+                                                        <span className="text-xs text-slate-400 font-medium ml-1">
+                                                            {new Date(quiz.created_at).toLocaleDateString()}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="w-full sm:w-auto">
+                                                <button
+                                                    onClick={() => {
+                                                        const text = quiz.mcqs_data?.map((m: any, i: number) => `Q${i+1}: ${m.question}\nYour Answer: ${m.userAnswer !== null ? m.options[m.userAnswer] : 'Skipped'}\nCorrect: ${m.options[m.correctAnswer]}\nExplanation: ${m.explanation}`).join('\n\n') || '';
+                                                        navigator.clipboard.writeText(`MCQ Results: ${quiz.score}/${quiz.total_questions} (${quiz.percentage}%)\n\n${text}`);
+                                                        alert('Copied results to clipboard!');
+                                                    }}
+                                                    className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white text-slate-700 font-bold h-10 px-5 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all text-sm shadow-sm"
+                                                >
+                                                    <Copy className="w-4 h-4" /> Copy Details
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            );
+                        })()}
                     </div>
                 )}
             </div>

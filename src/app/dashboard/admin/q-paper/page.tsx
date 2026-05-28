@@ -117,10 +117,10 @@ function DashboardView({ onNavigate, formats, onEdit }: { onNavigate: (v: any, i
             <p className="text-blue-200/80 mt-1.5 font-medium">Create standard university question papers with AI-assisted question picking and PDF export.</p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <button onClick={() => onNavigate('setup')} className="bg-white/10 backdrop-blur-sm text-white font-bold h-12 px-6 rounded-xl hover:bg-white/20 transition-all flex items-center justify-center gap-2 border border-white/20">
+            <button onClick={() => onNavigate('setup')} className="bg-white/10 backdrop-blur-sm text-white font-bold h-12 px-6 rounded-xl hover:bg-white/20 transition-all flex items-center justify-center gap-2 border border-white/20 whitespace-nowrap">
               <Settings className="w-5 h-5" /> Setup Format
             </button>
-            <button onClick={() => onNavigate('generate')} className="bg-white text-blue-900 font-bold h-12 px-6 rounded-xl hover:bg-blue-50 transition-all flex items-center justify-center gap-2 shadow-lg">
+            <button onClick={() => onNavigate('generate')} className="bg-white text-blue-900 font-bold h-12 px-6 rounded-xl hover:bg-blue-50 transition-all flex items-center justify-center gap-2 shadow-lg whitespace-nowrap">
               <PenTool className="w-5 h-5" /> Generate Paper
             </button>
             <button 
@@ -129,7 +129,7 @@ function DashboardView({ onNavigate, formats, onEdit }: { onNavigate: (v: any, i
                   store.migrateLocalToSupabase();
                 }
               }} 
-              className="bg-indigo-500 text-white font-bold h-12 px-6 rounded-xl hover:bg-indigo-600 transition-all flex items-center justify-center gap-2 shadow-lg"
+              className="bg-indigo-500 text-white font-bold h-12 px-6 rounded-xl hover:bg-indigo-600 transition-all flex items-center justify-center gap-2 shadow-lg whitespace-nowrap"
               disabled={store.isLoading}
             >
               <RefreshCw className={`w-5 h-5 ${store.isLoading ? 'animate-spin' : ''}`} /> 
@@ -174,9 +174,15 @@ function DashboardView({ onNavigate, formats, onEdit }: { onNavigate: (v: any, i
         ))}
       </div>
 
-      {store.papers.length > 0 && (
-        <div className="pt-8">
-          <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2 mb-6"><Layers className="text-indigo-600" /> Developed Question Papers</h3>
+      <div className="pt-8 border-t border-slate-100">
+        <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2 mb-6"><Layers className="text-indigo-600" /> Developed Question Papers</h3>
+        {store.papers.length === 0 ? (
+          <div className="flex flex-col items-center justify-center p-8 bg-slate-50 border border-dashed border-slate-200 rounded-2xl text-center">
+            <Target className="w-10 h-10 text-slate-300 mb-2" />
+            <p className="text-sm font-bold text-slate-400">Yet to save anything</p>
+            <p className="text-xs text-slate-300">Generate a question paper to archive it here.</p>
+          </div>
+        ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {store.papers.map(p => (
               <div key={p.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col relative group">
@@ -194,8 +200,8 @@ function DashboardView({ onNavigate, formats, onEdit }: { onNavigate: (v: any, i
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

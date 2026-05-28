@@ -17,16 +17,25 @@ export default function ForgotPasswordPage() {
         setLoading(true);
         setError('');
 
-        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}/auth/reset-password`,
-        });
+        try {
+            const res = await fetch('/api/auth/forgot-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email }),
+            });
 
-        if (resetError) {
-            setError(resetError.message);
-        } else {
-            setStep('success');
+            const data = await res.json();
+
+            if (!res.ok) {
+                setError(data.error || 'Failed to send recovery email. Please try again.');
+            } else {
+                setStep('success');
+            }
+        } catch (err: any) {
+            setError('An unexpected error occurred. Please check your connection and try again.');
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     return (
@@ -34,7 +43,7 @@ export default function ForgotPasswordPage() {
             {/* ambient glow */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-200/40 rounded-full blur-3xl" />
-                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-200/30 rounded-full blur-3xl" />
+                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-200/30 rounded-full blur-3xl" />
             </div>
 
             <div className="relative bg-white p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 max-w-md w-full">

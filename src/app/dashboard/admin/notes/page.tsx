@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { useCurriculumStore } from '../../../../store/curriculumStore';
+import { useCurriculumStore, staticCoursesList } from '../../../../store/curriculumStore';
 import { useTokenStore } from '../../../../store/tokenStore';
 import { supabase } from '@/lib/supabase';
 import {
@@ -10,6 +10,7 @@ import {
     Image as ImageIcon, RefreshCw, Trophy, Target, Clock, Zap, Menu, X, LogOut, Trash2, AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import MededuLogo from '@/components/MededuLogo';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -217,9 +218,9 @@ const FlashcardViewer = ({ rawText }: { rawText: any }) => {
                         <h3 className="text-2xl font-bold text-teal-900 text-center leading-relaxed">{currentCard.front}</h3>
                         <p className="absolute bottom-6 text-sm text-teal-600/60 font-medium">Click to reveal answer</p>
                     </div>
-                    <div className="absolute inset-0 backface-hidden bg-gradient-to-br from-purple-50 to-indigo-50 rounded-3xl p-8 border border-purple-100 flex flex-col justify-center items-center shadow-lg rotate-y-180">
-                        <span className="absolute top-6 left-6 text-purple-600/30 text-4xl font-black">A.</span>
-                        <h3 className="text-xl font-medium text-purple-900 text-center leading-relaxed">{currentCard.back}</h3>
+                    <div className="absolute inset-0 backface-hidden bg-gradient-to-br from-emerald-50 to-indigo-50 rounded-3xl p-8 border border-emerald-100 flex flex-col justify-center items-center shadow-lg rotate-y-180">
+                        <span className="absolute top-6 left-6 text-emerald-600/30 text-4xl font-black">A.</span>
+                        <h3 className="text-xl font-medium text-emerald-900 text-center leading-relaxed">{currentCard.back}</h3>
                     </div>
                 </div>
             </div>
@@ -527,8 +528,7 @@ export default function TeacherLMSNotes() {
     const [isDeletingContent, setIsDeletingContent] = useState(false);
     const [deleteContentMsg, setDeleteContentMsg] = useState<string | null>(null);
     const [userRole, setUserRole] = useState<string>('');
-    const isSuperAdmin = userRole === 'superadmin' || userRole === 'masteradmin' ||
-                         userRole === 'super_admin' || userRole === 'master_admin';
+    const isSuperAdmin = userRole === 'superadmin' || userRole === 'super_admin';
 
     // Read role from cookie (set by server-side login, same source as DashboardLayout)
     useEffect(() => {
@@ -579,40 +579,95 @@ export default function TeacherLMSNotes() {
         }
     };
 
-    // Build course list directly from lms_content DB data.
-    // Flatten versions into sections so the rest of the UI is unchanged.
+    // Build merged course list: staticCoursesList is the BASE (always fresh, all subjects)
+    // DB content is OVERLAID (marks topics with hasNotes + injects DB-only topics).
+    // Using staticCoursesList (not Zustand persist) ensures subjects are never lost due
+    // to stale localStorage migrations.
     const coursesList = React.useMemo(() => {
-        if (!dbLoaded || dbCourses.length === 0) return storeCoursesList;
-
-        return dbCourses.map(dbCourse => ({
-            id: dbCourse.id,
-            name: dbCourse.name,
-            lmsNotesStructure: [],
-            subjects: dbCourse.subjects.map(dbSubj => ({
-                id: dbSubj.id,
-                name: dbSubj.name,
-                sections: dbSubj.versions.flatMap(ver =>
-                    ver.sections.map(sec => ({
-                        id: `${ver.id}__${sec.id}`,
-                        name: sec.name,
-                        topics: sec.topics.map(t => ({
-                            id: `db-${t.id}`,
-                            name: t.name,
-                            hasNotes: true,
-                            version: ver.name,
-                        })),
-                    }))
-                ),
+        // Base: static courses with name-as-ID to match DB format
+        const base = staticCoursesList.map(course => ({
+            ...course,
+            subjects: course.subjects.map(subj => ({
+                ...subj,
+                id: subj.name, // normalise to name-as-ID
+                sections: subj.sections?.map(sec => ({
+                    ...sec,
+                    topics: sec.topics.map(t => ({ ...t, hasNotes: false })),
+                })) ?? [],
             })),
         }));
-    }, [storeCoursesList, dbCourses, dbLoaded]);
 
-    // Course selection state
-    const [selectedCourseId, setSelectedCourseId] = useState<string>(storeCoursesList[0]?.id || '');
-    const currentCourse = coursesList.find(c => c.id === selectedCourseId) || coursesList[0];
+        if (!dbLoaded || dbCourses.length === 0) return base;
 
-    // UI States
-    const [selectedSubjectId, setSelectedSubjectId] = useState<string>(currentCourse?.subjects?.[0]?.id || '');
+        // Deep-clone to avoid mutating memo inputs
+        const merged = base.map(course => ({
+            ...course,
+            subjects: course.subjects.map(subj => ({
+                ...subj,
+                sections: subj.sections.map(sec => ({
+                    ...sec,
+                    topics: [...sec.topics],
+                })),
+            })),
+        }));
+
+        for (const dbCourse of dbCourses) {
+            const mCourse = merged.find(c =>
+                c.name.toLowerCase().trim() === dbCourse.name.toLowerCase().trim()
+            );
+            if (!mCourse) {
+                merged.push({
+                    id: dbCourse.id, name: dbCourse.name, lmsNotesStructure: [],
+                    subjects: dbCourse.subjects.map(dbSubj => ({
+                        id: dbSubj.name, name: dbSubj.name,
+                        sections: dbSubj.versions.flatMap(ver =>
+                            ver.sections.map(sec => ({
+                                id: `${ver.id}__${sec.id}`, name: sec.name,
+                                topics: sec.topics.map(t => ({ id: `db-${t.id}`, name: t.name, hasNotes: true, version: ver.name })),
+                            }))
+                        ),
+                    })),
+                } as any);
+                continue;
+            }
+            for (const dbSubj of dbCourse.subjects) {
+                const mSubj = mCourse.subjects.find(s =>
+                    s.name.toLowerCase().trim() === dbSubj.name.toLowerCase().trim()
+                );
+                const dbSections = dbSubj.versions.flatMap(ver =>
+                    ver.sections.map(sec => ({
+                        id: `${ver.id}__${sec.id}`, name: sec.name,
+                        topics: sec.topics.map(t => ({ id: `db-${t.id}`, name: t.name, hasNotes: (t as any).hasNotes ?? true, version: ver.name })),
+                    }))
+                );
+                if (!mSubj) {
+                    mCourse.subjects.push({ id: dbSubj.name, name: dbSubj.name, sections: dbSections } as any);
+                    continue;
+                }
+                for (const dbSec of dbSections) {
+                    const mSec = mSubj.sections.find(s =>
+                        s.name.toLowerCase().trim() === dbSec.name.toLowerCase().trim()
+                    );
+                    if (!mSec) { mSubj.sections.push(dbSec as any); continue; }
+                    for (const dbTopic of dbSec.topics) {
+                        const mTopic = mSec.topics.find(t =>
+                            t.name.toLowerCase().trim() === dbTopic.name.toLowerCase().trim()
+                        );
+                        if (mTopic) {
+                            (mTopic as any).hasNotes = true;
+                            (mTopic as any).id = dbTopic.id;
+                        } else {
+                            mSec.topics.push(dbTopic as any);
+                        }
+                    }
+                }
+            }
+        }
+        return merged;
+    }, [dbCourses, dbLoaded]);
+
+    const [selectedCourseId, setSelectedCourseId] = useState<string>('');
+    const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');
     const [selectedSectionId, setSelectedSectionId] = useState<string>('');
     const [selectedTopicId, setSelectedTopicId] = useState<string>('');
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
@@ -628,6 +683,11 @@ export default function TeacherLMSNotes() {
     const [isTyping, setIsTyping] = useState<boolean>(false);
     const [userName, setUserName] = useState<string>('Admin');
     const [userId, setUserId] = useState<string>('');
+    // Dashboard-fixed course/version from user_metadata
+    const [metaCourse, setMetaCourse] = useState<string>('');
+    // Tracks whether the restore-on-load effect has finished so the subject-change
+    // auto-select effect doesn't clobber a freshly-restored topic.
+    const restoredRef = React.useRef<boolean>(false);
     const { getWallet, deductTokens } = useTokenStore();
 
     // Fetch user profile
@@ -638,6 +698,9 @@ export default function TeacherLMSNotes() {
                 setUserId(session.user.id);
                 const name = session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Admin';
                 setUserName(name);
+                // Read dashboard-fixed course from user_metadata
+                const uCourse = session.user.user_metadata?.course || '';
+                setMetaCourse(uCourse);
 
                 const res = await fetch(`/api/subscription?userId=${session.user.id}`);
                 if (res.ok) {
@@ -699,6 +762,27 @@ export default function TeacherLMSNotes() {
         }
     }, []);
 
+    // ── After DB loads, sync selectedCourseId to the correct DB course ID format ──
+    // The DB uses course *names* as IDs (e.g. "MBBS", "BDS"), while the store uses
+    // opaque UUIDs. We must realign after the coursesList switches to DB data.
+    useEffect(() => {
+        if (!dbLoaded || coursesList.length === 0) return;
+        // Pick the dashboard-fixed course first, fallback to first available
+        const targetCourseName = metaCourse.trim().toLowerCase();
+        const match = targetCourseName
+            ? coursesList.find(c => c.name.toLowerCase() === targetCourseName)
+            : null;
+        const defaultCourse = match || coursesList[0];
+        setSelectedCourseId(defaultCourse.id);
+        // Only reset subject/topic if they don't belong to this course already
+        const subjExists = defaultCourse.subjects?.some((s: any) => s.id === selectedSubjectId);
+        if (!subjExists) {
+            setSelectedSubjectId(defaultCourse.subjects?.[0]?.id || '');
+            setSelectedTopicId('');
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dbLoaded, metaCourse]);
+
     // Load hierarchy from lms_content (public endpoint — no auth needed)
     useEffect(() => {
         fetch('/api/lms/hierarchy')
@@ -706,7 +790,6 @@ export default function TeacherLMSNotes() {
             .then(data => {
                 if (!data.success) return;
                 const map: Record<string, string> = {};
-
                 for (const course of (data.courses || [])) {
                     for (const subject of (course.subjects || [])) {
                         for (const version of (subject.versions || [])) {
@@ -718,7 +801,6 @@ export default function TeacherLMSNotes() {
                         }
                     }
                 }
-
                 setDbTopicMap(map);
                 setDbCourses(data.courses || []);
                 setDbLoaded(true);
@@ -726,21 +808,32 @@ export default function TeacherLMSNotes() {
             .catch(() => setDbLoaded(true));
     }, []);
 
-    const currentSubject = currentCourse?.subjects?.find(s => s.id === selectedSubjectId) || currentCourse?.subjects?.[0];
+    // Computed selections — derive from state
+    const currentCourse = coursesList.find((c: any) => c.id === selectedCourseId) || coursesList[0];
+    const currentSubject = currentCourse?.subjects?.find((s: any) => s.id === selectedSubjectId) || currentCourse?.subjects?.[0];
     const availableSections = currentSubject?.sections || [];
-    const currentSection = availableSections.find(s => s.id === selectedSectionId) || availableSections[0];
-    const currentTopic = currentSection?.topics.find(t => t.id === selectedTopicId);
+    const currentSection = availableSections.find((s: any) => s.id === selectedSectionId) || availableSections[0];
+    // Search ALL sections so a stale sectionId never hides the selected topic
+    const currentTopic = availableSections.flatMap((s: any) => s.topics || []).find((t: any) => t.id === selectedTopicId);
 
     // Fetch FRESH notes from DB whenever the selected topic changes
     useEffect(() => {
         if (!currentTopic) { setDbNotes({}); return; }
-        // For DB-injected topics, the id is "db-<uuid>"; for store topics, look up by name
+        // Build the fetch URL with all identifiers so the API can fall back to name-based lookup
         const dbId = currentTopic.id.startsWith('db-')
             ? currentTopic.id.replace('db-', '')
             : dbTopicMap[currentTopic.name];
-        if (!dbId) return;
+
+        const params = new URLSearchParams();
+        if (dbId)                     params.set('topicId',   dbId);
+        if (currentTopic.name)        params.set('topicName', currentTopic.name);
+        if (currentSubject?.name)     params.set('subject',   currentSubject.name);
+        if (currentCourse?.name)      params.set('course',    currentCourse.name);
+
+        if (!dbId && !currentTopic.name) return; // nothing to look up
+
         setLoadingDbNotes(true);
-        fetch(`/api/lms/notes?topicId=${dbId}`)
+        fetch(`/api/lms/notes?${params.toString()}`)
             .then(r => r.json())
             .then(data => {
                 if (data.success && data.notes) {
@@ -763,16 +856,107 @@ export default function TeacherLMSNotes() {
             })
             .catch(() => setDbNotes({}))
             .finally(() => setLoadingDbNotes(false));
-    }, [currentTopic?.id, dbTopicMap]);
+    }, [currentTopic?.id, currentTopic?.name, currentSubject?.name, currentCourse?.name, dbTopicMap]);
 
-    // Initial topic selection
+    // ── Restore last session OR auto-select first topic with content ──
     useEffect(() => {
-        if (!selectedTopicId && availableSections.length > 0) {
-            const firstSec = availableSections[0];
-            const firstTop = firstSec.topics.filter(t => (t as any).generatedNotes || (t as any).hasNotes)?.[0] || firstSec.topics?.[0];
-            if (firstTop) setSelectedTopicId(firstTop.id);
+        if (!dbLoaded || coursesList.length === 0) return;
+
+        const savedKey = `lms_notes_admin_state_${userId || 'guest'}`;
+        const savedRaw = localStorage.getItem(savedKey);
+        if (savedRaw) {
+            try {
+                const parsed = JSON.parse(savedRaw);
+                const matchedCourse = metaCourse
+                    ? coursesList.find((c: any) => c.name.toLowerCase() === metaCourse.toLowerCase())
+                    : coursesList.find((c: any) => c.id === parsed.courseId);
+                if (matchedCourse) {
+                    const subject = matchedCourse.subjects?.find((s: any) => s.id === parsed.subjectId)
+                        || matchedCourse.subjects?.[0];
+                    if (subject) {
+                        // Find topic anywhere in any section — no sectionId match required
+                        const allTopics = subject.sections?.flatMap((sec: any) => sec.topics ?? []) ?? [];
+                        const restoredTopic = allTopics.find((t: any) => t.id === parsed.topicId);
+                        setSelectedCourseId(matchedCourse.id);
+                        setSelectedSubjectId(subject.id);
+                        if (restoredTopic) {
+                            setSelectedTopicId(restoredTopic.id);
+                            const ownSection = subject.sections?.find((sec: any) =>
+                                sec.topics?.some((t: any) => t.id === restoredTopic.id)
+                            );
+                            if (ownSection) setSelectedSectionId(ownSection.id);
+                            restoredRef.current = true;
+                            return;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('[Admin LMS Notes] Failed to parse saved state:', e);
+            }
         }
-    }, [selectedSubjectId, availableSections, selectedTopicId]);
+
+        // Fallback: auto-select first topic with content
+        const targetCourse = coursesList.find((c: any) =>
+            metaCourse ? c.name.toLowerCase() === metaCourse.toLowerCase() : c.id === selectedCourseId
+        ) || coursesList[0];
+        const subj = targetCourse?.subjects?.[0];
+        if (!subj) return;
+        const allTopics = subj.sections?.flatMap((s: any) => s.topics ?? []) ?? [];
+        const firstTopic = allTopics.find((t: any) => t.hasNotes || t.generatedNotes) || allTopics[0];
+        if (firstTopic) {
+            setSelectedCourseId(targetCourse.id);
+            setSelectedSubjectId(subj.id);
+            setSelectedTopicId(firstTopic.id);
+            const ownSection = subj.sections?.find((sec: any) =>
+                sec.topics?.some((t: any) => t.id === firstTopic.id)
+            );
+            if (ownSection) setSelectedSectionId(ownSection.id);
+        }
+        restoredRef.current = true; // mark restore done even on fallback path
+    }, [dbLoaded, coursesList, userId, metaCourse]);
+
+    // Persist state
+    useEffect(() => {
+        if (userId && selectedCourseId && selectedSubjectId && selectedTopicId) {
+            const stateToSave = {
+                courseId: selectedCourseId,
+                subjectId: selectedSubjectId,
+                sectionId: selectedSectionId,
+                topicId: selectedTopicId,
+            };
+            localStorage.setItem(`lms_notes_admin_state_${userId}`, JSON.stringify(stateToSave));
+        }
+    }, [userId, selectedCourseId, selectedSubjectId, selectedSectionId, selectedTopicId]);
+
+    // ── Auto-select first topic when user switches subjects ──
+    // Runs whenever selectedSubjectId changes AFTER the initial restore has finished.
+    // Skips if the current topic already belongs to this subject (user just navigated normally).
+    useEffect(() => {
+        if (!dbLoaded || !restoredRef.current) return; // wait for restore to finish first
+        const subject = currentCourse?.subjects?.find((s: any) => s.id === selectedSubjectId);
+        if (!subject) return;
+
+        const allTopics = subject.sections?.flatMap((sec: any) => sec.topics ?? []) ?? [];
+        // If the current topic is already in this subject, don't change it
+        const topicBelongsHere = allTopics.some((t: any) => t.id === selectedTopicId);
+        if (topicBelongsHere) return;
+
+        // Auto-select first topic that has content, else just the first topic
+        const firstTopic = allTopics.find((t: any) => (t as any).hasNotes) || allTopics[0];
+        if (firstTopic) {
+            setSelectedTopicId(firstTopic.id);
+            setSelectedSectionId('');
+            setActiveTab('introduction');
+            const ownSection = subject.sections?.find((sec: any) =>
+                sec.topics?.some((t: any) => t.id === firstTopic.id)
+            );
+            if (ownSection) setSelectedSectionId(ownSection.id);
+        } else {
+            // No topics in this subject — clear selection so "No Content Selected" shows
+            setSelectedTopicId('');
+            setSelectedSectionId('');
+        }
+    }, [selectedSubjectId]);
 
     const toggleSection = (id: string) => setExpandedSections(p => ({ ...p, [id]: !p[id] }));
 
@@ -835,9 +1019,7 @@ export default function TeacherLMSNotes() {
                 {/* Logo Area */}
                 <div className="h-20 flex items-center px-6 border-b border-slate-100">
                     <div className="flex items-center gap-3 cursor-pointer" onClick={() => window.location.href = '/dashboard/teacher'}>
-                        <div className="w-10 h-10 bg-gradient-to-br from-[#6C63FF] to-[#8E6CFF] rounded-xl flex items-center justify-center shadow-lg shadow-purple-200">
-                            <BrainCircuit className="text-white w-5 h-5" />
-                        </div>
+                        <MededuLogo size={32} />
                         <span className="font-extrabold text-xl text-slate-900 tracking-tight">MedEduAI</span>
                     </div>
                 </div>
@@ -849,7 +1031,7 @@ export default function TeacherLMSNotes() {
                         <select
                             value={selectedCourseId}
                             onChange={(e) => { setSelectedCourseId(e.target.value); const newCourse = coursesList.find(c => c.id === e.target.value); if (newCourse?.subjects?.[0]) { setSelectedSubjectId(newCourse.subjects[0].id); setSelectedTopicId(''); } }}
-                            className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all appearance-none cursor-pointer"
+                            className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all appearance-none cursor-pointer"
                         >
                             {coursesList.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
@@ -859,7 +1041,7 @@ export default function TeacherLMSNotes() {
                         <select
                             value={selectedSubjectId}
                             onChange={(e) => { setSelectedSubjectId(e.target.value); setSelectedTopicId(''); }}
-                            className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all appearance-none cursor-pointer"
+                            className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all appearance-none cursor-pointer"
                         >
                             {currentCourse?.subjects?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
@@ -873,7 +1055,7 @@ export default function TeacherLMSNotes() {
                                 value={topicSearchQuery}
                                 onChange={(e) => setTopicSearchQuery(e.target.value)}
                                 placeholder="Type keywords to filter..."
-                                className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm font-medium rounded-xl pl-9 pr-8 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all"
+                                className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm font-medium rounded-xl pl-9 pr-8 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all"
                             />
                             {topicSearchQuery && (
                                 <button onClick={() => setTopicSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
@@ -909,14 +1091,17 @@ export default function TeacherLMSNotes() {
                             return (
                                 <button
                                     key={topic.id}
+                                    suppressHydrationWarning
                                     onClick={() => { setSelectedTopicId(topic.id); setActiveTab('introduction'); setShowSidebar(false); }}
                                     className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-3 ${isActive
-                                        ? 'bg-purple-50 text-purple-700 shadow-sm shadow-purple-100/50'
+                                        ? 'bg-emerald-50 text-emerald-700 shadow-sm shadow-emerald-100/50'
                                         : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
                                         }`}
                                 >
                                     <span className="w-6 h-6 rounded-lg bg-slate-100 text-slate-400 text-[10px] font-black flex items-center justify-center shrink-0">{idx + 1}</span>
-                                    {isActive ? <CheckCircle2 className="w-4 h-4 text-purple-600 shrink-0" /> : <BookOpen className="w-4 h-4 opacity-40 shrink-0" />}
+                                    {(topic as any).hasNotes
+                                        ? <CheckCircle2 className={`w-4 h-4 shrink-0 ${isActive ? 'text-emerald-600' : 'text-emerald-400'}`} />
+                                        : <BookOpen className="w-4 h-4 opacity-40 shrink-0" />}
                                     <span className="truncate">{topic.name}</span>
                                 </button>
                             );
@@ -934,7 +1119,7 @@ export default function TeacherLMSNotes() {
                             <span className="text-sm font-black text-slate-800">68%</span>
                         </div>
                         <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full" style={{ width: '68%' }} />
+                            <div className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full" style={{ width: '68%' }} />
                         </div>
                         <div className="mt-3 text-[10px] uppercase tracking-wider font-bold text-slate-400 text-center">
                             Anatomy Master Badge Unlocked
@@ -953,11 +1138,11 @@ export default function TeacherLMSNotes() {
                             <Menu className="w-6 h-6" />
                         </button>
                         <div className="relative group flex-1">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-purple-500" />
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500" />
                             <input
                                 type="text"
                                 placeholder="Search..."
-                                className="w-full bg-slate-100/50 border border-slate-200 rounded-full pl-11 pr-4 py-2.5 text-sm font-medium text-slate-700 outline-none focus:bg-white focus:border-purple-300 focus:ring-4 focus:ring-purple-100/50 transition-all"
+                                className="w-full bg-slate-100/50 border border-slate-200 rounded-full pl-11 pr-4 py-2.5 text-sm font-medium text-slate-700 outline-none focus:bg-white focus:border-emerald-300 focus:ring-4 focus:ring-emerald-100/50 transition-all"
                             />
                         </div>
                     </div>
@@ -971,10 +1156,10 @@ export default function TeacherLMSNotes() {
                         <div className="relative">
                             <div onClick={() => setShowProfileMenu(p => !p)} className="flex items-center gap-3 pl-4 md:pl-6 border-l border-slate-200 cursor-pointer group">
                                 <div className="text-right hidden md:block">
-                                    <p className="text-sm font-bold text-slate-800 leading-tight group-hover:text-purple-600 transition-colors">{userName}</p>
-                                    <p className="text-[10px] font-bold text-purple-600 uppercase tracking-wider">TEACHER</p>
+                                    <p className="text-sm font-bold text-slate-800 leading-tight group-hover:text-emerald-600 transition-colors">{userName}</p>
+                                    <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">TEACHER</p>
                                 </div>
-                                <img src="https://api.dicebear.com/7.x/notionists/svg?seed=Teacher&backgroundColor=f8fafc" alt="Avatar" className="w-10 h-10 rounded-full border border-slate-200 bg-slate-100 shrink-0 group-hover:ring-4 group-hover:ring-purple-100 transition-all" />
+                                <img src="https://api.dicebear.com/7.x/notionists/svg?seed=Teacher&backgroundColor=f8fafc" alt="Avatar" className="w-10 h-10 rounded-full border border-slate-200 bg-slate-100 shrink-0 group-hover:ring-4 group-hover:ring-emerald-100 transition-all" />
                             </div>
 
                             <AnimatePresence>
@@ -987,10 +1172,10 @@ export default function TeacherLMSNotes() {
                                             exit={{ opacity: 0, scale: 0.95, y: 10 }}
                                             className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 origin-top-right"
                                         >
-                                            <button onClick={() => window.location.href = '/dashboard/admin'} className="w-full flex items-center gap-3 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-purple-600 transition-colors">
+                                            <button onClick={() => window.location.href = '/dashboard/admin'} className="w-full flex items-center gap-3 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 transition-colors">
                                                 <ArrowLeft className="w-4 h-4 text-slate-400" /> Back to Dashboard
                                             </button>
-                                            <button onClick={() => { setShowAIPanel(true); setShowProfileMenu(false); }} className="w-full flex items-center gap-3 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-purple-600 transition-colors">
+                                            <button onClick={() => { setShowAIPanel(true); setShowProfileMenu(false); }} className="w-full flex items-center gap-3 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 transition-colors">
                                                 <Sparkles className="w-4 h-4 text-slate-400" /> Back to MedEduAI Mentor
                                             </button>
                                             <div className="h-px bg-slate-100 my-1"></div>
@@ -1102,18 +1287,18 @@ export default function TeacherLMSNotes() {
                                         {/* Detailed Notes View */}
                                         {activeTab === 'detailed' && contentMap.detailed && (
                                             <div className="space-y-4">
-                                                <div className="bg-white rounded-3xl p-8 border border-purple-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)] relative overflow-hidden">
+                                                <div className="bg-white rounded-3xl p-8 border border-emerald-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)] relative overflow-hidden">
                                                     {/* Decorative background element */}
-                                                    <div className="absolute top-0 right-0 w-64 h-64 bg-purple-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 opacity-60"></div>
+                                                    <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 opacity-60"></div>
 
                                                     <div className="flex items-center gap-3 mb-8 relative z-10">
-                                                        <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center text-purple-600">
+                                                        <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600">
                                                             <Layers className="w-5 h-5" />
                                                         </div>
-                                                        <h3 className="text-xl font-bold text-purple-900">Comprehensive Notes</h3>
+                                                        <h3 className="text-xl font-bold text-emerald-900">Comprehensive Notes</h3>
                                                     </div>
 
-                                                    <div className="prose prose-purple prose-lg max-w-none text-slate-700 leading-relaxed relative z-10">
+                                                    <div className="prose prose-emerald prose-lg max-w-none text-slate-700 leading-relaxed relative z-10">
                                                         <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{contentMap.detailed}</ReactMarkdown>
                                                     </div>
                                                 </div>
@@ -1134,20 +1319,20 @@ export default function TeacherLMSNotes() {
                                                         remarkPlugins={[remarkGfm]}
                                                         components={{
                                                             pre: ({node, ...props}: any) => (
-                                                                <div className="my-8 rounded-2xl overflow-hidden shadow-2xl border border-purple-500/40 bg-gradient-to-br from-slate-900 via-indigo-950 to-purple-950 transform transition hover:scale-[1.01] hover:shadow-purple-500/20">
+                                                                <div className="my-8 rounded-2xl overflow-hidden shadow-2xl border border-emerald-500/40 bg-gradient-to-br from-slate-900 via-indigo-950 to-emerald-950 transform transition hover:scale-[1.01] hover:shadow-emerald-500/20">
                                                                     <div className="flex items-center gap-2 px-4 py-3 bg-white/10 backdrop-blur-md border-b border-white/5">
                                                                         <div className="flex gap-2">
                                                                             <div className="w-3 h-3 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]" />
                                                                             <div className="w-3 h-3 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]" />
                                                                             <div className="w-3 h-3 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
                                                                         </div>
-                                                                        <span className="text-xs font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-purple-300 ml-3 uppercase tracking-widest flex items-center gap-2">
+                                                                        <span className="text-xs font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-emerald-300 ml-3 uppercase tracking-widest flex items-center gap-2">
                                                                             <Sparkles className="w-3 h-3 text-cyan-300" />
                                                                             Conceptual Visual Summary
                                                                         </span>
                                                                     </div>
-                                                                    <div className="relative p-6 overflow-x-auto scrollbar-thin scrollbar-thumb-purple-500/50 scrollbar-track-transparent">
-                                                                        <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/10 via-transparent to-purple-500/10 blur-2xl" />
+                                                                    <div className="relative p-6 overflow-x-auto scrollbar-thin scrollbar-thumb-emerald-500/50 scrollbar-track-transparent">
+                                                                        <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/10 via-transparent to-emerald-500/10 blur-2xl" />
                                                                         <pre className="relative z-10 font-mono text-[13px] md:text-sm leading-relaxed text-cyan-300 font-bold drop-shadow-[0_0_8px_rgba(103,232,249,0.5)]" {...props} />
                                                                     </div>
                                                                 </div>
@@ -1276,9 +1461,9 @@ export default function TeacherLMSNotes() {
                                 exit={{ width: 0, opacity: 0 }}
                                 className="absolute right-0 inset-y-0 z-[60] md:relative border-l border-slate-200 bg-white flex flex-col shadow-[-4px_0_24px_rgba(0,0,0,0.02)] overflow-hidden max-w-[calc(100vw-4rem)]"
                             >
-                                <div className="h-20 flex items-center justify-between px-6 border-b border-slate-100 flex-shrink-0 bg-gradient-to-r from-purple-50/50 to-white">
+                                <div className="h-20 flex items-center justify-between px-6 border-b border-slate-100 flex-shrink-0 bg-gradient-to-r from-emerald-50/50 to-white">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+                                        <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
                                             <Sparkles className="w-4 h-4" />
                                         </div>
                                         <h3 className="font-bold text-slate-900">MedEduAI Mentor</h3>
@@ -1300,7 +1485,7 @@ export default function TeacherLMSNotes() {
                                             {/* Action Chips */}
                                             <div className="space-y-2 mt-auto">
                                                 {["Generate discussion questions", "Create an assignment", "Summarize core syllabus points"].map((chip, idx) => (
-                                                    <button key={idx} onClick={() => handleSendMessage(chip)} className="w-full text-left p-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 transition-colors">
+                                                    <button key={idx} onClick={() => handleSendMessage(chip)} className="w-full text-left p-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-colors">
                                                         {chip}
                                                     </button>
                                                 ))}
@@ -1311,7 +1496,7 @@ export default function TeacherLMSNotes() {
                                             {chatHistory.map((msg, i) => {
                                                 const hasMcq = msg.content.includes('```mcq');
                                                 const bubbleClass = msg.role === 'user' 
-                                                    ? 'p-3 rounded-2xl max-w-[85%] text-sm bg-purple-600 text-white rounded-br-sm'
+                                                    ? 'p-3 rounded-2xl max-w-[85%] text-sm bg-emerald-600 text-white rounded-br-sm'
                                                     : `p-3 rounded-2xl text-sm bg-slate-100 text-slate-800 rounded-bl-sm prose prose-sm ${hasMcq ? 'w-full max-w-full' : 'max-w-[85%]'}`;
                                                 
                                                 return (
@@ -1377,9 +1562,9 @@ export default function TeacherLMSNotes() {
                                             }}
                                             placeholder="Ask anything..."
                                             rows={2}
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:bg-white focus:border-purple-400 resize-none pr-12"
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:bg-white focus:border-emerald-400 resize-none pr-12"
                                         />
-                                        <button onClick={() => handleSendMessage(chatInput)} className="absolute right-3 bottom-3 w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center hover:bg-purple-700 shadow-sm transition-transform hover:scale-105">
+                                        <button onClick={() => handleSendMessage(chatInput)} className="absolute right-3 bottom-3 w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center hover:bg-emerald-700 shadow-sm transition-transform hover:scale-105">
                                             <Sparkles className="w-4 h-4" />
                                         </button>
                                     </div>
@@ -1397,7 +1582,7 @@ export default function TeacherLMSNotes() {
                                 onClick={() => setShowAIPanel(true)}
                                 className="absolute right-6 bottom-6 w-14 h-14 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-xl hover:bg-slate-800 transition-all z-50 ring-4 ring-white"
                             >
-                                <Sparkles className="w-6 h-6 text-purple-300" />
+                                <Sparkles className="w-6 h-6 text-emerald-300" />
                             </motion.button>
                         )}
                     </AnimatePresence>

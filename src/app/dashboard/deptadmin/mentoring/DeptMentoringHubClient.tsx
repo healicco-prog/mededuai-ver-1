@@ -37,8 +37,8 @@ export default function DeptMentoringHubClient() {
             title: 'Summative Assessments',
             description: 'Add multi-paper year-end final university marks across different modes.',
             icon: <Award className="w-6 h-6" />,
-            color: 'text-purple-600',
-            bg: 'bg-purple-50'
+            color: 'text-emerald-600',
+            bg: 'bg-emerald-50'
         },
         {
             id: 'nonscholastic',

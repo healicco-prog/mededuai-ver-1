@@ -17,7 +17,7 @@ const STEPS = [
     { key: 'preferences', label: 'Students Preferences', icon: Users, color: 'from-teal-500 to-emerald-500', bgLight: 'bg-teal-50', textColor: 'text-teal-700', borderColor: 'border-teal-200', ringColor: 'ring-teal-400', badgeBg: 'bg-teal-100', iconBg: 'bg-teal-500' },
     { key: 'allotment', label: 'Allotment', icon: Shuffle, color: 'from-rose-500 to-pink-500', bgLight: 'bg-rose-50', textColor: 'text-rose-700', borderColor: 'border-rose-200', ringColor: 'ring-rose-400', badgeBg: 'bg-rose-100', iconBg: 'bg-rose-500' },
     { key: 'logbook', label: 'Elective Log', icon: ClipboardList, color: 'from-sky-500 to-cyan-600', bgLight: 'bg-sky-50', textColor: 'text-sky-700', borderColor: 'border-sky-200', ringColor: 'ring-sky-400', badgeBg: 'bg-sky-100', iconBg: 'bg-sky-500' },
-    { key: 'analytics', label: 'Analytics', icon: BarChart3, color: 'from-fuchsia-500 to-purple-600', bgLight: 'bg-fuchsia-50', textColor: 'text-fuchsia-700', borderColor: 'border-fuchsia-200', ringColor: 'ring-fuchsia-400', badgeBg: 'bg-fuchsia-100', iconBg: 'bg-fuchsia-500' },
+    { key: 'analytics', label: 'Analytics', icon: BarChart3, color: 'from-fuchsia-500 to-emerald-600', bgLight: 'bg-fuchsia-50', textColor: 'text-fuchsia-700', borderColor: 'border-fuchsia-200', ringColor: 'ring-fuchsia-400', badgeBg: 'bg-fuchsia-100', iconBg: 'bg-fuchsia-500' },
 ] as const;
 
 type StepKey = typeof STEPS[number]['key'];

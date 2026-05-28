@@ -127,7 +127,7 @@ export default function DailyKeyPoints({ role = 'student' }: DailyKeyPointsProps
                 point: {
                     title: "Viva Preparation",
                     desc: `Test your quick recall on ${subject} by initiating an interactive voice viva session.`,
-                    icon: <Activity className="w-5 h-5 text-purple-600" />,
+                    icon: <Activity className="w-5 h-5 text-emerald-600" />,
                     color: "purple",
                     source: "Based on Viva Simulator"
                 }
@@ -157,7 +157,7 @@ export default function DailyKeyPoints({ role = 'student' }: DailyKeyPointsProps
                 point: {
                     title: "Essay Practice",
                     desc: `Review structure templates and model answers for long-form essay questions in ${subject}.`,
-                    icon: <PenTool className="w-5 h-5 text-purple-600" />,
+                    icon: <PenTool className="w-5 h-5 text-emerald-600" />,
                     color: "purple",
                     source: "Based on Essay Qs Generator"
                 }
@@ -270,7 +270,7 @@ export default function DailyKeyPoints({ role = 'student' }: DailyKeyPointsProps
                 point: {
                     title: "Active Classroom Prep",
                     desc: `Structure dynamic small-group discussions and case simulations for ${subject}.`,
-                    icon: <Users className="w-5 h-5 text-purple-600" />,
+                    icon: <Users className="w-5 h-5 text-emerald-600" />,
                     color: "purple",
                     source: "Based on Classroom Generator"
                 }

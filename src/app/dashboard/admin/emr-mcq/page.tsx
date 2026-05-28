@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { ClipboardType, Sparkles, UploadCloud, Upload, Users, CheckCircle2, FileSearch, HelpCircle, Camera, Settings, Trash2, ChevronLeft, ChevronRight, X, FolderOpen, Save, Target, Edit2, FileText, AlertCircle, CheckCircle } from 'lucide-react';
+import { ClipboardType, Sparkles, UploadCloud, Upload, Users, CheckCircle2, FileSearch, HelpCircle, Camera, Settings, Trash2, ChevronLeft, ChevronRight, X, FolderOpen, Save, Target, Edit2, FileText, AlertCircle, CheckCircle, Search, History, BookOpen, Loader2, Copy } from 'lucide-react';
 import { useQPaperStore } from '@/store/qPaperStore';
 import { useEmrStore, EvaluatedStudent } from '@/store/emrStore';
 import ReactCrop, { type Crop } from 'react-image-crop';
@@ -17,9 +17,46 @@ export default function EmrMcqsPortal() {
 
     useEffect(() => {
         store.fetchData();
+        fetchSavedEvals();
     }, []);
 
-    const [step, setStep] = useState(0);
+    const [step, setStep] = useState(1);
+
+    const [savedEvals, setSavedEvals] = useState<any[]>([]);
+    const [savedSearchQuery, setSavedSearchQuery] = useState('');
+    const [isFetchingSaved, setIsFetchingSaved] = useState(true);
+
+    const fetchSavedEvals = async () => {
+        setIsFetchingSaved(true);
+        try {
+            const res = await fetch('/api/emr-mcq/saved/all');
+            const data = await res.json();
+            if (data.success) {
+                setSavedEvals(data.data || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch saved evaluations:", error);
+        } finally {
+            setIsFetchingSaved(false);
+        }
+    };
+
+    const handleDeleteSavedEval = async (id: string) => {
+        if (!confirm("Are you sure you want to delete this saved evaluation session?")) return;
+        try {
+            const res = await fetch(`/api/emr-mcq/save?id=${id}`, {
+                method: 'DELETE'
+            });
+            const data = await res.json();
+            if (data.success) {
+                fetchSavedEvals();
+            } else {
+                alert("Failed to delete evaluation.");
+            }
+        } catch (error) {
+            console.error("Failed to delete evaluation:", error);
+        }
+    };
 
     // Context State
     const [instituteName, setInstituteName] = useState('');
@@ -320,9 +357,9 @@ export default function EmrMcqsPortal() {
         <div className="max-w-6xl mx-auto space-y-6 lg:space-y-8 flex flex-col pb-24 lg:pb-0 min-h-screen lg:h-[calc(100vh-8rem)] pt-4 lg:pt-0">
             {/* Premium Gradient Header */}
             <div className="relative overflow-hidden rounded-3xl flex-shrink-0">
-                <div className="absolute inset-0 bg-gradient-to-br from-violet-900 via-purple-800 to-pink-900" />
+                <div className="absolute inset-0 bg-gradient-to-br from-violet-900 via-emerald-800 to-pink-900" />
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(139,92,246,0.25),transparent_60%)]" />
-                <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-purple-500/20 to-transparent rounded-full blur-3xl" />
+                <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-emerald-500/20 to-transparent rounded-full blur-3xl" />
                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-violet-600/20 to-transparent rounded-full blur-2xl" />
 
                 <div className="relative z-10 px-8 py-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -365,58 +402,7 @@ export default function EmrMcqsPortal() {
 
             <div className="flex-1 bg-white rounded-3xl border border-slate-200 shadow-sm p-4 lg:p-8 flex flex-col h-auto lg:h-0 overflow-visible lg:overflow-y-auto relative min-h-[600px] lg:min-h-0">
 
-                {/* Step 0: Dashboard */}
-                {step === 0 && (
-                    <div className="space-y-8 animate-in fade-in zoom-in duration-300">
-                        <div className="flex justify-between items-center mb-6">
-                            <div>
-                                <h3 className="text-2xl font-bold text-slate-900">MCQ Evaluations</h3>
-                                <p className="text-slate-500 font-medium mt-1">Access past OMR results or scan new sheets.</p>
-                            </div>
-                            <button onClick={() => setStep(1)} className="bg-emerald-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-emerald-700 flex items-center gap-2 shadow-md hover:-translate-y-0.5 transition-transform"><Target className="w-5 h-5" /> New OMR Scanning Session</button>
-                        </div>
-
-                        {emrStore.evaluations.length === 0 ? (
-                            <div className="text-center py-24 bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl">
-                                <ClipboardType className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                                <h4 className="text-xl font-bold text-slate-700">No Saved OMR Evaluations Yet</h4>
-                                <p className="text-slate-500 mt-2 max-w-sm mx-auto">Start a new evaluation session to scan student OMR sheets and score marks instantly.</p>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {emrStore.evaluations.map(evalu => (
-                                    <div key={evalu.id} className="bg-white border text-slate-800 border-slate-200 shadow-sm hover:shadow-md transition-shadow rounded-2xl p-6 group cursor-pointer relative overflow-hidden flex flex-col items-start gap-4">
-                                        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-full -z-10 transition-transform group-hover:scale-110"></div>
-                                        <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl">
-                                            <ClipboardType className="w-6 h-6" />
-                                        </div>
-                                        <div>
-                                            <h4 className="font-bold text-lg text-slate-800 line-clamp-1">{evalu.examName}</h4>
-                                            <p className="text-sm font-medium text-slate-500">{evalu.course} • {evalu.department}</p>
-                                        </div>
-                                        <div className="flex gap-4 mt-auto pt-4 border-t border-slate-100 w-full text-sm font-bold text-slate-500">
-                                            <span>{evalu.students.length} Students</span>
-                                            <span>•</span>
-                                            <span>{new Date(evalu.date).toLocaleDateString()}</span>
-                                        </div>
-                                        <div className="absolute inset-0 bg-slate-900/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[1px]">
-                                            <button onClick={() => {
-                                                setExamName(evalu.examName);
-                                                setCourse(evalu.course);
-                                                setDepartment(evalu.department);
-                                                setInstituteName(evalu.instituteName);
-                                                setPaperQuestions(evalu.questions);
-                                                setAnswerKey(evalu.answerKey);
-                                                setStudents(evalu.students);
-                                                setStep(4);
-                                            }} className="bg-white text-emerald-600 font-bold px-6 py-2 rounded-xl shadow-lg border border-emerald-100 scale-95 group-hover:scale-100 transition-all">View Results</button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
+                {/* Step 0 removed in favor of Step 1 as default and persistent history at bottom */}
 
                 {/* Step 1: Select Paper & Answer Key */}
                 {step === 1 && (
@@ -977,21 +963,35 @@ export default function EmrMcqsPortal() {
                                 </div>
                             </div>
                             <div className="flex gap-4">
-                                <button onClick={() => {
-                                    emrStore.saveEvaluation({
-                                        id: Date.now().toString(),
-                                        examName,
-                                        course,
-                                        department,
-                                        instituteName,
-                                        date: Date.now(),
-                                        questions: paperQuestions,
-                                        answerKey,
-                                        students,
-                                        maxMarks: totalMaxMarks
-                                    });
-                                    alert("OMR Evaluation results successfully saved to folder!");
-                                    setStep(0);
+                                <button onClick={async () => {
+                                    try {
+                                        const res = await fetch('/api/emr-mcq/save', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                examName,
+                                                course,
+                                                department,
+                                                instituteName,
+                                                date: Date.now(),
+                                                questions: paperQuestions,
+                                                answerKey,
+                                                students,
+                                                maxMarks: totalMaxMarks
+                                            })
+                                        });
+                                        const data = await res.json();
+                                        if (data.success) {
+                                            alert("OMR Evaluation results successfully saved!");
+                                            fetchSavedEvals();
+                                            setStep(1);
+                                        } else {
+                                            alert("Failed to save evaluation.");
+                                        }
+                                    } catch (e) {
+                                        console.error(e);
+                                        alert("Failed to save evaluation.");
+                                    }
                                 }} className="bg-white border-2 border-emerald-600 text-emerald-600 font-bold px-6 py-2.5 rounded-xl hover:bg-emerald-50 flex items-center gap-2 transition-colors"><Save className="w-4 h-4" /> Save to Folder</button>
                                 <button onClick={handleExportResults} className="bg-emerald-600 text-white font-bold px-6 py-2.5 rounded-xl hover:bg-emerald-700 shadow-sm transition-colors flex items-center gap-2">Export CSV Dataset</button>
                             </div>
@@ -1078,7 +1078,7 @@ export default function EmrMcqsPortal() {
                                         <div className="font-bold text-slate-600">
                                             Total: <span className="text-2xl font-black text-slate-900">{Object.values(manualOverrideScore).reduce((a, b) => a + b, 0)}</span> <span className="text-slate-400">/ {totalMaxMarks}</span>
                                         </div>
-                                        <div className="flex gap-3">
+                                        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mt-4 md:mt-0">
                                             <button onClick={() => setEditingStudentId(null)} className="px-6 py-3 font-bold bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors">Cancel</button>
                                             <button onClick={() => {
                                                 const newTotal = Object.values(manualOverrideScore).reduce((a, b) => a + b, 0);
@@ -1092,6 +1092,98 @@ export default function EmrMcqsPortal() {
                         )}
                     </div>
                 )}
+            </div>
+
+            {/* Saved EMR Evaluations Section */}
+            <div className="mt-12 space-y-4 animate-in fade-in slide-in-from-bottom-4 pt-8 border-t-2 border-slate-100">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center border border-slate-200 shadow-sm">
+                            <ClipboardType className="w-5 h-5 text-slate-600" />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-bold text-slate-900">Saved EMR Evaluations</h3>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Your previously scanned OMR sessions</p>
+                        </div>
+                    </div>
+                    {/* Search */}
+                    <div className="relative w-full sm:w-64">
+                        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                            type="text"
+                            placeholder="Search saved evaluations..."
+                            value={savedSearchQuery}
+                            onChange={(e) => setSavedSearchQuery(e.target.value)}
+                            className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-300 transition-all font-medium"
+                        />
+                    </div>
+                </div>
+
+                {isFetchingSaved ? (
+                    <div className="flex justify-center items-center py-10">
+                        <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+                    </div>
+                ) : savedEvals.length === 0 ? (
+                    <div className="text-center py-12 bg-slate-50 rounded-3xl border border-slate-100 shadow-inner">
+                        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-slate-100">
+                            <ClipboardType className="w-8 h-8 text-slate-300" />
+                        </div>
+                        <h4 className="text-slate-500 font-bold text-lg mb-1">Yet to save anything</h4>
+                        <p className="text-slate-400 text-sm">Your saved OMR evaluations will appear here.</p>
+                    </div>
+                ) : (() => {
+                    const filteredSaved = savedEvals.filter(item => {
+                        if (!savedSearchQuery) return true;
+                        const search = savedSearchQuery.toLowerCase();
+                        return (item.exam_name || '').toLowerCase().includes(search) || (item.course || '').toLowerCase().includes(search) || (item.department || '').toLowerCase().includes(search);
+                    });
+
+                    if (filteredSaved.length === 0) {
+                        return (
+                            <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-100">
+                                <p className="text-slate-500 font-medium text-sm">No saved evaluations found matching your search.</p>
+                            </div>
+                        );
+                    }
+
+                    return (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {filteredSaved.map(evalu => (
+                                <div key={evalu.id} className="bg-white border text-slate-800 border-slate-200 shadow-sm hover:shadow-md transition-shadow rounded-2xl p-6 group cursor-pointer relative overflow-hidden flex flex-col items-start gap-4">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-full -z-10 transition-transform group-hover:scale-110"></div>
+                                    <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl">
+                                        <ClipboardType className="w-6 h-6" />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-lg text-slate-800 line-clamp-1">{evalu.exam_name || 'Untitled Evaluation'}</h4>
+                                        <p className="text-sm font-medium text-slate-500">{evalu.course} • {evalu.department}</p>
+                                    </div>
+                                    <div className="flex gap-4 mt-auto pt-4 border-t border-slate-100 w-full text-sm font-bold text-slate-500">
+                                        <span>{evalu.students?.length || 0} Students</span>
+                                        <span>•</span>
+                                        <span>{new Date(evalu.created_at).toLocaleDateString()}</span>
+                                    </div>
+                                    <div className="absolute inset-0 bg-slate-900/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-[1px]">
+                                        <button onClick={() => {
+                                            setExamName(evalu.exam_name);
+                                            setCourse(evalu.course);
+                                            setDepartment(evalu.department);
+                                            setInstituteName(evalu.institute_name);
+                                            setPaperQuestions(evalu.questions || []);
+                                            setAnswerKey(evalu.answer_key || {});
+                                            setStudents(evalu.students || []);
+                                            setStep(4);
+                                        }} className="bg-white text-emerald-600 font-bold px-4 py-2 rounded-xl shadow-lg border border-emerald-100 scale-95 group-hover:scale-100 transition-all">View Results</button>
+                                        <button onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteSavedEval(evalu.id);
+                                        }} className="bg-white text-red-600 font-bold px-4 py-2 rounded-xl shadow-lg border border-red-100 scale-95 group-hover:scale-100 transition-all">Delete</button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    );
+                })()}
             </div>
         </div>
     );

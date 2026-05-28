@@ -31,9 +31,8 @@ export default function TrialCountdown({ trialEndDate, billingStatus, planTier }
 
   if (!mounted) return null;
 
-  // Don't show for active paid plans or enterprise
-  if (billingStatus === 'active' && planTier !== 'free') return null;
-  if (planTier === 'enterprise') return null;
+  // Only show if trialing or expired
+  if (billingStatus !== 'trialing' && billingStatus !== 'expired') return null;
 
   const isExpired = daysLeft <= 0 && hoursLeft <= 0;
   const isUrgent = daysLeft <= 3;
@@ -76,11 +75,10 @@ export default function TrialCountdown({ trialEndDate, billingStatus, planTier }
         <span className={`text-[11px] font-bold ${isUrgent ? 'text-amber-600' : 'text-cyan-600'}`}>hrs left</span>
       </div>
 
-      {/* Progress bar */}
       <div className="w-full h-1.5 bg-white/60 rounded-full overflow-hidden mb-2">
         <div
           className={`h-full rounded-full transition-all duration-500 ${isUrgent ? 'bg-gradient-to-r from-amber-400 to-red-500' : 'bg-gradient-to-r from-cyan-400 to-blue-500'}`}
-          style={{ width: `${Math.max(5, (daysLeft / 15) * 100)}%` }}
+          style={{ width: `${Math.max(5, (daysLeft / 30) * 100)}%` }}
         />
       </div>
 

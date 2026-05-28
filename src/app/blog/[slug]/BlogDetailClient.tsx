@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { BlogPost, useBlogStore } from '../../../store/blogStore';
 import { blogService } from '../../../lib/blogService';
 import Link from 'next/link';
-import { Calendar, Clock, Share2, MessageCircle, Globe, ChevronLeft, Eye, BookmarkPlus, ArrowRight, BookOpen, GraduationCap, Sparkles } from 'lucide-react';
+import { Calendar, Clock, Share2, MessageCircle, Globe, ChevronLeft, Eye, BookmarkPlus, ArrowRight, BookOpen, GraduationCap, Sparkles, Twitter, Linkedin, Facebook, Link2 } from 'lucide-react';
 import Head from 'next/head';
 
 export default function BlogDetailClient({ initialBlog, slug, related }: { initialBlog: BlogPost | null, slug: string, related: BlogPost[] }) {
@@ -96,9 +96,15 @@ export default function BlogDetailClient({ initialBlog, slug, related }: { initi
 
     const handleShare = (platform: string) => {
         const url = window.location.href;
-        if (platform === 'twitter') window.open(`https://twitter.com/intent/tweet?url=${url}&text=${encodeURIComponent(blog?.title || '')}`);
+        const text = encodeURIComponent(blog?.title || '');
+        if (platform === 'twitter') window.open(`https://twitter.com/intent/tweet?url=${url}&text=${text}`);
         if (platform === 'linkedin') window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${url}`);
-        if (platform === 'native' && navigator.share) navigator.share({ title: blog?.title, url });
+        if (platform === 'facebook') window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`);
+        if (platform === 'whatsapp') window.open(`https://api.whatsapp.com/send?text=${text}%20${url}`);
+        if (platform === 'copylink') {
+            navigator.clipboard.writeText(url);
+            alert("Link copied to clipboard!");
+        }
     };
 
     if (loading) {
@@ -202,25 +208,27 @@ export default function BlogDetailClient({ initialBlog, slug, related }: { initi
 
                 {/* Main Content Area */}
                 <div className="flex-1 max-w-4xl">
-                    {/* Tools & Author Bar */}
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-slate-200 rounded-2xl p-5 mb-12 shadow-xl">
-                        <div className="flex items-center gap-4 mb-4 sm:mb-0">
-                            <img src={authorImage} alt={authorName} className="w-12 h-12 rounded-full border border-slate-200 shadow-sm object-cover" />
-                            <div>
-                                <p className="text-slate-900 text-base font-bold">{authorName}</p>
-                                <p className="text-xs text-slate-500 max-w-xs">{blog.author_bio || 'MedEduAI Educator'}</p>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                            <button onClick={() => setIsBookmarked(!isBookmarked)} className={`p-2.5 rounded-xl border transition-all ${isBookmarked ? 'bg-emerald-50 border-emerald-500 text-emerald-600 shadow-sm' : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-600'}`}>
-                                <BookmarkPlus className="w-5 h-5" />
-                            </button>
-                            <button onClick={() => handleShare('twitter')} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:bg-[#1DA1F2]/10 hover:text-[#1DA1F2] transition-all text-slate-600"><MessageCircle className="w-5 h-5" /></button>
-                            <button onClick={() => handleShare('linkedin')} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:bg-[#0A66C2]/10 hover:text-[#0A66C2] transition-all text-slate-600"><Globe className="w-5 h-5" /></button>
-                            <button onClick={() => handleShare('native')} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:bg-emerald-50 hover:text-emerald-500 transition-all text-slate-600 md:hidden"><Share2 className="w-5 h-5" /></button>
-                        </div>
+                    {/* Share Bar (PGMentor Style) */}
+                    <div className="flex flex-wrap items-center gap-3 mb-6 mt-4">
+                        <span className="text-slate-500 font-semibold text-sm mr-2">Share:</span>
+                        <button onClick={() => handleShare('twitter')} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-50 text-blue-500 font-bold text-sm hover:bg-blue-100 transition-colors">
+                            <Twitter className="w-4 h-4" /> Twitter
+                        </button>
+                        <button onClick={() => handleShare('linkedin')} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-50 text-indigo-600 font-bold text-sm hover:bg-indigo-100 transition-colors">
+                            <Linkedin className="w-4 h-4" /> LinkedIn
+                        </button>
+                        <button onClick={() => handleShare('facebook')} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-50 text-blue-600 font-bold text-sm hover:bg-blue-100 transition-colors">
+                            <Facebook className="w-4 h-4" /> Facebook
+                        </button>
+                        <button onClick={() => handleShare('whatsapp')} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-50 text-green-600 font-bold text-sm hover:bg-green-100 transition-colors">
+                            <MessageCircle className="w-4 h-4" /> WhatsApp
+                        </button>
+                        <button onClick={() => handleShare('copylink')} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 text-slate-600 font-bold text-sm hover:bg-slate-200 transition-colors">
+                            <Link2 className="w-4 h-4" /> Copy Link
+                        </button>
                     </div>
+                    
+                    <hr className="border-slate-200 mb-8" />
 
                     {/* Article Content Area */}
                     <article className="prose prose-slate max-w-none prose-lg md:prose-xl prose-headings:font-extrabold prose-p:text-slate-700 prose-p:leading-relaxed prose-a:text-emerald-600 prose-a:font-semibold hover:prose-a:text-emerald-500 prose-img:rounded-3xl prose-img:shadow-lg prose-img:border prose-img:border-slate-200 bg-white p-8 md:p-12 rounded-3xl border border-slate-200 shadow-sm">

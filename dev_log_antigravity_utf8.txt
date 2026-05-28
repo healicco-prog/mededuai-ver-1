@@ -1,0 +1,30 @@
+﻿   Γû▓ Next.js 15.5.15
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.1.55:3000
+   - Environments: .env.local
+   - Experiments (use with caution):
+     ┬╖ serverActions
+     ┬╖ middlewareClientMaxBodySize: "50mb"
+
+ Γ£ô Starting...
+ Γ£ô Ready in 1641ms
+ Γ£ô Compiled /middleware in 131ms (114 modules)
+ Γùï Compiling /api/auth/refresh-token ...
+ Γ£ô Compiled /api/auth/refresh-token in 798ms (341 modules)
+ POST /api/auth/refresh-token 200 in 940ms
+ Γùï Compiling /api/test-usage ...
+ Γ£ô Compiled /api/test-usage in 684ms (504 modules)
+[MedEduAI AI] Initializing Google AI Studio using API Key (Cloud Run or Local)
+node.exe : [MedEduAI AI] model=gemini-2.5-flash attempt=1 failed ΓÇö httpCode=429 retryable=false ΓÇö 
+{"error":{"code":429,"message":"Your billing account has exceeded its monthly spending cap. Please go to AI Studio at 
+https://ai.studio/billing to manage your billing. Learn more at 
+https://ai.google.dev/gemini-api/docs/billing#tier-spend-caps. ","status":"RESOURCE_EXHAUSTED"}}
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([MedEduAI AI] m...CE_EXHAUSTED"}}:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[MedEduAI AI] ≡ƒ¢æ CRITICAL: Gemini service is blocked (Billing cap exceeded or key suspended). Failing fast.
+ GET /api/test-usage 200 in 1598ms
+ POST /api/auth/refresh-token 200 in 65ms

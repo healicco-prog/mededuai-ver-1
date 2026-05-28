@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { ClipboardCheck, Sparkles, SlidersHorizontal, Loader2, Save, Copy, Download, CheckCircle, RefreshCcw } from 'lucide-react';
+import { ClipboardCheck, Sparkles, SlidersHorizontal, Loader2, Save, Copy, Download, CheckCircle, RefreshCcw, History, Search } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useUserStore } from '@/store/userStore';
@@ -15,6 +15,29 @@ export default function SelfEvaluationPage() {
     const [copied, setCopied] = useState(false);
     const [saved, setSaved] = useState(false);
     const currentUser = useUserStore(state => state.users[0]);
+
+    const [savedEvals, setSavedEvals] = useState<any[]>([]);
+    const [savedSearchQuery, setSavedSearchQuery] = useState('');
+    const [isFetchingSaved, setIsFetchingSaved] = useState(true);
+
+    const fetchSavedEvals = async () => {
+        setIsFetchingSaved(true);
+        try {
+            const res = await fetch('/api/self-eval/saved/all');
+            const data = await res.json();
+            if (data.success && data.savedRecords) {
+                setSavedEvals(data.savedRecords);
+            }
+        } catch (e) {
+            console.error('Error fetching saved self-evals:', e);
+        } finally {
+            setIsFetchingSaved(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchSavedEvals();
+    }, []);
 
     const handleGenerate = async () => {
         if (!question.trim() || !currentUser) return;
@@ -60,44 +83,53 @@ export default function SelfEvaluationPage() {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!result) return;
         try {
-            const savedEvals = JSON.parse(localStorage.getItem('mededuai_saved_evals') || '[]');
-            savedEvals.push({
-                id: Date.now(),
-                question: question.substring(0, 100),
-                marks,
-                answer: result,
-                createdAt: new Date().toISOString()
+            const res = await fetch('/api/self-eval/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    question,
+                    marks,
+                    answer: result
+                })
             });
-            localStorage.setItem('mededuai_saved_evals', JSON.stringify(savedEvals));
-            setSaved(true);
-            setTimeout(() => setSaved(false), 3000);
-        } catch (err) { console.error(err); }
+            const data = await res.json();
+            if (data.success && data.savedRecord) {
+                setSavedEvals(prev => [data.savedRecord, ...prev]);
+                setSaved(true);
+                setTimeout(() => setSaved(false), 3000);
+            } else {
+                alert('Failed to save: ' + (data.error || 'Unknown error'));
+            }
+        } catch (err) {
+            console.error('Error saving self-eval:', err);
+            alert('An error occurred while saving.');
+        }
     };
 
-    const handleDownloadPDF = async () => {
-        if (!result) return;
+    const handleDownloadPDF = async (pdfAnswer = result, pdfMarks = marks, pdfQuestion = question) => {
+        if (!pdfAnswer) return;
         try {
             const jspdfModule = await import('jspdf');
             const jsPDF = jspdfModule.jsPDF || (jspdfModule as any).default?.jsPDF || jspdfModule.default;
             const pdf = new (jsPDF as any)('p', 'mm', 'a4');
             pdf.setFont('helvetica', 'bold');
             pdf.setFontSize(16);
-            pdf.text(`Self-Evaluation: ${marks} Marks`, 15, 20);
+            pdf.text(`Self-Evaluation: ${pdfMarks} Marks`, 15, 20);
             pdf.setFont('helvetica', 'normal');
             pdf.setFontSize(10);
-            pdf.text(`Question: ${question.substring(0, 80)}`, 15, 28);
+            pdf.text(`Question: ${pdfQuestion.substring(0, 80)}`, 15, 28);
             pdf.setFontSize(11);
-            const lines = pdf.splitTextToSize(result, 180);
+            const lines = pdf.splitTextToSize(pdfAnswer, 180);
             let y = 38;
             for (let i = 0; i < lines.length; i++) {
                 if (y > 280) { pdf.addPage(); y = 15; }
                 pdf.text(lines[i], 15, y);
                 y += 5.5;
             }
-            pdf.save(`SelfEval_${marks}marks.pdf`);
+            pdf.save(`SelfEval_${pdfMarks}marks.pdf`);
         } catch (err) { console.error(err); }
     };
 
@@ -143,7 +175,7 @@ export default function SelfEvaluationPage() {
                             <label className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
                                 <SlidersHorizontal className="w-4 h-4" /> Select Mark Weightage
                             </label>
-                            <div className="flex gap-3">
+                            <div className="flex flex-wrap gap-3">
                                 {[2, 3, 5, 10].map(m => (
                                     <button
                                         key={m}
@@ -220,6 +252,98 @@ export default function SelfEvaluationPage() {
                         </div>
                     </div>
                 )}
+                {/* Saved Evals Section */}
+                <div className="mt-12 space-y-4 animate-in fade-in slide-in-from-bottom-4 pt-8 border-t-2 border-slate-100">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center border border-slate-200 shadow-sm">
+                                <History className="w-5 h-5 text-slate-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-slate-900">Saved Evaluations</h3>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Your previously generated ideal answers</p>
+                            </div>
+                        </div>
+                        <div className="relative w-full sm:w-64">
+                            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                            <input
+                                type="text"
+                                placeholder="Search saved answers..."
+                                value={savedSearchQuery}
+                                onChange={(e) => setSavedSearchQuery(e.target.value)}
+                                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-300 transition-all font-medium"
+                            />
+                        </div>
+                    </div>
+
+                    {isFetchingSaved ? (
+                        <div className="flex justify-center items-center py-10">
+                            <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+                        </div>
+                    ) : savedEvals.length === 0 ? (
+                        <div className="text-center py-12 bg-slate-50 rounded-3xl border border-slate-100 shadow-inner">
+                            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-slate-100">
+                                <History className="w-8 h-8 text-slate-300" />
+                            </div>
+                            <h4 className="text-slate-500 font-bold text-lg mb-1">Yet to save anything</h4>
+                            <p className="text-slate-400 text-sm">Your saved evaluations will appear here.</p>
+                        </div>
+                    ) : (() => {
+                            const filtered = savedEvals.filter(e => {
+                                if (!savedSearchQuery) return true;
+                                const q = savedSearchQuery.toLowerCase();
+                                return (e.question || '').toLowerCase().includes(q) || (e.answer || '').toLowerCase().includes(q);
+                            });
+                            
+                            if (filtered.length === 0) {
+                                return (
+                                    <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-100">
+                                        <p className="text-slate-500 font-medium text-sm">No saved evaluations found matching your search.</p>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div className="space-y-4">
+                                    {filtered.map(evalRecord => (
+                                        <div key={evalRecord.id} className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm transition-all hover:shadow-md">
+                                            <div className="bg-slate-50 p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                                <div>
+                                                    <h4 className="font-bold text-slate-900 text-lg sm:text-xl line-clamp-2">{evalRecord.question || 'Untitled Question'}</h4>
+                                                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                                                        <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-lg">
+                                                            {evalRecord.marks} Marks
+                                                        </span>
+                                                        <span className="text-xs text-slate-400 font-medium ml-1">
+                                                            {new Date(evalRecord.created_at).toLocaleDateString()}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-wrap gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                                                    <button
+                                                        onClick={() => handleDownloadPDF(evalRecord.answer, evalRecord.marks, evalRecord.question)}
+                                                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white text-slate-700 font-bold h-9 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all text-sm shadow-sm"
+                                                    >
+                                                        <Download className="w-4 h-4" /> PDF
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleCopy(evalRecord.answer)}
+                                                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white text-slate-700 font-bold h-9 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all text-sm shadow-sm"
+                                                    >
+                                                        <Copy className="w-4 h-4" /> Copy
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className="p-4 sm:p-6 bg-white prose prose-slate prose-sm sm:prose-base max-w-none">
+                                                <h5 className="font-bold text-slate-800 border-b border-slate-100 pb-2 mb-4">Ideal Answer</h5>
+                                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{evalRecord.answer}</ReactMarkdown>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            );
+                        })()}
+                </div>
             </div>
         </div>
     );

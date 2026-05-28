@@ -311,11 +311,11 @@ th,td{border:1px solid #ccc;padding:6pt 8pt;text-align:left;}th{background:#f5f3
         <div className="max-w-5xl mx-auto flex flex-col h-[calc(100vh-7rem)]">
             {/* Premium Header */}
             <div className="relative mb-5 flex-shrink-0">
-                <div className="bg-gradient-to-r from-violet-900 via-purple-900 to-fuchsia-900 rounded-3xl p-6 shadow-xl overflow-hidden relative">
+                <div className="bg-gradient-to-r from-violet-900 via-emerald-900 to-fuchsia-900 rounded-3xl p-6 shadow-xl overflow-hidden relative">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
                     <div className="absolute bottom-0 left-0 w-48 h-48 bg-fuchsia-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
                     <div className="relative flex items-center gap-4">
-                        <div className="w-14 h-14 bg-gradient-to-br from-violet-400 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/25">
+                        <div className="w-14 h-14 bg-gradient-to-br from-violet-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/25">
                             <PenTool className="w-7 h-7 text-white" />
                         </div>
                         <div>
@@ -427,7 +427,7 @@ th,td{border:1px solid #ccc;padding:6pt 8pt;text-align:left;}th{background:#f5f3
                             <div className="flex justify-end pt-4 border-t border-slate-100">
                                 <button onClick={handleGenerateQuestions}
                                     disabled={loadingQuestions || (topicsList.length === 0 && !topicInput.trim())}
-                                    className="bg-gradient-to-r from-violet-500 to-purple-600 text-white font-bold h-12 px-8 rounded-xl hover:shadow-lg hover:shadow-violet-500/25 transition-all disabled:opacity-50 flex items-center gap-2 hover:scale-[1.01] active:scale-[0.99]">
+                                    className="bg-gradient-to-r from-violet-500 to-emerald-600 text-white font-bold h-12 px-8 rounded-xl hover:shadow-lg hover:shadow-violet-500/25 transition-all disabled:opacity-50 flex items-center gap-2 hover:scale-[1.01] active:scale-[0.99]">
                                     {loadingQuestions ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
                                     {loadingQuestions ? 'Generating Questions...' : 'Create Questions'}
                                     {!loadingQuestions && <ArrowRight className="w-4 h-4" />}
@@ -494,7 +494,7 @@ th,td{border:1px solid #ccc;padding:6pt 8pt;text-align:left;}th{background:#f5f3
                                 <span className="text-sm font-bold text-violet-600">{selectedQuestionIds.size} question{selectedQuestionIds.size !== 1 ? 's' : ''} selected</span>
                                 <button onClick={() => { if (selectedQuestionIds.size > 0) setCurrentStep(3); else alert('Select at least one question.'); }}
                                     disabled={selectedQuestionIds.size === 0}
-                                    className="bg-gradient-to-r from-violet-500 to-purple-600 text-white font-bold h-11 px-6 rounded-xl hover:shadow-lg hover:shadow-violet-500/25 transition-all disabled:opacity-50 flex items-center gap-2">
+                                    className="bg-gradient-to-r from-violet-500 to-emerald-600 text-white font-bold h-11 px-6 rounded-xl hover:shadow-lg hover:shadow-violet-500/25 transition-all disabled:opacity-50 flex items-center gap-2">
                                     Configure Answers <ArrowRight className="w-4 h-4" />
                                 </button>
                             </div>
@@ -571,7 +571,7 @@ th,td{border:1px solid #ccc;padding:6pt 8pt;text-align:left;}th{background:#f5f3
                                 </button>
                                 <button onClick={handleGenerateAnswers}
                                     disabled={loadingAnswers}
-                                    className="bg-gradient-to-r from-violet-500 to-purple-600 text-white font-bold h-12 px-8 rounded-xl hover:shadow-lg hover:shadow-violet-500/25 transition-all disabled:opacity-50 flex items-center gap-2 hover:scale-[1.01] active:scale-[0.99]">
+                                    className="bg-gradient-to-r from-violet-500 to-emerald-600 text-white font-bold h-12 px-8 rounded-xl hover:shadow-lg hover:shadow-violet-500/25 transition-all disabled:opacity-50 flex items-center gap-2 hover:scale-[1.01] active:scale-[0.99]">
                                     {loadingAnswers ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
                                     {loadingAnswers ? 'Generating Answers...' : `Generate ${selectedQuestionIds.size} Answer${selectedQuestionIds.size !== 1 ? 's' : ''}`}
                                 </button>
@@ -584,7 +584,7 @@ th,td{border:1px solid #ccc;padding:6pt 8pt;text-align:left;}th{background:#f5f3
                 {currentStep === 4 && result && (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-4">
                         <div className="bg-white rounded-3xl border border-violet-200 shadow-lg overflow-hidden">
-                            <div className="bg-gradient-to-r from-violet-50 to-purple-50 p-5 border-b border-violet-100">
+                            <div className="bg-gradient-to-r from-violet-50 to-emerald-50 p-5 border-b border-violet-100">
                                 <div className="flex items-center justify-between flex-wrap gap-4">
                                     <div>
                                         <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">

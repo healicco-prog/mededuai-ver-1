@@ -1,6 +1,6 @@
 "use client";
 
-import { BrainCircuit, GraduationCap, ClipboardCheck, FileText, CheckCircle2, AlertCircle, Users, Settings, Lock, HelpCircle, Mail, PhoneCall } from 'lucide-react';
+import { BrainCircuit, GraduationCap, ClipboardCheck, FileText, CheckCircle2, AlertCircle, Users, Settings, Lock, HelpCircle, Mail, PhoneCall, Library } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import ReferralCard from './ReferralCard';
 import { supabase } from '@/lib/supabase';
@@ -23,6 +23,17 @@ export function Overview({ role }: { role: 'student' | 'teacher' | 'admin' | 'su
     const [userEmail, setUserEmail] = useState<string>('');
     const [isApprovedEmail, setIsApprovedEmail] = useState<boolean>(false);
     const [activeTab, setActiveTab] = useState<'learning' | 'teaching' | 'dept' | 'enterprise'>('learning');
+    
+    const [currentCourse, setCurrentCourse] = useState<string>('');
+    const [showCourseModal, setShowCourseModal] = useState<boolean>(false);
+    const [tempCourse, setTempCourse] = useState<string>('');
+    const [isUpdatingCourse, setIsUpdatingCourse] = useState<boolean>(false);
+
+    const [currentVersion, setCurrentVersion] = useState<string>('');
+    const [showVersionModal, setShowVersionModal] = useState<boolean>(false);
+    const [tempVersion, setTempVersion] = useState<string>('');
+    const [isUpdatingVersion, setIsUpdatingVersion] = useState<boolean>(false);
+    const [availableVersions, setAvailableVersions] = useState<string[]>(['2026']);
 
     useEffect(() => {
         const fetchSubscriptionAndUser = async () => {
@@ -33,6 +44,27 @@ export function Overview({ role }: { role: 'student' | 'teacher' | 'admin' | 'su
                 const emailStr = user.email || '';
                 setUserEmail(emailStr);
                 setIsApprovedEmail(isEmailApproved(emailStr));
+
+                const courseStr = user.user_metadata?.course || '';
+                setCurrentCourse(courseStr);
+                setTempCourse(courseStr);
+
+                const versionStr = user.user_metadata?.version || '2026';
+                setCurrentVersion(versionStr);
+                setTempVersion(versionStr);
+
+                // Fetch available versions from LMS content
+                try {
+                    const { data } = await supabase.from('lms_content').select('version').neq('version', null).limit(200);
+                    if (data) {
+                        const unique = Array.from(new Set(data.map(d => d.version))).filter(Boolean) as string[];
+                        if (unique.length > 0) {
+                            setAvailableVersions(unique);
+                        }
+                    }
+                } catch (e) {
+                    console.error("Error fetching versions", e);
+                }
 
                 const { data: subData } = await supabase
                     .from('user_subscriptions')
@@ -61,11 +93,15 @@ export function Overview({ role }: { role: 'student' | 'teacher' | 'admin' | 'su
         }
     }, [userEmail, activeTab]);
 
-    const planTier = subscription?.plan_tier || 'free';
+    const basePlanTier = subscription?.plan_tier || 'free';
     const billingStatus = subscription?.billing_status || 'trialing';
     const trialEndDate = subscription?.trial_end_date || '2000-01-01T00:00:00.000Z';
 
-    const isTrialActive = billingStatus === 'trialing' && new Date(trialEndDate) > new Date();
+    const isExpiredTrial = billingStatus === 'trialing' && new Date(trialEndDate) < new Date();
+    const isExpiredSub = billingStatus === 'expired';
+    const planTier = (isExpiredTrial || isExpiredSub) ? 'free' : basePlanTier;
+    
+    const isTrialActive = billingStatus === 'trialing' && !isExpiredTrial;
 
     // Standard plan features
     const isStandardOrHigher = planTier === 'standard' || planTier === 'premium' || planTier === 'enterprise' || isTrialActive;
@@ -99,7 +135,7 @@ export function Overview({ role }: { role: 'student' | 'teacher' | 'admin' | 'su
                             title="AI Interactions"
                             value="124"
                             trend="32 questions today"
-                            icon={<BrainCircuit className="text-purple-600" />}
+                            icon={<BrainCircuit className="text-emerald-600" />}
                             color="purple"
                             isLocked={!isStandardOrHigher}
                             requiredPlan="Standard"
@@ -128,7 +164,7 @@ export function Overview({ role }: { role: 'student' | 'teacher' | 'admin' | 'su
                             title="Lesson Plans"
                             value="8"
                             trend="3 generated this week"
-                            icon={<FileText className="text-purple-600" />}
+                            icon={<FileText className="text-emerald-600" />}
                             color="purple"
                             isLocked={!isStandardOrHigher}
                             requiredPlan="Standard"
@@ -157,7 +193,7 @@ export function Overview({ role }: { role: 'student' | 'teacher' | 'admin' | 'su
                             title="Active Users"
                             value="842"
                             trend="Current session peak"
-                            icon={<Users className="text-purple-600" />}
+                            icon={<Users className="text-emerald-600" />}
                             color="purple"
                             isLocked={!isPremiumOrHigher}
                             requiredPlan="Premium"
@@ -165,6 +201,164 @@ export function Overview({ role }: { role: 'student' | 'teacher' | 'admin' | 'su
                     </>
                 )}
             </div>
+
+            {/* Course Selection Card */}
+            <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
+                        <GraduationCap className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-900">Current Course</h3>
+                        <p className="text-sm text-slate-500 font-medium">{currentCourse || 'No Course Selected'}</p>
+                    </div>
+                </div>
+                <button
+                    onClick={() => {
+                        setTempCourse(currentCourse);
+                        setShowCourseModal(true);
+                    }}
+                    className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-sm transition-colors w-full sm:w-auto"
+                >
+                    Change Course
+                </button>
+            </div>
+
+            {showCourseModal && (
+                <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl">
+                        <div className="flex items-center gap-3 mb-4">
+                            <AlertCircle className="w-6 h-6 text-amber-500" />
+                            <h3 className="text-xl font-bold text-slate-900">Change Course</h3>
+                        </div>
+                        <p className="text-sm text-slate-600 mb-6 bg-amber-50 p-3 rounded-xl border border-amber-200">
+                            <strong>Warning:</strong> All the analytics will change as per the selection of the course. Are you sure you want to proceed?
+                        </p>
+                        <div className="mb-6">
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Select New Course</label>
+                            <select
+                                value={tempCourse}
+                                onChange={(e) => setTempCourse(e.target.value)}
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                            >
+                                <option value="">-- Select Course --</option>
+                                <option value="MBBS">MBBS</option>
+                                <option value="BSc Nursing">BSc Nursing</option>
+                                <option value="BDS">BDS</option>
+                            </select>
+                        </div>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setShowCourseModal(false)}
+                                className="px-5 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition-colors text-sm"
+                                disabled={isUpdatingCourse}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (!tempCourse) return;
+                                    setIsUpdatingCourse(true);
+                                    try {
+                                        await supabase.auth.updateUser({
+                                            data: { course: tempCourse }
+                                        });
+                                        setCurrentCourse(tempCourse);
+                                        setShowCourseModal(false);
+                                    } catch (err) {
+                                        console.error(err);
+                                    } finally {
+                                        setIsUpdatingCourse(false);
+                                    }
+                                }}
+                                disabled={isUpdatingCourse || !tempCourse || tempCourse === currentCourse}
+                                className="px-5 py-2.5 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors text-sm disabled:opacity-50"
+                            >
+                                {isUpdatingCourse ? 'Updating...' : 'Confirm Change'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Version Selection Card */}
+            <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
+                        <Library className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-900">Current Version</h3>
+                        <p className="text-sm text-slate-500 font-medium">{currentVersion || 'No Version Selected'}</p>
+                    </div>
+                </div>
+                <button
+                    onClick={() => {
+                        setTempVersion(currentVersion);
+                        setShowVersionModal(true);
+                    }}
+                    className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-sm transition-colors w-full sm:w-auto"
+                >
+                    Change Version
+                </button>
+            </div>
+
+            {showVersionModal && (
+                <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl">
+                        <div className="flex items-center gap-3 mb-4">
+                            <AlertCircle className="w-6 h-6 text-amber-500" />
+                            <h3 className="text-xl font-bold text-slate-900">Change Version</h3>
+                        </div>
+                        <p className="text-sm text-slate-600 mb-6 bg-amber-50 p-3 rounded-xl border border-amber-200">
+                            <strong>Warning:</strong> All the analytics will change as per the selection of the version. Are you sure you want to proceed?
+                        </p>
+                        <div className="mb-6">
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Select New Version</label>
+                            <select
+                                value={tempVersion}
+                                onChange={(e) => setTempVersion(e.target.value)}
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                            >
+                                <option value="">-- Select Version --</option>
+                                {availableVersions.map(v => (
+                                    <option key={v} value={v}>{v}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setShowVersionModal(false)}
+                                className="px-5 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition-colors text-sm"
+                                disabled={isUpdatingVersion}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (!tempVersion) return;
+                                    setIsUpdatingVersion(true);
+                                    try {
+                                        await supabase.auth.updateUser({
+                                            data: { version: tempVersion }
+                                        });
+                                        setCurrentVersion(tempVersion);
+                                        setShowVersionModal(false);
+                                    } catch (err) {
+                                        console.error(err);
+                                    } finally {
+                                        setIsUpdatingVersion(false);
+                                    }
+                                }}
+                                disabled={isUpdatingVersion || !tempVersion || tempVersion === currentVersion}
+                                className="px-5 py-2.5 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors text-sm disabled:opacity-50"
+                            >
+                                {isUpdatingVersion ? 'Updating...' : 'Confirm Change'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Premium Package Features Tracker Card */}
             <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50">
@@ -185,7 +379,7 @@ export function Overview({ role }: { role: 'student' | 'teacher' | 'admin' | 'su
                             <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest leading-none mb-1">ACTIVE TIER</p>
                             <p className="text-sm font-extrabold text-slate-800 capitalize leading-none mb-1">{planTier === 'free' ? 'Free Trial' : planTier}</p>
                             <p className="text-[11px] font-medium text-slate-500 leading-none">
-                                {isTrialActive ? '15-Day Trial Features Active' : 'Paid Subscription Active'}
+                                {isTrialActive ? '1-Month Trial Features Active' : 'Paid Subscription Active'}
                             </p>
                         </div>
                     </div>
@@ -211,10 +405,10 @@ export function Overview({ role }: { role: 'student' | 'teacher' | 'admin' | 'su
                         </button>
                         <button
                             onClick={() => setActiveTab('dept')}
-                            className={`w-full text-left px-4 py-3.5 rounded-2xl font-bold text-sm transition-all flex items-center justify-between ${activeTab === 'dept' ? 'bg-purple-50 text-purple-700 shadow-sm border border-purple-100' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                            className={`w-full text-left px-4 py-3.5 rounded-2xl font-bold text-sm transition-all flex items-center justify-between ${activeTab === 'dept' ? 'bg-emerald-50 text-emerald-700 shadow-sm border border-emerald-100' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
                         >
                             <span>Department Head</span>
-                            <span className="text-[9px] px-2 py-0.5 rounded bg-purple-100 text-purple-600 font-extrabold">PREMIUM</span>
+                            <span className="text-[9px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-600 font-extrabold">PREMIUM</span>
                         </button>
                         <button
                             onClick={() => setActiveTab('enterprise')}
@@ -275,7 +469,7 @@ export function Overview({ role }: { role: 'student' | 'teacher' | 'admin' | 'su
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between">
                                     <h4 className="text-base font-extrabold text-slate-900">Department Administration</h4>
-                                    <span className="text-xs text-purple-600 font-bold bg-purple-50 px-2 py-0.5 rounded-md">Available for Department Head role</span>
+                                    <span className="text-xs text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-md">Available for Department Head role</span>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <FeatureItem label="Classroom Generator" included={isPremiumOrHigher} tier="Premium" />
@@ -423,7 +617,7 @@ function StatCard({ title, value, trend, icon, color, isLocked, requiredPlan }: 
     const colors: any = {
         emerald: 'bg-emerald-50 text-emerald-600',
         blue: 'bg-blue-50 text-blue-600',
-        purple: 'bg-purple-50 text-purple-600'
+        purple: 'bg-emerald-50 text-emerald-600'
     };
 
     const cardContent = (

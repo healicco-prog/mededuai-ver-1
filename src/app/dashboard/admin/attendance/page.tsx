@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { Users, Search, Download, CheckSquare, Square, Trash2, ArrowLeft, Settings, Calendar, Clock, BarChart } from 'lucide-react';
+import { Users, Search, Download, CheckSquare, Square, Trash2, ArrowLeft, Settings, Calendar, Clock, BarChart, Loader2 } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
 import { useAttendanceStore } from '@/store/attendanceStore';
 import { useTimetableStore } from '@/store/timetableStore';
@@ -13,6 +13,74 @@ export default function AttendanceSystem() {
     const [selectedFormatId, setSelectedFormatId] = useState<string>('');
     const [activeTab, setActiveTab] = useState<'mark' | 'logs' | 'edit_single' | 'reports'>('mark');
     const [activeRecordId, setActiveRecordId] = useState<string>('');
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const loadInitialData = async () => {
+            setIsLoading(true);
+            try {
+                // Fetch formats/classrooms if not already in store or just refresh them
+                const resClassrooms = await fetch('/api/classroom-generator/saved/all');
+                const dataClassrooms = await resClassrooms.json();
+                if (dataClassrooms.success && dataClassrooms.data) {
+                    const formats = dataClassrooms.data.map((item: any) => ({
+                        id: item.id,
+                        ...item.classroom_data
+                    }));
+                    useTimetableStore.setState({ formats });
+                }
+
+                // Fetch schedules for class hooks
+                const resSchedules = await fetch('/api/timetable/schedules');
+                const dataSchedules = await resSchedules.json();
+                if (dataSchedules.success && dataSchedules.data) {
+                    const schedules = dataSchedules.data.map((item: any) => ({
+                        id: item.id,
+                        formatId: item.format_id,
+                        date: item.date,
+                        topicId: item.topic_id,
+                        topicName: item.topic_name,
+                        competencyNo: item.competency_no,
+                        activity: item.activity,
+                        batch: item.batch,
+                        staffName: item.staff_name
+                    }));
+                    useTimetableStore.setState({ schedules });
+                }
+
+                // Fetch attendance logs
+                const resAttendance = await fetch('/api/admin/attendance');
+                const dataAttendance = await resAttendance.json();
+                if (dataAttendance.success && dataAttendance.data) {
+                    const records = dataAttendance.data.map((item: any) => ({
+                        id: item.id,
+                        courseId: item.course_id,
+                        date: item.date,
+                        timeFrom: item.time_from,
+                        timeTo: item.time_to,
+                        topic: item.topic,
+                        faculty: item.faculty,
+                        studentAttendance: item.student_attendance
+                    }));
+                    useAttendanceStore.setState({ attendanceRecords: records });
+                }
+            } catch (err) {
+                console.error("Failed to load initial attendance data:", err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        loadInitialData();
+    }, []);
+
+    if (isLoading) {
+        return (
+            <div className="flex justify-center items-center h-[60vh]">
+                <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
+            </div>
+        );
+    }
 
     const activeFormat = formats.find(f => f.id === selectedFormatId);
 
@@ -169,17 +237,43 @@ function MarkAttendanceView({ store, course, formatId, schedules, editMode = fal
 
     const toggleStatus = (id: string) => setAttendance((prev: any) => ({ ...prev, [id]: !prev[id] }));
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!form.topic) return alert('Topic is required');
+        const isUuid = editMode && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(recordId);
         const recordData = {
-            id: editMode ? recordId : Date.now().toString(),
+            id: isUuid ? recordId : crypto.randomUUID(),
             courseId: course.id,
             ...form,
             studentAttendance: attendance
         };
-        if (editMode) store.updateAttendanceRecord(recordData);
-        else store.addAttendanceRecord(recordData);
-        onSave();
+        try {
+            const res = await fetch('/api/admin/attendance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(recordData)
+            });
+            const data = await res.json();
+            if (data.success) {
+                const savedObj = {
+                    id: data.data.id,
+                    courseId: data.data.course_id,
+                    date: data.data.date,
+                    timeFrom: data.data.time_from,
+                    timeTo: data.data.time_to,
+                    topic: data.data.topic,
+                    faculty: data.data.faculty,
+                    studentAttendance: data.data.student_attendance
+                };
+                if (editMode) store.updateAttendanceRecord(savedObj);
+                else store.addAttendanceRecord(savedObj);
+                onSave();
+            } else {
+                alert("Failed to save attendance record to database.");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Error saving attendance record.");
+        }
     };
 
     const presentCount = Object.values(attendance).filter(Boolean).length;
@@ -301,7 +395,28 @@ function EditRecordsList({ store, course, onEdit }: any) {
                                         <td className="p-4 text-center"><span className="text-xs font-bold bg-green-100 text-green-700 px-3 py-1.5 rounded-full border border-green-200">{pres} / {total} Present</span></td>
                                         <td className="p-4 text-right">
                                             <button onClick={() => onEdit(r.id)} className="text-blue-600 font-bold hover:underline text-sm mr-4">Edit/View</button>
-                                            <button onClick={() => confirm('Delete this attendance record?') && store.deleteAttendanceRecord(r.id)} className="text-red-500 font-bold hover:bg-red-50 p-1.5 rounded-lg text-sm"><Trash2 className="w-4 h-4 inline" /></button>
+                                            <button 
+                                                onClick={async () => {
+                                                    if (confirm('Delete this attendance record?')) {
+                                                        try {
+                                                            const res = await fetch(`/api/admin/attendance?id=${r.id}`, {
+                                                                method: 'DELETE'
+                                                            });
+                                                            const data = await res.json();
+                                                            if (data.success) {
+                                                                store.deleteAttendanceRecord(r.id);
+                                                            } else {
+                                                                alert("Failed to delete record from database.");
+                                                            }
+                                                        } catch (err) {
+                                                            console.error(err);
+                                                        }
+                                                    }
+                                                }} 
+                                                className="text-red-500 font-bold hover:bg-red-50 p-1.5 rounded-lg text-sm"
+                                            >
+                                                <Trash2 className="w-4 h-4 inline" />
+                                            </button>
                                         </td>
                                     </tr>
                                 );
@@ -310,8 +425,10 @@ function EditRecordsList({ store, course, onEdit }: any) {
                     </table>
                 </div>
             ) : (
-                <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl p-10 text-center text-slate-500 font-medium text-lg">
-                    No attendance logs found for this classroom yet.
+                <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl p-10 text-center text-slate-400 font-medium text-lg">
+                    <CheckSquare className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+                    <div className="font-bold text-slate-500">Yet to save anything</div>
+                    <div className="text-sm text-slate-300">Mark attendance to save logs here.</div>
                 </div>
             )}
         </div>
@@ -334,13 +451,13 @@ function ReportsView({ store, course }: any) {
     const printRef = useRef<HTMLDivElement>(null);
     const reactToPrintFn = useReactToPrint({ contentRef: printRef, documentTitle: `${course?.courseName} Report` });
 
-    const handleBulkMark = (status: boolean) => {
+    const handleBulkMark = async (status: boolean) => {
         if (!bulkStudent || !fromDate || !toDate) {
             return alert("Please select a student and both dates.");
         }
 
         let updatedCount = 0;
-        records.forEach((r: any) => {
+        const promises = records.map(async (r: any) => {
             const dStr = r.date.split('T')[0];
             const dObj = new Date(dStr);
             dObj.setHours(0, 0, 0, 0);
@@ -355,12 +472,35 @@ function ReportsView({ store, course }: any) {
             const userEnd = endObj.getTime();
 
             if (d >= userStart && d <= userEnd) {
-                // Update record
-                const newRecord = { ...r, studentAttendance: { ...r.studentAttendance, [bulkStudent]: status } };
-                store.updateAttendanceRecord(newRecord);
-                updatedCount++;
+                const newRecord = { 
+                    id: r.id,
+                    courseId: r.courseId,
+                    date: r.date,
+                    timeFrom: r.timeFrom,
+                    timeTo: r.timeTo,
+                    topic: r.topic,
+                    faculty: r.faculty,
+                    studentAttendance: { ...r.studentAttendance, [bulkStudent]: status } 
+                };
+
+                try {
+                    const res = await fetch('/api/admin/attendance', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(newRecord)
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        store.updateAttendanceRecord(newRecord);
+                        updatedCount++;
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
             }
         });
+
+        await Promise.all(promises);
         alert(`Successfully updated attendance for ${updatedCount} records.`);
     };
 

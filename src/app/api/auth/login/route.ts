@@ -74,9 +74,22 @@ function fetchWithTimeout(timeoutMs: number): typeof fetch {
     return (input: RequestInfo | URL, init: RequestInit = {}) => {
         const controller = new AbortController();
         const id = setTimeout(() => controller.abort(), timeoutMs);
-        const signal = init.signal
-            ? AbortSignal.any([init.signal, controller.signal])
-            : controller.signal;
+        
+        let signal = controller.signal;
+        // Polyfill-like fallback for AbortSignal.any which is missing in Node 18
+        if (init.signal) {
+            if (typeof AbortSignal !== 'undefined' && 'any' in AbortSignal) {
+                signal = (AbortSignal as any).any([init.signal, controller.signal]);
+            } else {
+                // Manual fallback: if init.signal aborts, abort our controller too
+                if (init.signal.aborted) {
+                    controller.abort();
+                } else {
+                    init.signal.addEventListener('abort', () => controller.abort());
+                }
+            }
+        }
+        
         return fetch(input, { ...init, signal }).finally(() => clearTimeout(id));
     };
 }
@@ -109,10 +122,11 @@ export async function POST(req: Request) {
 
         // Anon key has no fallback — check multiple env var names so we don't
         // 503 just because Cloud Run uses a slightly different name.
+        const FALLBACK_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyZWxmZHdranRhaWR0b3Vsd3JqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxMDU3ODQsImV4cCI6MjA4ODY4MTc4NH0.FpFw_TINjRTeSRK54PFa-NoLa5R9ctx8y5h4_wmoBfk';
         const supabaseAnonKey =
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
             process.env.SUPABASE_ANON_KEY ||
-            '';
+            FALLBACK_ANON_KEY;
 
         if (!supabaseAnonKey) {
             console.error('[login] Supabase anon key missing on server runtime — check Cloud Run env vars');

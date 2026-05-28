@@ -19,17 +19,18 @@ export interface SubscriptionInfo {
 }
 
 import { isEmailApproved } from '@/app/dashboard/admin/mentoring/mentorshipAccess';
+import { isEnterpriseApproved } from '@/lib/enterpriseAccess';
 
 // ── Plan pricing (in paise for Razorpay) ─────────────────
 export const PLAN_CONFIG = {
   free: {
-    name: 'Free Trial',
+    name: 'Free Package',
     priceINR: 0,
     pricePaise: 0,
-    tokensPerMonth: 10000,
-    trialDays: 15,
-    description: 'Try all Learning features for 15 days',
-    audience: 'Students',
+    tokensPerMonth: 0,
+    trialDays: 0,
+    description: 'Mentorship MS, Elective MS, Logbook MS (If Institution Subscribed)',
+    audience: 'All Users',
     color: 'slate',
   },
   basic: {
@@ -38,18 +39,18 @@ export const PLAN_CONFIG = {
     pricePaise: 20000,
     tokensPerMonth: 50000,
     trialDays: 0,
-    description: 'LMS Notes & Creator for Students',
-    audience: 'Students Only',
+    description: 'Free package + LMS Notes (Rs 200)',
+    audience: 'Student only',
     color: 'blue',
   },
   standard: {
     name: 'Standard',
     priceINR: 500,
     pricePaise: 50000,
-    tokensPerMonth: 10000, // standard tokens
+    tokensPerMonth: 100000,
     trialDays: 0,
-    description: 'All Learning + Teaching features',
-    audience: 'Students & Teachers',
+    description: 'Free package + All features of Learning / Teaching',
+    audience: 'Student / Teacher',
     color: 'emerald',
   },
   premium: {
@@ -58,17 +59,17 @@ export const PLAN_CONFIG = {
     pricePaise: 100000,
     tokensPerMonth: 300000,
     trialDays: 0,
-    description: 'Full Department Head access',
-    audience: 'Department Heads',
+    description: 'Free package + All features of Department Head',
+    audience: 'Department Head',
     color: 'purple',
   },
   enterprise: {
     name: 'Enterprise',
     priceINR: -1, // Custom
     pricePaise: -1,
-    tokensPerMonth: -1,
+    tokensPerMonth: 1000000,
     trialDays: 0,
-    description: 'Mentoring MS, Elective MS, Log Book MS',
+    description: 'Mentoring MS, Elective MS, Log Book MS (if approved by Super Admin)',
     audience: 'Institutions',
     color: 'amber',
   },
@@ -78,10 +79,8 @@ export const PLAN_CONFIG = {
 // Each key is a module slug; the value is the minimum plan_tier required.
 export const FEATURE_ACCESS: Record<string, PlanTier[]> = {
   // LEARNING features
-  'lms-notes':             ['free', 'basic', 'standard', 'premium', 'enterprise'],
+  'lms-notes':             ['basic', 'standard', 'premium', 'enterprise'],
   'notes-creator':         ['standard', 'premium', 'enterprise'],
-  'mentorship-ms':         ['enterprise'],
-  'elective-ms':           ['enterprise'],
   'ai-mentor':             ['standard', 'premium', 'enterprise'],
   'viva-simulator':        ['standard', 'premium', 'enterprise'],
   'vocabulary':            ['standard', 'premium', 'enterprise'],
@@ -93,6 +92,7 @@ export const FEATURE_ACCESS: Record<string, PlanTier[]> = {
   // TEACHING features
   'lesson-plan':           ['standard', 'premium', 'enterprise'],
   'rubrics-generator':     ['standard', 'premium', 'enterprise'],
+  'assignments':           ['standard', 'premium', 'enterprise'],
   'dig-eval-assist':       ['standard', 'premium', 'enterprise'],
 
   // DEPARTMENT ADMIN features
@@ -105,6 +105,8 @@ export const FEATURE_ACCESS: Record<string, PlanTier[]> = {
 
   // ENTERPRISE
   'mentoring-ms':          ['enterprise'],
+  'mentorship-ms':         ['enterprise'],
+  'elective-ms':           ['enterprise'],
   'logbook-ms':            ['enterprise'],
 };
 
@@ -121,7 +123,9 @@ export function canAccessFeature(
 ): { allowed: boolean; requiredPlan: PlanTier | null } {
   // 1. Enterprise/Mentorship features logic
   if (['mentorship-ms', 'mentoring-ms', 'elective-ms', 'logbook-ms'].includes(featureSlug)) {
-    if (planTier === 'enterprise') {
+    // Strict approval: enterprise tier no longer grants auto access.
+    // Must be explicitly approved by Super Admin (Enterprise) OR Department Admin (Mentorship).
+    if (email && isEnterpriseApproved(email)) {
       return { allowed: true, requiredPlan: null };
     }
     if (email && isEmailApproved(email)) {
@@ -135,12 +139,7 @@ export function canAccessFeature(
   // If feature isn't mapped, allow by default (safe fallback)
   if (!allowedPlans) return { allowed: true, requiredPlan: null };
 
-  // During active trial, allow all non-enterprise features
-  if (billingStatus === 'trialing' && new Date(trialEndDate) > new Date()) {
-    if (featureSlug !== 'elective-ms' && featureSlug !== 'mentoring-ms' && featureSlug !== 'logbook-ms' && featureSlug !== 'mentorship-ms') {
-      return { allowed: true, requiredPlan: null };
-    }
-  }
+  // Note: Free trial logic removed as Free is now a perpetual package for MS only
 
   // Check if current plan is in the allowed list
   if (allowedPlans.includes(planTier)) {
@@ -176,7 +175,7 @@ export function isTrialExpired(trialEndDate: string): boolean {
 export function getUpgradeMessage(requiredPlan: PlanTier): string {
   const config = PLAN_CONFIG[requiredPlan];
   if (requiredPlan === 'enterprise') {
-    return `This feature requires an Enterprise plan. Contact us to learn more.`;
+    return `Your institution has not subscribed to this module. Please ask them to contact us.`;
   }
   return `Upgrade to ${config.name} (₹${config.priceINR}/month) to unlock this feature.`;
 }
@@ -202,6 +201,7 @@ export function getFeatureSlugFromPath(pathname: string): string | null {
     'self-eval-system': 'self-evaluation',
     'lesson-plan': 'lesson-plan',
     'rubrics-generator': 'rubrics-generator',
+    'assignments': 'assignments',
     'dig-eval-assist': 'dig-eval-assist',
     'classroom-generator': 'classroom-generator',
     'timetable': 'timetable-ms',

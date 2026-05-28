@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import * as XLSX from 'xlsx';
+import { approveEnterpriseEmails, revokeEnterpriseEmails, getApprovedEnterpriseEmails } from '@/lib/enterpriseAccess';
 
 /* ─── Types ─── */
 type Department = { id: number; name: string };
@@ -150,6 +151,37 @@ export default function CreateInstitutionPage() {
 
     /* ── General ── */
     const [activeTab, setActiveTab] = useState<'details' | 'departments' | 'faculty' | 'students' | 'mentoring' | 'elective' | 'logbook'>('details');
+
+    /* ── Enterprise Approvals ── */
+    const [approvedEmails, setApprovedEmails] = useState<string[]>([]);
+    
+    useEffect(() => {
+        setApprovedEmails(getApprovedEnterpriseEmails());
+    }, []);
+
+    const toggleEnterpriseAccess = () => {
+        const allEmails = [
+            ...facultyList.map(f => f.email),
+            ...students.map(s => s.email)
+        ].filter(Boolean);
+        
+        if (allEmails.length === 0) {
+            alert('No faculty or students to approve! Add users first.');
+            return;
+        }
+
+        const isFullyApproved = allEmails.every(email => approvedEmails.includes(email.toLowerCase()));
+        
+        if (isFullyApproved) {
+            revokeEnterpriseEmails(allEmails);
+            setApprovedEmails(getApprovedEnterpriseEmails());
+            alert('Enterprise access revoked for all users in this institution.');
+        } else {
+            approveEnterpriseEmails(allEmails);
+            setApprovedEmails(getApprovedEnterpriseEmails());
+            alert('Enterprise access granted for all users in this institution.');
+        }
+    };
 
     /* ── Load from localStorage ── */
     useEffect(() => {
@@ -512,7 +544,7 @@ export default function CreateInstitutionPage() {
                         {/* Institution Code */}
                         <div>
                             <label className="block text-sm font-bold text-slate-700 mb-2">Generate Specific Code</label>
-                            <div className="flex gap-3">
+                            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mt-4 md:mt-0">
                                 <div className="relative flex-1">
                                     <KeyRound className="w-5 h-5 text-slate-400 absolute left-4 top-3.5" />
                                     <input
@@ -567,7 +599,7 @@ export default function CreateInstitutionPage() {
                         </div>
 
                         {/* Manual Add */}
-                        <div className="flex gap-3">
+                        <div className="flex flex-wrap gap-3">
                             <input
                                 value={deptInput}
                                 onChange={e => setDeptInput(e.target.value)}
@@ -709,7 +741,7 @@ export default function CreateInstitutionPage() {
 
             {/* ═══════ STUDENTS TAB ═══════ */}
             {activeTab === 'students' && (
-                <SectionCard title="Students" subtitle="Manage students year-wise" icon={GraduationCap} gradient="from-violet-600 to-purple-600">
+                <SectionCard title="Students" subtitle="Manage students year-wise" icon={GraduationCap} gradient="from-violet-600 to-emerald-600">
                     <div className="space-y-6">
                         {/* Upload / Template / Add */}
                         <div className="flex flex-wrap items-center gap-3">
@@ -829,9 +861,13 @@ export default function CreateInstitutionPage() {
                                 Configure mentorship groups, assign mentors to students, and manage mentoring schedules for this institution.
                             </p>
                         </div>
-                        <span className="inline-flex items-center gap-2 px-4 py-2 bg-orange-100 text-orange-700 rounded-full text-xs font-black uppercase tracking-widest">
-                            <Sparkles className="w-3.5 h-3.5" /> Coming Soon
-                        </span>
+                        <button onClick={toggleEnterpriseAccess} className="mt-4 px-6 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg hover:shadow-xl">
+                            <Sparkles className="w-5 h-5 text-orange-400" />
+                            Toggle Enterprise Access for Institution
+                        </button>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">
+                            {approvedEmails.length} Emails Currently Approved across MedEduAI
+                        </p>
                     </div>
                 </SectionCard>
             )}
@@ -849,9 +885,10 @@ export default function CreateInstitutionPage() {
                                 Set up elective subjects, manage seat allocation, and allow students to register for elective modules within this institution.
                             </p>
                         </div>
-                        <span className="inline-flex items-center gap-2 px-4 py-2 bg-sky-100 text-sky-700 rounded-full text-xs font-black uppercase tracking-widest">
-                            <Sparkles className="w-3.5 h-3.5" /> Coming Soon
-                        </span>
+                        <button onClick={toggleEnterpriseAccess} className="mt-4 px-6 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg hover:shadow-xl">
+                            <Sparkles className="w-5 h-5 text-sky-400" />
+                            Toggle Enterprise Access for Institution
+                        </button>
                     </div>
                 </SectionCard>
             )}
@@ -866,12 +903,13 @@ export default function CreateInstitutionPage() {
                         <div>
                             <h3 className="text-xl font-black text-slate-800 mb-2">LogBook MS</h3>
                             <p className="text-slate-500 font-medium max-w-sm text-sm leading-relaxed">
-                                Manage clinical logbooks, track procedural competencies, and configure sign-off workflows for students in this institution.
+                                Define clinical competencies, allow students to log procedures, and manage faculty approvals within this institution.
                             </p>
                         </div>
-                        <span className="inline-flex items-center gap-2 px-4 py-2 bg-rose-100 text-rose-700 rounded-full text-xs font-black uppercase tracking-widest">
-                            <Sparkles className="w-3.5 h-3.5" /> Coming Soon
-                        </span>
+                        <button onClick={toggleEnterpriseAccess} className="mt-4 px-6 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg hover:shadow-xl">
+                            <Sparkles className="w-5 h-5 text-rose-400" />
+                            Toggle Enterprise Access for Institution
+                        </button>
                     </div>
                 </SectionCard>
             )}

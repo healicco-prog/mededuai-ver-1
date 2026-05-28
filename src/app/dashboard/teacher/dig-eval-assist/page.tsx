@@ -6,7 +6,7 @@ import {
     RotateCcw, ChevronRight, Award, FileText, Save,
     AlertCircle, Camera, UserCheck, Hash, Plus,
     ClipboardList, ScanLine, ChevronDown, ChevronUp, Trash2,
-    Maximize2, GripHorizontal, ImageIcon
+    Maximize2, GripHorizontal, ImageIcon, Search
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getAuthHeaders } from '@/lib/clientAuth';
@@ -96,6 +96,77 @@ export default function DigEvalAssistPage() {
     const questionFileRef = useRef<HTMLInputElement>(null);
     const questionCameraRef = useRef<HTMLInputElement>(null);
 
+    // DB Persistence States
+    const [savedEvals, setSavedEvals] = useState<any[]>([]);
+    const [isFetchingSaved, setIsFetchingSaved] = useState(true);
+    const [savedSearchQuery, setSavedSearchQuery] = useState('');
+
+    const fetchSavedEvals = async () => {
+        setIsFetchingSaved(true);
+        try {
+            const res = await fetch('/api/dig-eval-assist/saved/all');
+            const data = await res.json();
+            if (data.success) {
+                setSavedEvals(data.data || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch saved evaluations:", error);
+        } finally {
+            setIsFetchingSaved(false);
+        }
+    };
+
+    const handleSaveSession = async () => {
+        if (evaluatedScripts.length === 0) {
+            alert("No evaluated student scripts to save.");
+            return;
+        }
+        try {
+            const res = await fetch('/api/dig-eval-assist/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    question: question || '[Image-based Question]',
+                    marks: marks,
+                    evaluationData: {
+                        course,
+                        subject: subject === 'Other' ? customSubject : subject,
+                        rubrics,
+                        evaluatedScripts
+                    }
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert("Evaluation session saved successfully!");
+                fetchSavedEvals();
+            } else {
+                alert("Failed to save evaluation session.");
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Failed to save evaluation session.");
+        }
+    };
+
+    const handleDeleteSavedEval = async (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!confirm("Are you sure you want to delete this saved evaluation session?")) return;
+        try {
+            const res = await fetch(`/api/dig-eval-assist/save?id=${id}`, {
+                method: 'DELETE'
+            });
+            const data = await res.json();
+            if (data.success) {
+                fetchSavedEvals();
+            } else {
+                alert("Failed to delete evaluation.");
+            }
+        } catch (error) {
+            console.error("Failed to delete evaluation:", error);
+        }
+    };
+
     // Persistence
     useEffect(() => {
         const savedCourse = localStorage.getItem('dig_eval_course');
@@ -110,6 +181,7 @@ export default function DigEvalAssistPage() {
         // Always start fresh — never restore a generating/failed phase
         setPhase('setup');
         setError('');
+        fetchSavedEvals();
     }, []);
 
     useEffect(() => {
@@ -702,9 +774,19 @@ export default function DigEvalAssistPage() {
                                 </h3>
                                 <p className="text-slate-400 text-xs mt-1">Background batch tracking for uploaded student answer scripts</p>
                             </div>
-                            <button onClick={() => setPhase('ready-for-scripts')} className="bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-md">
-                                &larr; Upload Next Script
-                            </button>
+                            <div className="flex gap-2">
+                                <button onClick={handleSaveSession} className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-md flex items-center gap-1.5">
+                                    <Save className="w-3.5 h-3.5" /> Save Session
+                                </button>
+                                    <button onClick={() => window.print()} className="font-bold h-10 px-5 rounded-xl transition-all flex items-center gap-2 text-sm shadow-sm bg-white text-slate-700 border border-slate-200 hover:bg-blue-50 hover:border-blue-300 print:hidden ml-2" title="Share as PDF">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> 
+                                        Share as PDF
+                                    </button>
+
+                                <button onClick={() => setPhase('ready-for-scripts')} className="bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-md">
+                                    &larr; Upload Next Script
+                                </button>
+                            </div>
                         </div>
 
                         {evaluatedScripts.length === 0 ? (
@@ -802,6 +884,103 @@ export default function DigEvalAssistPage() {
                         )}
                     </div>
                 )}
+
+            {/* Saved Digital Evaluations History */}
+            <div className="mt-12 space-y-4 animate-in fade-in slide-in-from-bottom-4 pt-8 border-t-2 border-slate-100">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center border border-slate-200 shadow-sm">
+                            <ClipboardList className="w-5 h-5 text-slate-600" />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-bold text-slate-900">Saved Evaluations History</h3>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Your previously evaluated answer scripts</p>
+                        </div>
+                    </div>
+                    {/* Search */}
+                    <div className="relative w-full sm:w-64">
+                        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                            type="text"
+                            placeholder="Search saved evaluations..."
+                            value={savedSearchQuery}
+                            onChange={(e) => setSavedSearchQuery(e.target.value)}
+                            className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-300 transition-all font-medium"
+                        />
+                    </div>
+                </div>
+
+                {isFetchingSaved ? (
+                    <div className="flex justify-center items-center py-10">
+                        <Loader2 className="w-6 h-6 animate-spin text-teal-500" />
+                    </div>
+                ) : savedEvals.length === 0 ? (
+                    <div className="text-center py-12 bg-slate-50 rounded-3xl border border-slate-100 shadow-inner">
+                        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-slate-100">
+                            <ClipboardList className="w-8 h-8 text-slate-300" />
+                        </div>
+                        <h4 className="text-slate-500 font-bold text-lg mb-1">Yet to save anything</h4>
+                        <p className="text-slate-400 text-sm">Your saved evaluations will appear here.</p>
+                    </div>
+                ) : (() => {
+                    const filteredSaved = savedEvals.filter(item => {
+                        if (!savedSearchQuery) return true;
+                        const search = savedSearchQuery.toLowerCase();
+                        return (item.question || '').toLowerCase().includes(search) || (item.evaluation_data?.subject || '').toLowerCase().includes(search) || (item.evaluation_data?.course || '').toLowerCase().includes(search);
+                    });
+
+                    if (filteredSaved.length === 0) {
+                        return (
+                            <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-100">
+                                <p className="text-slate-500 font-medium text-sm">No saved evaluations found matching your search.</p>
+                            </div>
+                        );
+                    }
+
+                    return (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {filteredSaved.map(evalu => {
+                                const evalData = evalu.evaluation_data || {};
+                                return (
+                                    <div key={evalu.id} className="bg-white border text-slate-800 border-slate-200 shadow-sm hover:shadow-md transition-shadow rounded-2xl p-6 group cursor-pointer relative overflow-hidden flex flex-col items-start gap-4">
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-teal-50 rounded-bl-full -z-10 transition-transform group-hover:scale-110"></div>
+                                        <div className="p-3 bg-teal-100 text-teal-600 rounded-xl">
+                                            <ClipboardList className="w-6 h-6" />
+                                        </div>
+                                        <div className="w-full">
+                                            <h4 className="font-bold text-lg text-slate-800 line-clamp-1">{evalData.subject || 'General'}</h4>
+                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{evalData.course || 'MBBS'} • {evalu.marks}M</p>
+                                            <p className="text-sm text-slate-500 line-clamp-2 mt-2 font-medium bg-slate-50 p-2.5 rounded-xl border border-slate-100">{evalu.question}</p>
+                                        </div>
+                                        <div className="flex gap-4 mt-auto pt-4 border-t border-slate-100 w-full text-sm font-bold text-slate-500">
+                                            <span>{evalData.evaluatedScripts?.length || 0} Students</span>
+                                            <span>•</span>
+                                            <span>{new Date(evalu.created_at).toLocaleDateString()}</span>
+                                        </div>
+                                        <div className="absolute inset-0 bg-slate-900/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-[1px]">
+                                            <button onClick={() => {
+                                                setCourse(evalData.course || '');
+                                                setSubject(evalData.subject || '');
+                                                if (evalData.subject && !COURSES.find(c => c.id === evalData.course)?.subjects.includes(evalData.subject)) {
+                                                    setSubject('Other');
+                                                    setCustomSubject(evalData.subject);
+                                                }
+                                                setQuestion(evalu.question || '');
+                                                setMarks(evalu.marks || 10);
+                                                setRubrics(evalData.rubrics || '');
+                                                setEvaluatedScripts(evalData.evaluatedScripts || []);
+                                                setPhase('results');
+                                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                            }} className="bg-white text-teal-600 font-bold px-4 py-2 rounded-xl shadow-lg border border-teal-100 scale-95 group-hover:scale-100 transition-all">View Results</button>
+                                            <button onClick={(e) => handleDeleteSavedEval(evalu.id, e)} className="bg-white text-red-600 font-bold px-4 py-2 rounded-xl shadow-lg border border-red-100 scale-95 group-hover:scale-100 transition-all">Delete</button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    );
+                })()}
+            </div>
             </div>
 
             {/* ── CROP MODAL ── */}
@@ -848,7 +1027,7 @@ export default function DigEvalAssistPage() {
                                     <ChevronDown className="w-5 h-5 -rotate-90" />
                                 </button>
                             </div>
-                            <div className="flex gap-3">
+                            <div className="flex flex-wrap gap-3">
                                 <button onClick={() => setShowCropModal(false)} className="px-6 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">Cancel</button>
                                 <button onClick={handleCropSave} className="px-8 py-2.5 rounded-xl text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-500 transition-colors shadow-lg shadow-emerald-600/20">Apply & Save Crop</button>
                             </div>

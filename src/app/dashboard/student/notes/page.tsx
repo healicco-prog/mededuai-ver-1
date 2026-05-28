@@ -1,14 +1,16 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { useCurriculumStore } from '../../../../store/curriculumStore';
+import { useCurriculumStore, staticCoursesList } from '../../../../store/curriculumStore';
 import { useTokenStore } from '../../../../store/tokenStore';
 import {
     BrainCircuit, BookOpen, Search, Bell, Download, ChevronRight, ChevronLeft, ChevronDown, CheckCircle2,
     Sparkles, ArrowLeft, Layers, MessageSquare, Plus, AlignLeft, CheckSquare, Presentation,
-    Image as ImageIcon, RefreshCw, Trophy, Target, Clock, Zap, Menu, X, LogOut
+    Image as ImageIcon, RefreshCw, Trophy, Target, Clock, Zap, Menu, X, LogOut, Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
+import MededuLogo from '@/components/MededuLogo';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -196,9 +198,9 @@ const FlashcardViewer = ({ rawText }: { rawText: any }) => {
                         <h3 className="text-2xl font-bold text-teal-900 text-center leading-relaxed">{currentCard.front}</h3>
                         <p className="absolute bottom-6 text-sm text-teal-600/60 font-medium">Click to reveal answer</p>
                     </div>
-                    <div className="absolute inset-0 backface-hidden bg-gradient-to-br from-purple-50 to-indigo-50 rounded-3xl p-8 border border-purple-100 flex flex-col justify-center items-center shadow-lg rotate-y-180">
-                        <span className="absolute top-6 left-6 text-purple-600/30 text-4xl font-black">A.</span>
-                        <h3 className="text-xl font-medium text-purple-900 text-center leading-relaxed">{currentCard.back}</h3>
+                    <div className="absolute inset-0 backface-hidden bg-gradient-to-br from-emerald-50 to-indigo-50 rounded-3xl p-8 border border-emerald-100 flex flex-col justify-center items-center shadow-lg rotate-y-180">
+                        <span className="absolute top-6 left-6 text-emerald-600/30 text-4xl font-black">A.</span>
+                        <h3 className="text-xl font-medium text-emerald-900 text-center leading-relaxed">{currentCard.back}</h3>
                     </div>
                 </div>
             </div>
@@ -262,12 +264,12 @@ const PPTSlideViewer = ({ rawText }: { rawText: any }) => {
 
     const slide = slides[currentSlide] || slides[0];
     const gradients = [
-        'from-indigo-600 via-purple-600 to-violet-700',
+        'from-indigo-600 via-emerald-600 to-violet-700',
         'from-emerald-600 via-teal-600 to-cyan-700',
         'from-rose-600 via-pink-600 to-fuchsia-700',
         'from-amber-600 via-orange-600 to-red-700',
         'from-blue-600 via-sky-600 to-cyan-700',
-        'from-violet-600 via-purple-600 to-indigo-700',
+        'from-violet-600 via-emerald-600 to-indigo-700',
         'from-teal-600 via-emerald-600 to-green-700',
         'from-pink-600 via-rose-600 to-red-700',
     ];
@@ -609,11 +611,11 @@ export default function StudentLMSNotes() {
     const [dbNotes, setDbNotes] = useState<Record<string, string>>({});
     const [loadingDbNotes, setLoadingDbNotes] = useState(false);
 
-    // Build a merged course list: use Zustand store as the base structure wrapped in a default Version,
-    // then overlay/merge any versions, sections, and topics from the database that have actual content.
+    // Build a merged course list: staticCoursesList is the BASE (always fresh, never stale
+    // from localStorage migrations), DB content is OVERLAID for actual content markers.
     const coursesList = React.useMemo(() => {
-        // Start by mapping store courses into the 5-level structure natively
-        const baseMerged = storeCoursesList.map(course => ({
+        // Start by mapping static courses into the 5-level structure natively
+        const baseMerged = staticCoursesList.map(course => ({
             ...course,
             subjects: course.subjects.map(subj => ({
                 ...subj,
@@ -681,7 +683,13 @@ export default function StudentLMSNotes() {
                         v.name.toLowerCase().trim() === dbVersion.name.toLowerCase().trim()
                     );
                     if (!foundVersion) {
-                        storeSubject.versions.push({ id: `db-ver-${dbVersion.id}`, name: dbVersion.name, sections: [] });
+                        // Inherit the full baseline static syllabus from the first version
+                        const baselineSections = storeSubject.versions[0]?.sections || [];
+                        const clonedSections = baselineSections.map((sec: any) => ({
+                            ...sec,
+                            topics: sec.topics.map((t: any) => ({ ...t, hasNotes: false }))
+                        }));
+                        storeSubject.versions.push({ id: `db-ver-${dbVersion.id}`, name: dbVersion.name, sections: clonedSections });
                     }
                     const storeVersion = storeSubject.versions.find(v =>
                         v.name.toLowerCase().trim() === dbVersion.name.toLowerCase().trim()
@@ -738,6 +746,36 @@ export default function StudentLMSNotes() {
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
     const [completedTopics, setCompletedTopics] = useState<Record<string, boolean>>({});
     const [topicSearchQuery, setTopicSearchQuery] = useState<string>('');
+    const [globalSearchQuery, setGlobalSearchQuery] = useState<string>('');
+    const [isGlobalSearchFocused, setIsGlobalSearchFocused] = useState<boolean>(false);
+
+    const [debouncedGlobalQuery, setDebouncedGlobalQuery] = useState<string>('');
+    const [globalSearchResults, setGlobalSearchResults] = useState<any[]>([]);
+    const [isSearching, setIsSearching] = useState<boolean>(false);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedGlobalQuery(globalSearchQuery), 400);
+        return () => clearTimeout(timer);
+    }, [globalSearchQuery]);
+
+    useEffect(() => {
+        if (!debouncedGlobalQuery.trim() || !currentCourse) {
+            setGlobalSearchResults([]);
+            return;
+        }
+        setIsSearching(true);
+        fetch(`/api/lms/search?q=${encodeURIComponent(debouncedGlobalQuery)}&course=${encodeURIComponent(currentCourse.name)}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    setGlobalSearchResults(data.results || []);
+                } else {
+                    setGlobalSearchResults([]);
+                }
+            })
+            .catch(() => setGlobalSearchResults([]))
+            .finally(() => setIsSearching(false));
+    }, [debouncedGlobalQuery, currentCourse]);
 
     const [activeTab, setActiveTab] = useState<string>('introduction');
     const [showAIPanel, setShowAIPanel] = useState<boolean>(false);
@@ -749,6 +787,11 @@ export default function StudentLMSNotes() {
     const [userName, setUserName] = useState<string>('Student');
     const [planTier, setPlanTier] = useState<string>('free');
     const [userId, setUserId] = useState<string>('');
+    const [fixedCourse, setFixedCourse] = useState<string>('');
+    const [fixedVersion, setFixedVersion] = useState<string>('');
+    const [isProfileLoaded, setIsProfileLoaded] = useState<boolean>(false);
+    // Tracks whether we have already restored from localStorage so enforce-effects don't clobber it
+    const restoredRef = useRef<boolean>(false);
     const { getWallet, deductTokens } = useTokenStore();
 
     // Fetch user profile and subscription
@@ -759,6 +802,11 @@ export default function StudentLMSNotes() {
                 setUserId(session.user.id);
                 const name = session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Student';
                 setUserName(name);
+                
+                const uCourse = session.user.user_metadata?.course || '';
+                const uVersion = session.user.user_metadata?.version || '';
+                setFixedCourse(uCourse);
+                setFixedVersion(uVersion);
 
                 const res = await fetch(`/api/subscription?userId=${session.user.id}`);
                 if (res.ok) {
@@ -776,9 +824,32 @@ export default function StudentLMSNotes() {
                     }
                 }
             }
+            setIsProfileLoaded(true);
         };
         fetchUserAndPlan();
     }, []);
+
+    // Enforce fixed course — skip if we've already restored a saved session
+    useEffect(() => {
+        if (restoredRef.current) return; // don't clobber restored topic
+        if (fixedCourse && coursesList.length > 0) {
+            const course = coursesList.find(c => c.name.toLowerCase() === fixedCourse.toLowerCase());
+            if (course && selectedCourseId !== course.id) {
+                setSelectedCourseId(course.id);
+            }
+        }
+    }, [fixedCourse, coursesList, selectedCourseId]);
+
+    // Enforce fixed version — skip if we've already restored a saved session
+    useEffect(() => {
+        if (restoredRef.current) return; // don't clobber restored topic
+        if (fixedVersion && currentSubject?.versions) {
+            const version = currentSubject.versions.find(v => v.name.toLowerCase() === fixedVersion.toLowerCase());
+            if (version && selectedVersionId !== version.id) {
+                setSelectedVersionId(version.id);
+            }
+        }
+    }, [fixedVersion, currentSubject, selectedVersionId]);
 
     const handleSendMessage = async (text: string) => {
         if (!text.trim()) return;
@@ -887,47 +958,152 @@ export default function StudentLMSNotes() {
             .catch(() => setDbLoaded(true));
     }, []);
 
-    // ── When DB finishes loading, immediately jump to the best version+topic ──
-    // This fires once after the hierarchy fetch completes and coursesList is updated.
-    // Without this, students see an empty "Standard Curriculum" version until they
-    // manually switch — even though 131 DB topics are available.
+    // ── When DB finishes loading, restore last session or jump to the best version+topic ──
+    // Priority order:
+    //   1. Restore from localStorage (user's last opened subject + topic)
+    //   2. Fall back to the DB version that has the most content
     useEffect(() => {
         if (!dbLoaded || coursesList.length === 0) return;
 
-        const course = coursesList.find(c => c.id === selectedCourseId) || coursesList[0];
-        const subjectList = course?.subjects || [];
-        const subject = subjectList.find(s => s.id === selectedSubjectId) || subjectList[0];
-        const versionList = subject?.versions || [];
-        if (versionList.length === 0) return;
+        // ── Try to restore last opened state from localStorage ──
+        // We use the userId as the key so state is per-user.
+        // We purposely do NOT require sectionId to match because it's an
+        // implementation detail — just find the topic anywhere in the version.
+        const savedKey = `lms_notes_state_${userId || 'guest'}`;
+        const savedRaw = localStorage.getItem(savedKey);
+        if (savedRaw) {
+            try {
+                const parsed = JSON.parse(savedRaw);
 
-        // Pick the version with the most hasNotes topics
+                // Respect fixed course constraint — only restore if courseId matches the fixed course
+                const matchedCourse = fixedCourse
+                    ? coursesList.find(c => c.name.toLowerCase() === fixedCourse.toLowerCase())
+                    : coursesList.find(c => c.id === parsed.courseId);
+
+                if (matchedCourse) {
+                    const subject = matchedCourse.subjects?.find((s: any) => s.id === parsed.subjectId)
+                        || matchedCourse.subjects?.[0];
+
+                    if (subject) {
+                        // Respect fixed version constraint
+                        const matchedVersion = fixedVersion
+                            ? subject.versions?.find((v: any) => v.name.toLowerCase() === fixedVersion.toLowerCase())
+                            : subject.versions?.find((v: any) => v.id === parsed.versionId);
+
+                        const version = matchedVersion || subject.versions?.[0];
+
+                        if (version) {
+                            // Find topic anywhere in this version — sectionId not required
+                            const allTopicsInVersion = version.sections?.flatMap((s: any) => s.topics ?? []) ?? [];
+                            const restoredTopic = allTopicsInVersion.find((t: any) => t.id === parsed.topicId);
+
+                            // Apply all selections
+                            setSelectedCourseId(matchedCourse.id);
+                            setSelectedSubjectId(subject.id);
+                            setSelectedVersionId(version.id);
+
+                            if (restoredTopic) {
+                                setSelectedTopicId(restoredTopic.id);
+                                // Also restore section so sidebar highlights correctly
+                                const owningSection = version.sections?.find((s: any) =>
+                                    s.topics?.some((t: any) => t.id === restoredTopic.id)
+                                );
+                                if (owningSection) setSelectedSectionId(owningSection.id);
+                                restoredRef.current = true;
+                                return; // Successfully restored — done
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('[LMS Notes] Failed to parse saved state:', e);
+            }
+        }
+
+        // ── Fallback: auto-select best version + first topic with content ──
+        const course = fixedCourse
+            ? coursesList.find(c => c.name.toLowerCase() === fixedCourse.toLowerCase()) || coursesList[0]
+            : coursesList.find(c => c.id === selectedCourseId) || coursesList[0];
+        const subjectList = course?.subjects || [];
+        const subject = subjectList.find((s: any) => s.id === selectedSubjectId) || subjectList[0];
+        const versionList = subject?.versions || [];
+        if (versionList.length === 0) {
+            restoredRef.current = true;
+            return;
+        }
+
         const ranked = versionList
-            .map(v => ({
+            .map((v: any) => ({
                 v,
                 count: v.sections
                     ?.flatMap((s: any) => s.topics ?? [])
                     .filter((t: any) => t.hasNotes)
                     .length ?? 0,
             }))
-            .sort((a, b) => b.count - a.count);
+            .sort((a: any, b: any) => b.count - a.count);
 
         const best = ranked[0];
-        if (!best || best.count === 0) return;
-
-        // Switch version if a better one is available
-        if (best.v.id !== selectedVersionId) {
-            setSelectedVersionId(best.v.id);
+        if (!best || best.count === 0) {
+            restoredRef.current = true;
+            return;
         }
 
-        // Also immediately pick first topic with notes in that version
+        if (best.v.id !== selectedVersionId) setSelectedVersionId(best.v.id);
+
         const firstTopicWithNotes = best.v.sections
             ?.flatMap((s: any) => s.topics ?? [])
             .find((t: any) => t.hasNotes);
         if (firstTopicWithNotes) {
             setSelectedTopicId(firstTopicWithNotes.id);
+            const owningSection = best.v.sections?.find((s: any) =>
+                s.topics?.some((t: any) => t.id === firstTopicWithNotes.id)
+            );
+            if (owningSection) setSelectedSectionId(owningSection.id);
         }
+        restoredRef.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dbLoaded, coursesList]);
+
+    // Persist state — save whenever the user navigates to a new topic.
+    useEffect(() => {
+        if (userId && selectedCourseId && selectedSubjectId && selectedVersionId && selectedTopicId) {
+            const stateToSave = {
+                courseId: selectedCourseId,
+                subjectId: selectedSubjectId,
+                versionId: selectedVersionId,
+                sectionId: selectedSectionId,
+                topicId: selectedTopicId,
+            };
+            localStorage.setItem(`lms_notes_state_${userId}`, JSON.stringify(stateToSave));
+        }
+    }, [userId, selectedCourseId, selectedSubjectId, selectedVersionId, selectedSectionId, selectedTopicId]);
+
+    // ── Auto-select first topic when user switches subjects ──
+    // Only fires after the initial restore has run (restoredRef.current = true).
+    useEffect(() => {
+        if (!dbLoaded || !restoredRef.current) return;
+        if (!currentSubject) return;
+        // If the current version contains the selected topic, no change needed
+        const allTopicsInVersion = currentVersion?.sections?.flatMap((s: any) => s.topics ?? []) ?? [];
+        const topicBelongsHere = allTopicsInVersion.some((t: any) => t.id === selectedTopicId);
+        if (topicBelongsHere) return;
+        // Pick first topic with content, else just the first topic in the first version section
+        const firstTopic =
+            allTopicsInVersion.find((t: any) => (t as any).hasNotes) ||
+            allTopicsInVersion[0];
+        if (firstTopic) {
+            setSelectedTopicId(firstTopic.id);
+            setSelectedSectionId('');
+            const ownSection = currentVersion?.sections?.find((sec: any) =>
+                sec.topics?.some((t: any) => t.id === firstTopic.id)
+            );
+            if (ownSection) setSelectedSectionId(ownSection.id);
+        } else {
+            setSelectedTopicId('');
+            setSelectedSectionId('');
+        }
+    }, [selectedSubjectId]);
+
 
     const availableSections = currentVersion?.sections || [];
     const currentSection = availableSections.find(s => s.id === selectedSectionId) || availableSections[0];
@@ -983,13 +1159,20 @@ export default function StudentLMSNotes() {
     // Fetch FRESH notes from DB whenever the selected topic changes
     useEffect(() => {
         if (!currentTopic) { setDbNotes({}); return; }
-        // For DB-injected topics, the id is "db-<uuid>"; for store topics, look up by name
         const dbId = currentTopic.id.startsWith('db-')
             ? currentTopic.id.replace('db-', '')
             : dbTopicMap[currentTopic.name];
-        if (!dbId) return;
+
+        const params = new URLSearchParams();
+        if (dbId)                  params.set('topicId',   dbId);
+        if (currentTopic.name)     params.set('topicName', currentTopic.name);
+        if (currentSubject?.name)  params.set('subject',   currentSubject.name);
+        if (currentCourse?.name)   params.set('course',    currentCourse.name);
+
+        if (!dbId && !currentTopic.name) return;
+
         setLoadingDbNotes(true);
-        fetch(`/api/lms/notes?topicId=${dbId}`)
+        fetch(`/api/lms/notes?${params.toString()}`)
             .then(r => r.json())
             .then(data => {
                 if (data.success && data.notes) {
@@ -1014,7 +1197,7 @@ export default function StudentLMSNotes() {
             })
             .catch(() => setDbNotes({}))
             .finally(() => setLoadingDbNotes(false));
-    }, [currentTopic?.id, dbTopicMap]);
+    }, [currentTopic?.id, currentTopic?.name, currentSubject?.name, currentCourse?.name, dbTopicMap]);
 
     useEffect(() => {
         if (currentCourse?.name) {
@@ -1095,6 +1278,8 @@ export default function StudentLMSNotes() {
         { id: 'revision', label: 'Revision Mode', isSpecial: true },
     ].filter(t => contentMap[t.id as keyof typeof contentMap] || t.isSpecial);
 
+    // Course selection check removed to allow free exploration.
+
     // Provide a full screen overlay to bypass global dashboard constraints and meet prompt criteria
     return (
         <div className="fixed inset-0 z-[100] bg-slate-50 flex overflow-hidden font-sans">
@@ -1116,9 +1301,7 @@ export default function StudentLMSNotes() {
                 {/* Logo Area */}
                 <div className="h-16 flex items-center px-5 border-b border-slate-100 shrink-0">
                     <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => window.location.href = '/dashboard/student'}>
-                        <div className="w-8 h-8 bg-gradient-to-br from-[#6C63FF] to-[#8E6CFF] rounded-lg flex items-center justify-center shadow-md shadow-purple-200">
-                            <BrainCircuit className="text-white w-4 h-4" />
-                        </div>
+                        <MededuLogo size={32} />
                         <span className="font-extrabold text-lg text-slate-900 tracking-tight">MedEduAI</span>
                     </div>
                 </div>
@@ -1130,6 +1313,7 @@ export default function StudentLMSNotes() {
                             <p className="text-[9px] font-black uppercase tracking-wider text-slate-400 mb-1">Course</p>
                             <select
                                 value={selectedCourseId}
+                                disabled={!!fixedCourse}
                                 onChange={(e) => {
                                     setSelectedCourseId(e.target.value);
                                     const newCourse = coursesList.find(c => c.id === e.target.value);
@@ -1141,7 +1325,7 @@ export default function StudentLMSNotes() {
                                         setSelectedTopicId('');
                                     }
                                 }}
-                                className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-lg px-2.5 py-1.5 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all cursor-pointer"
+                                className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-lg px-2.5 py-1.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all cursor-pointer"
                             >
                                 {coursesList.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
@@ -1158,7 +1342,7 @@ export default function StudentLMSNotes() {
                                     }
                                     setSelectedTopicId('');
                                 }}
-                                className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-lg px-2.5 py-1.5 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all cursor-pointer"
+                                className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-lg px-2.5 py-1.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all cursor-pointer"
                             >
                                 {currentCourse?.subjects?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                             </select>
@@ -1169,11 +1353,12 @@ export default function StudentLMSNotes() {
                         <p className="text-[9px] font-black uppercase tracking-wider text-slate-400 mb-1">Curriculum Version</p>
                         <select
                             value={selectedVersionId}
+                            disabled={!!fixedVersion}
                             onChange={(e) => {
                                 setSelectedVersionId(e.target.value);
                                 setSelectedTopicId('');
                             }}
-                            className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-lg px-2.5 py-1.5 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all cursor-pointer"
+                            className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-lg px-2.5 py-1.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all cursor-pointer"
                         >
                             {currentSubject?.versions?.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
                         </select>
@@ -1187,7 +1372,7 @@ export default function StudentLMSNotes() {
                                 value={topicSearchQuery}
                                 onChange={(e) => setTopicSearchQuery(e.target.value)}
                                 placeholder="Search topic..."
-                                className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-medium rounded-lg pl-8 pr-7 py-1.5 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all"
+                                className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-medium rounded-lg pl-8 pr-7 py-1.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all"
                             />
                             {topicSearchQuery && (
                                 <button onClick={() => setTopicSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
@@ -1215,7 +1400,7 @@ export default function StudentLMSNotes() {
                             <>
                                 <div className="px-2 pt-0.5 pb-1.5 flex items-center justify-between border-b border-slate-50 mb-1.5 sticky top-0 bg-white z-10">
                                     <span className="text-[9px] font-extrabold uppercase tracking-widest text-slate-400">Topics</span>
-                                    <span className="text-[9px] font-bold px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded-full">{filteredTopics.length}</span>
+                                    <span className="text-[9px] font-bold px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded-full">{filteredTopics.length}</span>
                                 </div>
                                 {filteredTopics.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center py-6 text-slate-400">
@@ -1231,13 +1416,13 @@ export default function StudentLMSNotes() {
                                                 key={topic.id}
                                                 onClick={() => { setSelectedTopicId(topic.id); setActiveTab('introduction'); setShowSidebar(false); }}
                                                 className={`w-full text-left px-2.5 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2.5 ${isActive
-                                                    ? 'bg-purple-50 text-purple-700 shadow-sm shadow-purple-100/50'
+                                                    ? 'bg-emerald-50 text-emerald-700 shadow-sm shadow-emerald-100/50'
                                                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                                                     }`}
                                             >
                                                 <span className="w-5 h-5 rounded-md bg-slate-100 text-slate-400 text-[9px] font-black flex items-center justify-center shrink-0">{idx + 1}</span>
                                                 {hasContent ? (
-                                                    <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-purple-600' : 'text-emerald-500'}`} />
+                                                    <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-emerald-600' : 'text-emerald-500'}`} />
                                                 ) : (
                                                     <BookOpen className="w-3.5 h-3.5 opacity-40 shrink-0" />
                                                 )}
@@ -1261,7 +1446,7 @@ export default function StudentLMSNotes() {
                             <span className="text-xs font-black text-slate-800">68%</span>
                         </div>
                         <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full" style={{ width: '68%' }} />
+                            <div className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full" style={{ width: '68%' }} />
                         </div>
                     </div>
                 </div>
@@ -1276,13 +1461,74 @@ export default function StudentLMSNotes() {
                         <button onClick={() => setShowSidebar(true)} className="md:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">
                             <Menu className="w-6 h-6" />
                         </button>
-                        <div className="relative group flex-1">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-purple-500" />
+                        <div className="relative group flex-1" onFocus={() => setIsGlobalSearchFocused(true)} onBlur={() => setTimeout(() => setIsGlobalSearchFocused(false), 200)}>
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500" />
                             <input
                                 type="text"
-                                placeholder="Search..."
-                                className="w-full bg-slate-100/50 border border-slate-200 rounded-full pl-11 pr-4 py-2.5 text-sm font-medium text-slate-700 outline-none focus:bg-white focus:border-purple-300 focus:ring-4 focus:ring-purple-100/50 transition-all"
+                                placeholder="Search course topics..."
+                                value={globalSearchQuery}
+                                onChange={(e) => setGlobalSearchQuery(e.target.value)}
+                                className="w-full bg-slate-100/50 border border-slate-200 rounded-full pl-11 pr-4 py-2.5 text-sm font-medium text-slate-700 outline-none focus:bg-white focus:border-emerald-300 focus:ring-4 focus:ring-emerald-100/50 transition-all"
                             />
+                            <AnimatePresence>
+                                {isGlobalSearchFocused && globalSearchQuery.trim() && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: 10 }}
+                                        className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-[120]"
+                                    >
+                                        <div className="max-h-80 overflow-y-auto custom-scrollbar">
+                                            {isSearching ? (
+                                                <div className="px-4 py-8 text-center flex flex-col items-center">
+                                                    <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+                                                    <p className="text-sm font-bold text-slate-500">Searching all notes...</p>
+                                                </div>
+                                            ) : globalSearchResults.length > 0 ? (
+                                                globalSearchResults.map((res, idx) => (
+                                                    <button
+                                                        key={`search-res-${idx}`}
+                                                        onClick={() => {
+                                                            const matchSubject = currentCourse?.subjects?.find((s: any) => s.name.toLowerCase() === res.subject?.toLowerCase());
+                                                            if (matchSubject) setSelectedSubjectId(matchSubject.id);
+                                                            const matchVersion = matchSubject?.versions?.find((v: any) => v.name.toLowerCase() === (res.version || 'Standard Curriculum').toLowerCase());
+                                                            if (matchVersion) setSelectedVersionId(matchVersion.id);
+                                                            const allTopics = matchVersion ? matchVersion.sections.flatMap((s: any) => s.topics) : [];
+                                                            const matchTopic = allTopics.find((t: any) => t.name.toLowerCase() === res.topic?.toLowerCase());
+                                                            if (matchTopic) {
+                                                                setSelectedTopicId(matchTopic.id);
+                                                                const actualSection = matchVersion?.sections?.find((s: any) => s.topics.some((t: any) => t.id === matchTopic.id));
+                                                                if (actualSection) setSelectedSectionId(actualSection.id);
+                                                            }
+                                                            setGlobalSearchQuery('');
+                                                            setIsGlobalSearchFocused(false);
+                                                            setActiveTab('introduction');
+                                                        }}
+                                                        className="w-full text-left px-4 py-3 border-b border-slate-100 hover:bg-emerald-50 focus:bg-emerald-50 outline-none transition-colors group flex items-center justify-between"
+                                                    >
+                                                        <div className="flex items-start gap-3">
+                                                            <div className="mt-0.5">
+                                                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                                            </div>
+                                                            <div>
+                                                                <div className="text-sm font-bold text-slate-900 group-hover:text-emerald-700">{res.topic}</div>
+                                                                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{res.subject} • {res.version || 'Standard Curriculum'}</div>
+                                                            </div>
+                                                        </div>
+                                                        <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-emerald-500" />
+                                                    </button>
+                                                ))
+                                            ) : (
+                                                <div className="px-4 py-6 text-center">
+                                                    <Search className="w-8 h-8 text-slate-200 mx-auto mb-2" />
+                                                    <p className="text-sm font-bold text-slate-500">No matching notes found</p>
+                                                    <p className="text-xs text-slate-400 mt-1">Try another keyword</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
                     </div>
 
@@ -1295,10 +1541,10 @@ export default function StudentLMSNotes() {
                         <div className="relative">
                             <div onClick={() => setShowProfileMenu(p => !p)} className="flex items-center gap-3 pl-4 md:pl-6 border-l border-slate-200 cursor-pointer group">
                                 <div className="text-right hidden md:block">
-                                    <p className="text-sm font-bold text-slate-800 leading-tight group-hover:text-purple-600 transition-colors">{userName}</p>
-                                    <p className="text-[10px] font-bold text-purple-600 uppercase tracking-wider">Medical Student</p>
+                                    <p className="text-sm font-bold text-slate-800 leading-tight group-hover:text-emerald-600 transition-colors">{userName}</p>
+                                    <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Medical Student</p>
                                 </div>
-                                <img src="https://api.dicebear.com/7.x/notionists/svg?seed=John&backgroundColor=f8fafc" alt="Avatar" className="w-10 h-10 rounded-full border border-slate-200 bg-slate-100 shrink-0 group-hover:ring-4 group-hover:ring-purple-100 transition-all" />
+                                <img src="https://api.dicebear.com/7.x/notionists/svg?seed=John&backgroundColor=f8fafc" alt="Avatar" className="w-10 h-10 rounded-full border border-slate-200 bg-slate-100 shrink-0 group-hover:ring-4 group-hover:ring-emerald-100 transition-all" />
                             </div>
 
                             <AnimatePresence>
@@ -1311,10 +1557,10 @@ export default function StudentLMSNotes() {
                                             exit={{ opacity: 0, scale: 0.95, y: 10 }}
                                             className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 origin-top-right"
                                         >
-                                            <button onClick={() => window.location.href = '/dashboard/student'} className="w-full flex items-center gap-3 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-purple-600 transition-colors">
+                                            <button onClick={() => window.location.href = '/dashboard/student'} className="w-full flex items-center gap-3 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 transition-colors">
                                                 <ArrowLeft className="w-4 h-4 text-slate-400" /> Back to Dashboard
                                             </button>
-                                            <button onClick={() => { setShowAIPanel(true); setShowProfileMenu(false); }} className="w-full flex items-center gap-3 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-purple-600 transition-colors">
+                                            <button onClick={() => { setShowAIPanel(true); setShowProfileMenu(false); }} className="w-full flex items-center gap-3 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 transition-colors">
                                                 <Sparkles className="w-4 h-4 text-slate-400" /> Back to MedEduAI Mentor
                                             </button>
                                             <div className="h-px bg-slate-100 my-1"></div>
@@ -1410,18 +1656,18 @@ export default function StudentLMSNotes() {
                                         {/* Detailed Notes View */}
                                         {activeTab === 'detailed' && contentMap.detailed && (
                                             <div className="space-y-4">
-                                                <div className="bg-white rounded-3xl p-8 border border-purple-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)] relative overflow-hidden">
+                                                <div className="bg-white rounded-3xl p-8 border border-emerald-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)] relative overflow-hidden">
                                                     {/* Decorative background element */}
-                                                    <div className="absolute top-0 right-0 w-64 h-64 bg-purple-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 opacity-60"></div>
+                                                    <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 opacity-60"></div>
 
                                                     <div className="flex items-center gap-3 mb-8 relative z-10">
-                                                        <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center text-purple-600">
+                                                        <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600">
                                                             <Layers className="w-5 h-5" />
                                                         </div>
-                                                        <h3 className="text-xl font-bold text-purple-900">Comprehensive Notes</h3>
+                                                        <h3 className="text-xl font-bold text-emerald-900">Comprehensive Notes</h3>
                                                     </div>
 
-                                                    <div className="prose prose-purple prose-lg max-w-none text-slate-700 leading-relaxed relative z-10">
+                                                    <div className="prose prose-emerald prose-lg max-w-none text-slate-700 leading-relaxed relative z-10">
                                                         <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{contentMap.detailed}</ReactMarkdown>
                                                     </div>
                                                 </div>
@@ -1442,20 +1688,20 @@ export default function StudentLMSNotes() {
                                                         remarkPlugins={[remarkGfm]}
                                                         components={{
                                                             pre: ({node, ...props}: any) => (
-                                                                <div className="my-8 rounded-2xl overflow-hidden shadow-2xl border border-purple-500/40 bg-gradient-to-br from-slate-900 via-indigo-950 to-purple-950 transform transition hover:scale-[1.01] hover:shadow-purple-500/20">
+                                                                <div className="my-8 rounded-2xl overflow-hidden shadow-2xl border border-emerald-500/40 bg-gradient-to-br from-slate-900 via-indigo-950 to-emerald-950 transform transition hover:scale-[1.01] hover:shadow-emerald-500/20">
                                                                     <div className="flex items-center gap-2 px-4 py-3 bg-white/10 backdrop-blur-md border-b border-white/5">
                                                                         <div className="flex gap-2">
                                                                             <div className="w-3 h-3 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]" />
                                                                             <div className="w-3 h-3 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]" />
                                                                             <div className="w-3 h-3 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
                                                                         </div>
-                                                                        <span className="text-xs font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-purple-300 ml-3 uppercase tracking-widest flex items-center gap-2">
+                                                                        <span className="text-xs font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-emerald-300 ml-3 uppercase tracking-widest flex items-center gap-2">
                                                                             <Sparkles className="w-3 h-3 text-cyan-300" />
                                                                             Conceptual Visual Summary
                                                                         </span>
                                                                     </div>
-                                                                    <div className="relative p-6 overflow-x-auto scrollbar-thin scrollbar-thumb-purple-500/50 scrollbar-track-transparent">
-                                                                        <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/10 via-transparent to-purple-500/10 blur-2xl" />
+                                                                    <div className="relative p-6 overflow-x-auto scrollbar-thin scrollbar-thumb-emerald-500/50 scrollbar-track-transparent">
+                                                                        <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/10 via-transparent to-emerald-500/10 blur-2xl" />
                                                                         <pre className="relative z-10 font-mono text-[13px] md:text-sm leading-relaxed text-cyan-300 font-bold drop-shadow-[0_0_8px_rgba(103,232,249,0.5)]" {...props} />
                                                                     </div>
                                                                 </div>
@@ -1574,9 +1820,9 @@ export default function StudentLMSNotes() {
                                 exit={{ width: 0, opacity: 0 }}
                                 className="absolute right-0 inset-y-0 z-[60] md:relative border-l border-slate-200 bg-white flex flex-col shadow-[-4px_0_24px_rgba(0,0,0,0.02)] overflow-hidden max-w-[calc(100vw-4rem)]"
                             >
-                                <div className="h-20 flex items-center justify-between px-6 border-b border-slate-100 flex-shrink-0 bg-gradient-to-r from-purple-50/50 to-white">
+                                <div className="h-20 flex items-center justify-between px-6 border-b border-slate-100 flex-shrink-0 bg-gradient-to-r from-emerald-50/50 to-white">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+                                        <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
                                             <Sparkles className="w-4 h-4" />
                                         </div>
                                         <h3 className="font-bold text-slate-900">MedEduAI Mentor</h3>
@@ -1598,7 +1844,7 @@ export default function StudentLMSNotes() {
                                             {/* Action Chips */}
                                             <div className="space-y-2 mt-auto">
                                                 {["Explain in simple terms", "Create a mnemonic for this", "Generate 5 practice MCQs"].map((chip, idx) => (
-                                                    <button key={idx} onClick={() => handleSendMessage(chip)} className="w-full text-left p-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 transition-colors">
+                                                    <button key={idx} onClick={() => handleSendMessage(chip)} className="w-full text-left p-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-colors">
                                                         {chip}
                                                     </button>
                                                 ))}
@@ -1609,7 +1855,7 @@ export default function StudentLMSNotes() {
                                             {chatHistory.map((msg, i) => {
                                                 const hasMcq = msg.content.includes('```mcq');
                                                 const bubbleClass = msg.role === 'user' 
-                                                    ? 'p-3 rounded-2xl max-w-[85%] text-sm bg-purple-600 text-white rounded-br-sm'
+                                                    ? 'p-3 rounded-2xl max-w-[85%] text-sm bg-emerald-600 text-white rounded-br-sm'
                                                     : `p-3 rounded-2xl text-sm bg-slate-100 text-slate-800 rounded-bl-sm prose prose-sm ${hasMcq ? 'w-full max-w-full' : 'max-w-[85%]'}`;
                                                 
                                                 return (
@@ -1663,7 +1909,7 @@ export default function StudentLMSNotes() {
                                             {getWallet(userId)?.totalTokens || 0} AI Tokens
                                         </span>
                                         {planTier === 'free' && (
-                                            <a href="/dashboard/student/upgrade" className="text-[10px] font-bold text-purple-600 flex items-center gap-1 cursor-pointer hover:underline">
+                                            <a href="/dashboard/student/upgrade" className="text-[10px] font-bold text-emerald-600 flex items-center gap-1 cursor-pointer hover:underline">
                                                 <Trophy className="w-3 h-3" /> Upgrade to Standard
                                             </a>
                                         )}
@@ -1680,9 +1926,9 @@ export default function StudentLMSNotes() {
                                             }}
                                             placeholder="Ask anything..."
                                             rows={2}
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:bg-white focus:border-purple-400 resize-none pr-12"
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:bg-white focus:border-emerald-400 resize-none pr-12"
                                         />
-                                        <button onClick={() => handleSendMessage(chatInput)} className="absolute right-3 bottom-3 w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center hover:bg-purple-700 shadow-sm transition-transform hover:scale-105">
+                                        <button onClick={() => handleSendMessage(chatInput)} className="absolute right-3 bottom-3 w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center hover:bg-emerald-700 shadow-sm transition-transform hover:scale-105">
                                             <Sparkles className="w-4 h-4" />
                                         </button>
                                     </div>
@@ -1700,7 +1946,7 @@ export default function StudentLMSNotes() {
                                 onClick={() => setShowAIPanel(true)}
                                 className="absolute right-6 bottom-6 w-14 h-14 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-xl hover:bg-slate-800 transition-all z-50 ring-4 ring-white"
                             >
-                                <Sparkles className="w-6 h-6 text-purple-300" />
+                                <Sparkles className="w-6 h-6 text-emerald-300" />
                             </motion.button>
                         )}
                     </AnimatePresence>

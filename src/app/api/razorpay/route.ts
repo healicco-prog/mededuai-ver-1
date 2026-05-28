@@ -151,7 +151,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ success: true, plan: planTier, tokens: extraTokens, isTopup: true });
     }
 
-    const tokensAllotment = PLAN_TOKENS[planTier] || 10000;
+    const tokensAllotment = PLAN_TOKENS[planTier] || 0;
     const nextResetDate = new Date();
     nextResetDate.setDate(nextResetDate.getDate() + 30);
 

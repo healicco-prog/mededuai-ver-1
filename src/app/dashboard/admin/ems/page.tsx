@@ -66,6 +66,32 @@ export default function EvaluationManagementSystem() {
     const [backgroundQueue, setBackgroundQueue] = useState<any[]>([]);
     const [isProcessingQueue, setIsProcessingQueue] = useState(false);
 
+    // Sync from database on mount
+    useEffect(() => {
+        const loadInitialData = async () => {
+            try {
+                const res = await fetch('/api/ems');
+                const data = await res.json();
+                if (data.success && data.data) {
+                    const mapped = data.data.map((item: any) => ({
+                        id: item.id,
+                        examName: item.ems_data.examName,
+                        course: item.ems_data.course,
+                        department: item.ems_data.department,
+                        instituteName: item.ems_data.instituteName,
+                        date: item.ems_data.date,
+                        questions: item.ems_data.questions,
+                        students: item.ems_data.students
+                    }));
+                    useEmsStore.setState({ evaluations: mapped });
+                }
+            } catch (err) {
+                console.error("Failed to load initial EMS data:", err);
+            }
+        };
+        loadInitialData();
+    }, []);
+
     // Persistence for mobile refreshes
     useEffect(() => {
         const savedStudents = localStorage.getItem('ems_evaluated_students');
@@ -488,13 +514,36 @@ export default function EvaluationManagementSystem() {
                         {emsStore.evaluations.length === 0 ? (
                             <div className="text-center py-24 bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl">
                                 <FolderOpen className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                                <h4 className="text-xl font-bold text-slate-700">No Saved Evaluations Yet</h4>
+                                <h4 className="text-xl font-bold text-slate-700">Yet to save anything</h4>
                                 <p className="text-slate-500 mt-2 max-w-sm mx-auto">Start a new evaluation session to grade student scripts and save the results here.</p>
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {emsStore.evaluations.map(evalu => (
                                     <div key={evalu.id} className="bg-white border text-slate-800 border-slate-200 shadow-sm hover:shadow-md transition-shadow rounded-2xl p-6 group cursor-pointer relative overflow-hidden flex flex-col items-start gap-4">
+                                        <div className="absolute top-4 right-4 z-20">
+                                            <button 
+                                                onClick={async (e) => {
+                                                    e.stopPropagation();
+                                                    if (confirm("Delete this evaluation record?")) {
+                                                        try {
+                                                            const res = await fetch(`/api/ems?id=${evalu.id}`, { method: 'DELETE' });
+                                                            const resData = await res.json();
+                                                            if (resData.success) {
+                                                                emsStore.deleteEvaluation(evalu.id);
+                                                            } else {
+                                                                alert("Failed to delete from database");
+                                                            }
+                                                        } catch (err) {
+                                                            console.error(err);
+                                                        }
+                                                    }
+                                                }}
+                                                className="text-slate-400 hover:text-red-500 bg-white/80 p-1.5 rounded-lg border shadow-sm transition-colors"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                         <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-bl-full -z-10 transition-transform group-hover:scale-110"></div>
                                         <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl">
                                             <FolderOpen className="w-6 h-6" />
@@ -1221,9 +1270,9 @@ export default function EvaluationManagementSystem() {
                                 >
                                     <UploadCloud className="w-5 h-5 shrink-0" /> Export CSV
                                 </button>
-                                <button 
-                                    onClick={() => {
-                                        emsStore.saveEvaluation({
+                                 <button 
+                                    onClick={async () => {
+                                        const newEval = {
                                             id: Date.now().toString(),
                                             examName,
                                             course,
@@ -1232,9 +1281,25 @@ export default function EvaluationManagementSystem() {
                                             date: Date.now(),
                                             questions: mockQuestions,
                                             students: evaluatedStudents
-                                        });
-                                        alert("Evaluation results successfully saved to folder!");
-                                        setStep(0);
+                                        };
+                                        try {
+                                            const res = await fetch('/api/ems', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify(newEval)
+                                            });
+                                            const resData = await res.json();
+                                            if (resData.success) {
+                                                emsStore.saveEvaluation(newEval);
+                                                alert("Evaluation results successfully saved to folder!");
+                                                setStep(0);
+                                            } else {
+                                                alert("Failed to save evaluation to database.");
+                                            }
+                                        } catch (err) {
+                                            console.error(err);
+                                            alert("Error saving evaluation to database.");
+                                        }
                                     }}
                                     disabled={evaluatedStudents.length === 0}
                                     className="w-full sm:w-auto px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2"

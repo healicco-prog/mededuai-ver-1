@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from 'react';
-import { ClipboardCheck, Loader2, Save, Send, CheckCircle, XCircle, Trash2, History, Calendar, ChevronDown, ChevronUp, Sparkles, BrainCircuit } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ClipboardCheck, Loader2, Save, Send, CheckCircle, XCircle, Trash2, History, Calendar, ChevronDown, ChevronUp, Sparkles, BrainCircuit, Search, BookOpen, FileText } from 'lucide-react';
 
 export default function McqGeneratorPage() {
     const [subject, setSubject] = useState('');
@@ -15,6 +15,29 @@ export default function McqGeneratorPage() {
     const [savedExams, setSavedExams] = useState<{ id: string; subject: string; date: string; numMcqs: number; papers: { id: string; name: string; mcqs: any[] }[] }[]>([]);
     const [expandedExamId, setExpandedExamId] = useState<string | null>(null);
     const [answers, setAnswers] = useState<Record<string, string>>({});
+
+    const [savedSearchQuery, setSavedSearchQuery] = useState('');
+    const [isFetchingSaved, setIsFetchingSaved] = useState(true);
+
+    const fetchSavedExams = async () => {
+        setIsFetchingSaved(true);
+        try {
+            const res = await fetch('/api/mcq-generator/saved/all');
+            const data = await res.json();
+            if (data.success) {
+                setSavedExams(data.data || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch saved exams:", error);
+        } finally {
+            setIsFetchingSaved(false);
+        }
+    };
+
+
+    useEffect(() => {
+        fetchSavedExams();
+    }, []);
 
     const handleNumPapersChange = (val: number) => {
         setNumPapers(val);
@@ -60,12 +83,35 @@ export default function McqGeneratorPage() {
         setAnswers(prev => ({ ...prev, [key]: option }));
     };
 
-    const handleSaveAllToDb = () => {
+    const handleSaveAllToDb = async () => {
         if (generatedPapers.length === 0) return;
         let totalMcqs = 0; generatedPapers.forEach(p => totalMcqs += p.mcqs.length);
-        setSavedExams(prev => [{ id: Date.now().toString(), subject: subject || 'Unnamed', date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }), numMcqs: totalMcqs, papers: [...generatedPapers] }, ...prev]);
-        setGeneratedPapers([]);
-        alert("MCQs saved successfully!");
+        
+        try {
+            const res = await fetch('/api/mcq-generator/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    subject: subject || 'Unnamed',
+                    examData: {
+                        date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                        numMcqs: totalMcqs,
+                        papers: generatedPapers
+                    }
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert("MCQs saved successfully!");
+                setGeneratedPapers([]);
+                fetchSavedExams();
+            } else {
+                alert("Failed to save MCQs.");
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Failed to save MCQs.");
+        }
     };
 
     return (
@@ -187,6 +233,11 @@ export default function McqGeneratorPage() {
                                 className="bg-gradient-to-r from-slate-800 to-slate-900 text-white font-bold h-11 px-6 rounded-xl hover:shadow-lg transition-all flex items-center gap-2 text-sm">
                                 <Save className="w-4 h-4" /> Save Entire Exam
                             </button>
+                                    <button onClick={() => window.print()} className="font-bold h-10 px-5 rounded-xl transition-all flex items-center gap-2 text-sm shadow-sm bg-white text-slate-700 border border-slate-200 hover:bg-blue-50 hover:border-blue-300 print:hidden ml-2" title="Share as PDF">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> 
+                                        Share as PDF
+                                    </button>
+
                         </div>
                         
                         {generatedPapers.map(paper => (
@@ -244,74 +295,129 @@ export default function McqGeneratorPage() {
                                 className="bg-gradient-to-r from-rose-500 to-pink-600 text-white font-bold h-14 px-10 rounded-xl hover:shadow-lg hover:shadow-rose-500/25 transition-all flex items-center gap-3 hover:scale-[1.01] active:scale-[0.99]">
                                 <Save className="w-6 h-6" /> Save All MCQs
                             </button>
+                                    <button onClick={() => window.print()} className="font-bold h-10 px-5 rounded-xl transition-all flex items-center gap-2 text-sm shadow-sm bg-white text-slate-700 border border-slate-200 hover:bg-blue-50 hover:border-blue-300 print:hidden ml-2" title="Share as PDF">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> 
+                                        Share as PDF
+                                    </button>
+
                         </div>
                     </div>
                 )}
 
-                {/* History */}
-                {savedExams.length > 0 && (
-                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 pt-8 border-t-2 border-slate-100">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200">
+                {/* Saved MCQs Section */}
+                <div className="mt-12 space-y-4 animate-in fade-in slide-in-from-bottom-4 pt-8 border-t-2 border-slate-100">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center border border-slate-200 shadow-sm">
                                 <History className="w-5 h-5 text-slate-600" />
                             </div>
                             <div>
                                 <h3 className="text-xl font-bold text-slate-900">Saved Examinations History</h3>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Your previously generated MCQs</p>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Your previously generated MCQs</p>
                             </div>
                         </div>
+                        {/* Search */}
+                        <div className="relative w-full sm:w-64">
+                            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                            <input
+                                type="text"
+                                placeholder="Search saved exams..."
+                                value={savedSearchQuery}
+                                onChange={(e) => setSavedSearchQuery(e.target.value)}
+                                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-300 transition-all font-medium"
+                            />
+                        </div>
+                    </div>
 
-                        {savedExams.map(exam => (
-                            <div key={exam.id} className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all">
-                                <div className="p-5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
-                                    onClick={() => setExpandedExamId(expandedExamId === exam.id ? null : exam.id)}>
-                                    <div>
-                                        <h4 className="font-bold text-slate-900 text-lg">{exam.subject} Examination</h4>
-                                        <div className="flex items-center gap-3 mt-2">
-                                            <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-100 px-2.5 py-1.5 rounded-lg"><Calendar className="w-3 h-3" /> {exam.date}</span>
-                                            <span className="text-[10px] font-bold text-rose-600 uppercase tracking-widest bg-rose-50 px-2.5 py-1.5 rounded-lg border border-rose-100">{exam.papers.length} Paper{exam.papers.length !== 1 && 's'} | {exam.numMcqs} MCQs</span>
-                                        </div>
-                                    </div>
-                                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500">
-                                        {expandedExamId === exam.id ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                                    </div>
+                    {isFetchingSaved ? (
+                        <div className="flex justify-center items-center py-10">
+                            <Loader2 className="w-6 h-6 animate-spin text-rose-500" />
+                        </div>
+                    ) : savedExams.length === 0 ? (
+                        <div className="text-center py-12 bg-slate-50 rounded-3xl border border-slate-100 shadow-inner">
+                            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-slate-100">
+                                <ClipboardCheck className="w-8 h-8 text-slate-300" />
+                            </div>
+                            <h4 className="text-slate-500 font-bold text-lg mb-1">Yet to save anything</h4>
+                            <p className="text-slate-400 text-sm">Your saved MCQs will appear here.</p>
+                        </div>
+                    ) : (() => {
+                        const filteredSaved = savedExams.filter(item => {
+                            if (!savedSearchQuery) return true;
+                            const search = savedSearchQuery.toLowerCase();
+                            return (item.subject || '').toLowerCase().includes(search) || (item.exam_data?.papers?.[0]?.name || '').toLowerCase().includes(search);
+                        });
+
+                        if (filteredSaved.length === 0) {
+                            return (
+                                <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-100">
+                                    <p className="text-slate-500 font-medium text-sm">No saved exams found matching your search.</p>
                                 </div>
-                                {expandedExamId === exam.id && (
-                                    <div className="p-6 pt-2 border-t border-slate-100 bg-slate-50 space-y-6">
-                                        {exam.papers.map(paper => (
-                                            <div key={paper.id} className="space-y-4">
-                                                <div className="bg-white text-rose-800 font-bold px-5 py-3 rounded-xl border border-rose-100 inline-block mb-1 text-xs uppercase tracking-widest shadow-sm">
-                                                    {paper.name} ({paper.mcqs.length} MCQs)
+                            );
+                        }
+
+                        return (
+                            <div className="space-y-4">
+                                {filteredSaved.map(exam => {
+                                    const examData = exam.exam_data || {};
+                                    const papers = examData.papers || [];
+                                    const numMcqs = examData.numMcqs || 0;
+                                    const date = examData.date || new Date(exam.created_at).toLocaleDateString();
+
+                                    return (
+                                        <div key={exam.id} className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all">
+                                            <div className="p-5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
+                                                onClick={() => setExpandedExamId(expandedExamId === exam.id ? null : exam.id)}>
+                                                <div>
+                                                    <h4 className="font-bold text-slate-900 text-lg">{exam.subject} Examination</h4>
+                                                    <div className="flex items-center gap-3 mt-2">
+                                                        <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-100 px-2.5 py-1.5 rounded-lg"><Calendar className="w-3 h-3" /> {date}</span>
+                                                        <span className="text-[10px] font-bold text-rose-600 uppercase tracking-widest bg-rose-50 px-2.5 py-1.5 rounded-lg border border-rose-100">{papers.length} Paper{papers.length !== 1 && 's'} | {numMcqs} MCQs</span>
+                                                    </div>
                                                 </div>
-                                                <div className="grid grid-cols-1 gap-4 text-sm">
-                                                    {paper.mcqs.map((mcq: any, idx: number) => (
-                                                        <div key={idx} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                                                            <h5 className="font-bold text-slate-800 mb-3 flex gap-3 text-[15px]">
-                                                                <span className="text-slate-500 bg-slate-100 w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs">{idx + 1}</span>
-                                                                <span className="mt-0.5">{mcq.question}</span>
-                                                            </h5>
-                                                            <div className="pl-9 space-y-2">
-                                                                {mcq.options.map((opt: string, optIdx: number) => (
-                                                                    <div key={optIdx} className={`px-4 py-2 rounded-xl border ${opt === mcq.correctAnswer ? 'bg-emerald-50 border-emerald-200 text-emerald-900 font-semibold' : 'bg-slate-50 border-slate-100 text-slate-600'}`}>
-                                                                        <div className="flex items-center justify-between"><span>{opt}</span>{opt === mcq.correctAnswer && <CheckCircle className="w-4 h-4 text-emerald-500" />}</div>
+                                                <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500">
+                                                    {expandedExamId === exam.id ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                                                </div>
+                                            </div>
+                                            {expandedExamId === exam.id && (
+                                                <div className="p-6 pt-2 border-t border-slate-100 bg-slate-50 space-y-6">
+                                                    {papers.map((paper: any) => (
+                                                        <div key={paper.id} className="space-y-4">
+                                                            <div className="bg-white text-rose-800 font-bold px-5 py-3 rounded-xl border border-rose-100 inline-block mb-1 text-xs uppercase tracking-widest shadow-sm">
+                                                                {paper.name} ({paper.mcqs?.length || 0} MCQs)
+                                                            </div>
+                                                            <div className="grid grid-cols-1 gap-4 text-sm">
+                                                                {paper.mcqs?.map((mcq: any, idx: number) => (
+                                                                    <div key={idx} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                                                                        <h5 className="font-bold text-slate-800 mb-3 flex gap-3 text-[15px]">
+                                                                            <span className="text-slate-500 bg-slate-100 w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs">{idx + 1}</span>
+                                                                            <span className="mt-0.5">{mcq.question}</span>
+                                                                        </h5>
+                                                                        <div className="pl-9 space-y-2">
+                                                                            {mcq.options?.map((opt: string, optIdx: number) => (
+                                                                                <div key={optIdx} className={`px-4 py-2 rounded-xl border ${opt === mcq.correctAnswer ? 'bg-emerald-50 border-emerald-200 text-emerald-900 font-semibold' : 'bg-slate-50 border-slate-100 text-slate-600'}`}>
+                                                                                    <div className="flex items-center justify-between"><span>{opt}</span>{opt === mcq.correctAnswer && <CheckCircle className="w-4 h-4 text-emerald-500" />}</div>
+                                                                                </div>
+                                                                            ))}
+                                                                            <div className="mt-3 bg-blue-50/50 border border-blue-100 p-4 rounded-xl">
+                                                                                <h6 className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Explanation</h6>
+                                                                                <p className="text-slate-700 leading-relaxed font-medium">{mcq.explanation}</p>
+                                                                            </div>
+                                                                        </div>
                                                                     </div>
                                                                 ))}
-                                                                <div className="mt-3 bg-blue-50/50 border border-blue-100 p-4 rounded-xl">
-                                                                    <h6 className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Explanation</h6>
-                                                                    <p className="text-slate-700 leading-relaxed font-medium">{mcq.explanation}</p>
-                                                                </div>
                                                             </div>
                                                         </div>
                                                     ))}
                                                 </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
-                        ))}
-                    </div>
-                )}
+                        );
+                    })()}
+                </div>
             </div>
         </div>
     );

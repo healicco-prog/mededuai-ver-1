@@ -215,12 +215,12 @@ export default function VivaSimulatorPage() {
         <div className="max-w-5xl mx-auto flex flex-col h-[calc(100vh-7rem)]">
             {/* Premium Header */}
             <div className="relative mb-6 flex-shrink-0">
-                <div className="bg-gradient-to-r from-indigo-900 via-violet-900 to-purple-900 rounded-3xl p-6 shadow-xl overflow-hidden relative">
+                <div className="bg-gradient-to-r from-indigo-900 via-violet-900 to-emerald-900 rounded-3xl p-6 shadow-xl overflow-hidden relative">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
                     <div className="absolute bottom-0 left-0 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
                     <div className="relative flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 bg-gradient-to-br from-violet-400 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/25">
+                            <div className="w-14 h-14 bg-gradient-to-br from-violet-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/25">
                                 <Stethoscope className="w-7 h-7 text-white" />
                             </div>
                             <div>
@@ -305,7 +305,7 @@ export default function VivaSimulatorPage() {
                             <button
                                 onClick={handleStart}
                                 disabled={!activeTopic}
-                                className="w-full py-4 bg-gradient-to-r from-violet-600 to-purple-700 text-white font-bold rounded-2xl hover:shadow-lg hover:shadow-violet-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50 mt-4 hover:scale-[1.01] active:scale-[0.99]"
+                                className="w-full py-4 bg-gradient-to-r from-violet-600 to-emerald-700 text-white font-bold rounded-2xl hover:shadow-lg hover:shadow-violet-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50 mt-4 hover:scale-[1.01] active:scale-[0.99]"
                             >
                                 <PlayCircle className="w-5 h-5" /> Start Simulation
                             </button>
@@ -381,7 +381,7 @@ export default function VivaSimulatorPage() {
                 /* ————— Analyzing ————— */
                 <div className="flex-1 flex items-center justify-center pb-8">
                     <div className="bg-white p-12 rounded-3xl border border-slate-200 shadow-lg text-center max-w-md">
-                        <div className="w-16 h-16 bg-gradient-to-br from-violet-400 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-violet-500/20">
+                        <div className="w-16 h-16 bg-gradient-to-br from-violet-400 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-violet-500/20">
                             <Loader2 className="w-8 h-8 text-white animate-spin" />
                         </div>
                         <h3 className="text-xl font-bold text-slate-800 mb-2">Analyzing your performance...</h3>
@@ -398,7 +398,7 @@ export default function VivaSimulatorPage() {
 
                         {loadingResponse ? (
                             <div className="relative flex flex-col items-center gap-4">
-                                <div className="w-16 h-16 bg-gradient-to-br from-violet-400 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/20">
+                                <div className="w-16 h-16 bg-gradient-to-br from-violet-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/20">
                                     <Loader2 className="w-8 h-8 text-white animate-spin" />
                                 </div>
                                 <span className="text-slate-500 font-bold">Examiner is preparing next question...</span>
@@ -445,7 +445,7 @@ export default function VivaSimulatorPage() {
                                 disabled={loadingResponse}
                                 className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-lg ${recording 
                                     ? 'bg-red-500 hover:bg-red-600 shadow-red-500/30 scale-110' 
-                                    : 'bg-gradient-to-br from-violet-500 to-purple-600 hover:shadow-violet-500/30 hover:scale-105'
+                                    : 'bg-gradient-to-br from-violet-500 to-emerald-600 hover:shadow-violet-500/30 hover:scale-105'
                                 } disabled:opacity-50`}
                             >
                                 {recording ? <Square className="w-5 h-5 text-white fill-current" /> : <Mic className="w-5 h-5 text-white" />}

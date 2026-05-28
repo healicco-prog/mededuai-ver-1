@@ -43,7 +43,7 @@ export default function TeacherKeyPoints() {
             {
                 title: "Essay Questions Expansion",
                 desc: "Create 10-mark long essay questions for the Biochemistry module to challenge your students.",
-                icon: <PenTool className="w-5 h-5 text-purple-600" />,
+                icon: <PenTool className="w-5 h-5 text-emerald-600" />,
                 color: "purple",
                 source: "Based on Essay Qs Generator"
             }
@@ -63,13 +63,13 @@ export default function TeacherKeyPoints() {
 
     return (
         <div className="mb-8 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-8 relative overflow-hidden shadow-xl">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+            <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
             <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/3 pointer-events-none" />
             
             <div className="relative z-10">
                 <div className="flex items-center gap-3 mb-6">
                     <div className="bg-white/10 p-2 rounded-xl border border-white/10 backdrop-blur-sm">
-                        <Sparkles className="w-6 h-6 text-purple-400" />
+                        <Sparkles className="w-6 h-6 text-emerald-400" />
                     </div>
                     <h2 className="text-2xl font-extrabold text-white tracking-tight">Key points to focus today</h2>
                 </div>
