@@ -9,18 +9,22 @@ export async function POST(req: Request) {
     let body: any = {};
     try {
         body = await req.json();
-        const { topic, category, primary_keyword, secondary_keywords } = body;
+        const { topic, category, primary_keyword, secondary_keywords, includeMedEduAI } = body;
 
         let seoKeywordInstruction = "";
         if (primary_keyword) {
-            seoKeywordInstruction = `Integrate the targeted primary keyword "${primary_keyword}" naturally in the title, first paragraph, and headings. Also use these secondary keywords: "${secondary_keywords || ''}".`;
+            seoKeywordInstruction += `Integrate the targeted primary keyword "${primary_keyword}" naturally in the title, first paragraph, and headings. Also use these secondary keywords: "${secondary_keywords || ''}".\n`;
+        }
+        if (includeMedEduAI) {
+            seoKeywordInstruction += `Prominently mention the platform "MedEduAI" where relevant in the content as a cutting-edge solution or authority in medical education technology.\n`;
         }
 
-        const promptText = `Act as an expert Medical SEO content writer. Create a fully optimized blog post about: "${topic}" in the category "${category}".
+        const promptText = `Act as an expert Medical SEO content writer. Create a fully optimized blog post about: "${topic}". Dynamically determine the most relevant SEO category based on the content.
 ${seoKeywordInstruction}
 Return ONLY a raw valid JSON object. Do not return markdown blocks or backticks. Format exactly matching this structure:
 {
   "title": "A highly engaging SEO optimized title",
+  "category": "Dynamically determined category (e.g. AI Innovations, Medical Tech)",
   "slug": "seo-optimized-slug",
   "meta_title": "SEO Meta Title (max 60 chars)",
   "excerpt": "SEO Meta description (max 160 chars)",

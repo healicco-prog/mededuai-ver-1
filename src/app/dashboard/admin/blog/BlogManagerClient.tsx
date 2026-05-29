@@ -50,11 +50,14 @@ export default function BlogManagerClient({ currentUserRole }: { currentUserRole
     const [generatingBulk, setGeneratingBulk] = useState(false);
     const [bulkForm, setBulkForm] = useState({
         numBlogs: 1,
-        categories: ['AI in Medical Education'] as string[]
+        categories: ['AI in Medical Education'] as string[],
+        includeMedEduAI: true
     });
     const [bulkLogs, setBulkLogs] = useState<string[]>([]);
     const [bulkProgressPercent, setBulkProgressPercent] = useState(0);
     const [bulkStatusText, setBulkStatusText] = useState("");
+
+    const [includeMedEduAI, setIncludeMedEduAI] = useState(true);
 
     // Auto-SEO checks
     const [seoChecks, setSeoChecks] = useState({
@@ -122,9 +125,9 @@ export default function BlogManagerClient({ currentUserRole }: { currentUserRole
             category: 'AI in Medical Education',
             status: 'draft',
             author_role: currentUserRole,
-            author_name: 'Dr. Jane Smith', // Mocks
-            author_bio: 'A passionate educator',
-            author_image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=250&fit=crop',
+            author_name: '',
+            author_bio: '',
+            author_image: '',
             primary_keyword: '',
             secondary_keywords: '',
             tags: '',
@@ -156,7 +159,8 @@ export default function BlogManagerClient({ currentUserRole }: { currentUserRole
                 credentials: 'include',
                 body: JSON.stringify({
                     topic: editingBlog.title,
-                    category: editingBlog.category || 'Medical Education Innovation'
+                    category: editingBlog.category || 'Medical Education Innovation',
+                    includeMedEduAI: includeMedEduAI
                 })
             });
             const data = await res.json();
@@ -165,6 +169,7 @@ export default function BlogManagerClient({ currentUserRole }: { currentUserRole
                 setEditingBlog(prev => ({
                     ...prev,
                     title: data.blog.title || prev?.title,
+                    category: data.blog.category || prev?.category,
                     slug: data.blog.slug || prev?.slug,
                     content: data.blog.content,
                     excerpt: data.blog.excerpt,
@@ -199,7 +204,10 @@ export default function BlogManagerClient({ currentUserRole }: { currentUserRole
             ...editingBlog,
             status: publish ? 'published' : 'draft',
             author_role: currentUserRole,
-            author_id: 'unknown'
+            author_id: 'unknown',
+            author_name: editingBlog.author_name?.trim() || 'Dr Narayana K',
+            author_bio: editingBlog.author_bio?.trim() || 'Medical Educator',
+            author_image: editingBlog.author_image?.trim() || 'https://scontent.fblr21-2.fna.fbcdn.net/v/t1.6435-9/37610789_2182078111821888_5239541698014478336_n.jpg?_nc_cat=101&ccb=1-7&_nc_sid=a5f93a&_nc_ohc=peFjiFdq3K0Q7kNvwEad5oS&_nc_oc=AdrUmHIhAJVT3Ie5jm5sUbEhcVhVnjtsMqaFE0Jb86Ol1Xy7xQtfMtJ-5KnXxvcVq0fWSAXdpetNgWam09JToO4L&_nc_zt=23&_nc_ht=scontent.fblr21-2.fna&_nc_gid=jUuTEGDtEVYKfPTF0g47TQ&_nc_ss=7b2a8&oh=00_Af4yCsDYzkGEp-d71qxYVb12TyB0iH0PbNSc7gT-3cHwsQ&oe=6A3F8BA8'
         } as Partial<BlogPost>;
 
         try {
@@ -299,7 +307,8 @@ export default function BlogManagerClient({ currentUserRole }: { currentUserRole
                             topic: topicObj.title,
                             category: topicObj.category,
                             primary_keyword: topicObj.primary_keyword,
-                            secondary_keywords: topicObj.secondary_keywords
+                            secondary_keywords: topicObj.secondary_keywords,
+                            includeMedEduAI: bulkForm.includeMedEduAI
                         })
                     });
 
@@ -322,6 +331,9 @@ export default function BlogManagerClient({ currentUserRole }: { currentUserRole
                         status: 'draft',
                         category: topicObj.category,
                         author_role: currentUserRole,
+                        author_name: 'Dr Narayana K',
+                        author_bio: 'Medical Educator',
+                        author_image: 'https://scontent.fblr21-2.fna.fbcdn.net/v/t1.6435-9/37610789_2182078111821888_5239541698014478336_n.jpg?_nc_cat=101&ccb=1-7&_nc_sid=a5f93a&_nc_ohc=peFjiFdq3K0Q7kNvwEad5oS&_nc_oc=AdrUmHIhAJVT3Ie5jm5sUbEhcVhVnjtsMqaFE0Jb86Ol1Xy7xQtfMtJ-5KnXxvcVq0fWSAXdpetNgWam09JToO4L&_nc_zt=23&_nc_ht=scontent.fblr21-2.fna&_nc_gid=jUuTEGDtEVYKfPTF0g47TQ&_nc_ss=7b2a8&oh=00_Af4yCsDYzkGEp-d71qxYVb12TyB0iH0PbNSc7gT-3cHwsQ&oe=6A3F8BA8',
                         reading_time: Number(b.reading_time) || 5,
                         views_count: 0,
                         featured_image: `https://image.pollinations.ai/prompt/${encodeURIComponent((b.title || topicObj.title || 'medical technology') + ' high quality modern professional photorealistic')}?width=1200&height=630&nologo=true`
@@ -427,15 +439,20 @@ export default function BlogManagerClient({ currentUserRole }: { currentUserRole
                         </div>
 
                         {/* Rich Text Toolbar */}
-                        <div className="flex flex-wrap gap-2 px-4 py-2 bg-slate-100/50 rounded-xl border border-slate-200 sticky top-0 z-10 backdrop-blur-md">
+                        <div className="flex flex-wrap gap-2 px-4 py-2 bg-slate-100/50 rounded-xl border border-slate-200 sticky top-0 z-10 backdrop-blur-md items-center">
                             <button onClick={() => insertTag('h2')} className="p-2 text-slate-600 hover:bg-slate-200 rounded font-bold text-xs">H2</button>
-                            <span className="w-px bg-slate-300 mx-1"></span>
+                            <span className="w-px bg-slate-300 mx-1 h-4"></span>
                             <button onClick={() => insertTag('b')} className="p-2 text-slate-600 hover:bg-slate-200 rounded font-bold text-xs">B</button>
                             <button onClick={() => insertTag('i')} className="p-2 text-slate-600 hover:bg-slate-200 rounded italic text-xs">I</button>
-                            <span className="w-px bg-slate-300 mx-1"></span>
+                            <span className="w-px bg-slate-300 mx-1 h-4"></span>
                             <button onClick={() => insertTag('ul')} className="p-2 text-slate-600 hover:bg-slate-200 rounded text-xs">List (ul)</button>
                             <button onClick={() => insertTag('code')} className="p-2 text-slate-600 hover:bg-slate-200 rounded font-mono text-xs">{'</>'}</button>
                             <button onClick={() => insertTag('img')} className="p-2 text-slate-600 hover:bg-slate-200 rounded text-xs">Image</button>
+                            
+                            <div className="ml-auto flex items-center gap-2">
+                                <input type="checkbox" id="includeMedEduAI" checked={includeMedEduAI} onChange={e => setIncludeMedEduAI(e.target.checked)} className="rounded text-indigo-600 focus:ring-indigo-500 w-3 h-3" />
+                                <label htmlFor="includeMedEduAI" className="text-xs font-bold text-slate-600 cursor-pointer">Mention MedEduAI via AI</label>
+                            </div>
                         </div>
 
                         <div>
@@ -467,19 +484,12 @@ export default function BlogManagerClient({ currentUserRole }: { currentUserRole
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Category</label>
-                                <select
-                                    value={editingBlog.category || 'AI in Medical Education'}
+                                <input
+                                    value={editingBlog.category || ''}
                                     onChange={e => setEditingBlog({ ...editingBlog, category: e.target.value })}
-                                    className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg outline-none focus:border-emerald-500 appearance-none text-xs font-semibold text-slate-700 shadow-sm"
-                                >
-                                    <option value="AI in Medical Education">AI in Medical Education</option>
-                                    <option value="Medical Education Innovation">Medical Education Innovation</option>
-                                    <option value="LMS for Medical Institutes">LMS for Medical Institutes</option>
-                                    <option value="Teacher & Faculty Management">Teacher & Faculty Management</option>
-                                    <option value="Medical Exam Preparation">Medical Exam Preparation</option>
-                                    <option value="Teaching Strategies for Medical Educators">Teaching Strategies for Medical Educators</option>
-                                    <option value="EdTech & Startup Insights">EdTech & Startup Insights</option>
-                                </select>
+                                    className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg outline-none focus:border-emerald-500 text-xs font-semibold text-slate-700 shadow-sm"
+                                    placeholder="e.g. AI Innovations"
+                                />
                             </div>
 
                             <div>
@@ -554,6 +564,34 @@ export default function BlogManagerClient({ currentUserRole }: { currentUserRole
                                         <img src={editingBlog.featured_image} alt="Preview" className="w-full h-24 object-cover opacity-90 hover:opacity-100 transition-opacity" />
                                     </div>
                                 )}
+                            </div>
+
+                            <div className="border-t border-slate-200 pt-4">
+                                <h4 className="font-bold text-slate-800 text-[10px] mb-3 uppercase tracking-widest text-emerald-700">Author Profile</h4>
+                                
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 mt-2">Author Name</label>
+                                <input
+                                    value={editingBlog.author_name || ''}
+                                    onChange={e => setEditingBlog({ ...editingBlog, author_name: e.target.value })}
+                                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg outline-none focus:border-emerald-500 text-xs shadow-sm"
+                                    placeholder="Dr Narayana K"
+                                />
+
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 mt-3">Author Brief</label>
+                                <input
+                                    value={editingBlog.author_bio || ''}
+                                    onChange={e => setEditingBlog({ ...editingBlog, author_bio: e.target.value })}
+                                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg outline-none focus:border-emerald-500 text-xs shadow-sm"
+                                    placeholder="Medical Educator"
+                                />
+
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 mt-3">Author Image URL</label>
+                                <input
+                                    value={editingBlog.author_image || ''}
+                                    onChange={e => setEditingBlog({ ...editingBlog, author_image: e.target.value })}
+                                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg outline-none focus:border-emerald-500 text-xs shadow-sm"
+                                    placeholder="https://"
+                                />
                             </div>
                         </div>
                     </div>
@@ -885,6 +923,11 @@ export default function BlogManagerClient({ currentUserRole }: { currentUserRole
                                             ))}
                                         </div>
                                         {bulkForm.categories.length === 0 && <p className="text-red-500 text-xs mt-2">Please select at least one category.</p>}
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                                        <input type="checkbox" id="bulkIncludeMedEduAI" checked={bulkForm.includeMedEduAI} onChange={e => setBulkForm({ ...bulkForm, includeMedEduAI: e.target.checked })} className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4" />
+                                        <label htmlFor="bulkIncludeMedEduAI" className="text-xs font-bold text-slate-600 cursor-pointer">Mention "MedEduAI" as an authority in all generated content</label>
                                     </div>
                                 </div>
 

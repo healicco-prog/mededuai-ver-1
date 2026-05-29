@@ -1,5 +1,7 @@
 import { supabase, isMockMode as isMock } from './supabase';
-import { useBlogStore, BlogPost } from '../store/blogStore';
+import type { BlogPost } from '../store/blogStore';
+
+
 
 // Helper to get authorization headers from localStorage securely
 function getAuthHeader(): Record<string, string> {
@@ -53,12 +55,15 @@ async function syncSession(): Promise<void> {
 
 export const blogService = {
     async getAllBlogs(): Promise<BlogPost[]> {
-        if (isMock) return useBlogStore.getState().blogs.filter(b => b.status === 'published');
+        if (isMock) {
+            return [];
+        }
         try {
             const res = await fetch('/api/blogs', {
                 headers: {
                     ...getAuthHeader()
-                }
+                },
+                cache: 'no-store'
             });
             if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
             const data = await res.json();
@@ -77,24 +82,22 @@ export const blogService = {
                 return data as BlogPost[];
             } catch (fallbackErr) {
                 console.warn('[blogService] Direct select also failed. Returning local mock data fallback.', fallbackErr);
-                return useBlogStore.getState().blogs.filter(b => b.status === 'published');
+                return [];
             }
         }
     },
 
     async getAdminBlogs(): Promise<BlogPost[]> {
-        if (isMock) return useBlogStore.getState().blogs;
+        if (isMock) {
+            return [];
+        }
         try {
-            // ?admin=true asks the API for drafts + published. The API requires
-            // a verified admin signal (JWT, signed admin cookie, or role cookie)
-            // and returns 403 if it can't confirm — that 403 falls through to
-            // the direct Supabase select below so the dashboard still shows
-            // something instead of an empty page.
             const res = await fetch('/api/blogs?admin=true', {
                 credentials: 'include',
                 headers: {
                     ...getAuthHeader()
-                }
+                },
+                cache: 'no-store'
             });
             if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
             const data = await res.json();
@@ -111,18 +114,21 @@ export const blogService = {
                 if (error) throw error;
                 return data as BlogPost[];
             } catch (fallbackErr) {
-                return useBlogStore.getState().blogs;
+                return [];
             }
         }
     },
 
     async getBlogBySlug(slug: string): Promise<BlogPost | null> {
-        if (isMock) return useBlogStore.getState().blogs.find(b => b.slug === slug) || null;
+        if (isMock) {
+            return null;
+        }
         try {
             const res = await fetch('/api/blogs', {
                 headers: {
                     ...getAuthHeader()
-                }
+                },
+                cache: 'no-store'
             });
             if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
             const data: BlogPost[] = await res.json();
@@ -140,20 +146,13 @@ export const blogService = {
                 if (error) throw error;
                 return data as BlogPost;
             } catch (fallbackErr) {
-                return useBlogStore.getState().blogs.find(b => b.slug === slug) || null;
+                return null;
             }
         }
     },
 
     async createBlog(blog: Partial<BlogPost>): Promise<void> {
         if (isMock) {
-            const newBlog = {
-                ...blog,
-                id: Math.random().toString(36).substr(2, 9),
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            } as BlogPost;
-            useBlogStore.getState().addBlog(newBlog);
             return;
         }
         try {
@@ -169,27 +168,15 @@ export const blogService = {
                 const errData = await res.json().catch(() => ({ error: 'Failed to parse error response' }));
                 throw new Error(errData.error || `HTTP error! status: ${res.status}`);
             }
-            // Update local Zustand store to keep client sync
-            const resData = await res.json();
-            if (resData.success && resData.data) {
-                useBlogStore.getState().addBlog(resData.data);
-            }
+            // Note: Components like BlogManagerClient now manually refresh by calling loadBlogs().
         } catch (err: any) {
             console.error('[blogService] Failed to insert blog via API, saving to local store:', err);
-            const newBlog = {
-                ...blog,
-                id: Math.random().toString(36).substr(2, 9),
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            } as BlogPost;
-            useBlogStore.getState().addBlog(newBlog);
             throw new Error(err.message || 'Database insert failed');
         }
     },
 
     async updateBlog(id: string, updates: Partial<BlogPost>): Promise<void> {
         if (isMock) {
-            useBlogStore.getState().updateBlog(id, updates);
             return;
         }
         try {
@@ -206,21 +193,13 @@ export const blogService = {
                 throw new Error(errData.error || `HTTP error! status: ${res.status}`);
             }
             const resData = await res.json();
-            if (resData.success && resData.data) {
-                useBlogStore.getState().updateBlog(id, resData.data);
-            } else {
-                useBlogStore.getState().updateBlog(id, updates);
-            }
         } catch (err: any) {
-            console.error('[blogService] Failed to update blog via API, updating local store:', err);
-            useBlogStore.getState().updateBlog(id, updates);
             throw new Error(err.message || 'Database update failed');
         }
     },
 
     async deleteBlog(id: string): Promise<void> {
         if (isMock) {
-            useBlogStore.getState().deleteBlog(id);
             return;
         }
         try {
@@ -234,17 +213,15 @@ export const blogService = {
                 const errData = await res.json().catch(() => ({ error: 'Failed to parse error response' }));
                 throw new Error(errData.error || `HTTP error! status: ${res.status}`);
             }
-            useBlogStore.getState().deleteBlog(id);
+            // Delete success
         } catch (err: any) {
-            console.error('[blogService] Failed to delete blog via API, deleting from local store:', err);
-            useBlogStore.getState().deleteBlog(id);
+            console.error('[blogService] Failed to delete blog via API:', err);
             throw new Error(err.message || 'Database delete failed');
         }
     },
 
     async incrementViewCount(id: string): Promise<void> {
         if (isMock) {
-            useBlogStore.getState().incrementView(id);
             return;
         }
         try {
@@ -253,7 +230,6 @@ export const blogService = {
             if (error) throw error;
         } catch (err) {
             console.error('[blogService] Failed to increment view count in Supabase:', err);
-            useBlogStore.getState().incrementView(id);
         }
     }
 };

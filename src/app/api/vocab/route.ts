@@ -7,9 +7,11 @@ export async function POST(req: Request) {
     const sec = await checkSecurity(req);
     if (!sec.authorized) return sec.response;
 
+    let language = 'Hindi';
     try {
         const body = await req.json();
-        const { course, subject, topic, numTerms = 10, language = 'Hindi', level = 'Basic' } = body;
+        language = body.language || 'Hindi';
+        const { course, subject, topic, numTerms = 10, level = 'Basic' } = body;
         
         const count = Math.min(Math.max(Number(numTerms) || 10, 1), 50);
 

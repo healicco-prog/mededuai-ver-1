@@ -13,6 +13,7 @@ const nextConfig = {
       bodySizeLimit: '50mb',
     },
     middlewareClientMaxBodySize: '50mb',
+    optimizePackageImports: ['lucide-react', 'react-markdown', 'remark-gfm'],
   },
 
   async rewrites() {

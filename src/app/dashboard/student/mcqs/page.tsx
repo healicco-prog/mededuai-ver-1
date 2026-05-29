@@ -36,6 +36,7 @@ export default function McqGeneratorPage() {
     const [answered, setAnswered] = useState(false);
     const [showExplanation, setShowExplanation] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [saved, setSaved] = useState(false);
 
     const [savedMcqs, setSavedMcqs] = useState<any[]>([]);
     const [savedSearchQuery, setSavedSearchQuery] = useState('');

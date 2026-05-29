@@ -12,7 +12,7 @@ import MededuLogo from '@/components/MededuLogo';
 import TrialCountdown from '@/components/TrialCountdown';
 import TokenUsageMeter from '@/components/TokenUsageMeter';
 import { usePathname } from 'next/navigation';
-import { getRoleRedirect } from '@/lib/auth';
+
 import { isEnterpriseApproved } from '@/lib/enterpriseAccess';
 import { supabase } from '@/lib/supabase';
 import { isEmailApproved } from '@/app/dashboard/admin/mentoring/mentorshipAccess';
@@ -257,111 +257,112 @@ export default function DashboardLayoutClient({ children, role, handleLogout }: 
         const fetchUser = async () => {
             try {
                 const { data: { user } } = await supabase.auth.getUser();
-                if (user) {
-                    if (user.email) setUserEmail(user.email);
-                    const { data } = await supabase
-                        .from('users')
-                        .select('full_name, role')
-                        .eq('id', user.id)
-                        .single();
+                if (!user) throw new Error('No authenticated user');
 
-                    if (data) {
-                        if (data.full_name) {
-                            setUserName(data.full_name);
-                        }
-                        
-                        // Check for role mismatch and perform dynamic synchronization
-                        if (data.role) {
-                            const dbRoleRaw = (data.role || '').toLowerCase().replace(/[_\s]+/g, '');
-                            const map: Record<string, string> = {
-                                superadmin:       'superadmin',
-                                admin:            'superadmin',
-                                administrator:    'superadmin',
-                                masteradmin:      'masteradmin',
-                                institutionadmin: 'instadmin',
-                                instadmin:        'instadmin',
-                                departmentadmin:  'deptadmin',
-                                deptadmin:        'deptadmin',
-                                teacher:          'teacher',
-                                student:          'student',
-                            };
-                            const mappedDbRole = map[dbRoleRaw] || 'student';
+                // ── Immediately show name from JWT metadata — no DB round-trip needed ──
+                if (user.email) setUserEmail(user.email);
+                const metaName = user.user_metadata?.full_name || user.user_metadata?.name || '';
+                if (metaName) setUserName(metaName);
 
-                            // Sync user to Zustand store for token verification in frontend tools
-                            const userStore = useUserStore.getState();
-                            userStore.setUsers([{
-                                id: user.id,
-                                role: mappedDbRole as any,
-                                name: data.full_name || user.user_metadata?.full_name || 'User',
-                                email: user.email || '',
-                                password: '',
-                                createdAt: new Date().toISOString()
-                            }]);
-                            
-                            if (mappedDbRole !== role) {
-                                console.log(`[DashboardLayoutClient] Role mismatch detected. Cookie: ${role}, DB: ${mappedDbRole}. Synchronizing...`);
-                                try {
-                                    const syncRes = await fetch('/api/auth/set-role', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' }
-                                    });
-                                    if (syncRes.ok) {
-                                        const syncData = await syncRes.json();
-                                        if (syncData.role && syncData.role !== role) {
-                                            console.log(`[DashboardLayoutClient] Cookie successfully updated to ${syncData.role}. Reloading session...`);
-                                            window.location.reload();
-                                            return;
-                                        }
-                                    }
-                                } catch (syncErr) {
-                                    console.error('[DashboardLayoutClient] Failed to synchronize role cookie:', syncErr);
-                                }
-                            }
-                        }
-                    } else if (user.user_metadata?.full_name) {
-                        setUserName(user.user_metadata.full_name);
-                    }
+                // ── Fire profile query + subscription fetch in PARALLEL ──
+                const [profileResult, subResult] = await Promise.allSettled([
+                    supabase.from('users').select('full_name, role').eq('id', user.id).single(),
+                    fetch(`/api/subscription?userId=${user.id}`),
+                ]);
 
-                    // Fetch subscription
-                    try {
-                        const res = await fetch(`/api/subscription?userId=${user.id}`);
-                        if (res.ok) {
-                            const sub = await res.json();
-                            setSubscription({
-                                plan_tier: sub.plan_tier || 'free',
-                                billing_status: sub.billing_status || 'trialing',
-                                trial_end_date: sub.trial_end_date || new Date().toISOString(),
-                                ai_tokens_balance: sub.ai_tokens_balance ?? 10000,
-                                ai_tokens_allotment: sub.ai_tokens_allotment ?? 10000,
-                                bonus_tokens: sub.bonus_tokens ?? 0,
-                            });
-                            
-                            // Sync backend balance to local tokenStore
-                            const balance = sub.ai_tokens_balance ?? 10000;
-                            const state = useTokenStore.getState();
-                            let w = state.getWallet(user.id);
-                            if (!w) {
-                                state.createWallet(user.id, { totalTokens: balance });
-                            } else {
-                                state.updateWallet(user.id, { totalTokens: balance });
-                            }
-                        } else {
-                            throw new Error('Subscription fetch failed');
-                        }
-                    } catch {
-                        // Fallback — show free package state
-                        setSubscription({
-                            plan_tier: 'free',
-                            billing_status: 'active',
-                            trial_end_date: new Date().toISOString(),
-                            ai_tokens_balance: 0,
-                            ai_tokens_allotment: 0,
-                            bonus_tokens: 0,
-                        });
+                // ── Handle profile ──
+                let mappedDbRole: string | null = null;
+                if (profileResult.status === 'fulfilled' && profileResult.value.data) {
+                    const data = profileResult.value.data;
+                    if (data.full_name) setUserName(data.full_name);
+
+                    if (data.role) {
+                        const dbRoleRaw = (data.role || '').toLowerCase().replace(/[_\s]+/g, '');
+                        const map: Record<string, string> = {
+                            superadmin:       'superadmin',
+                            admin:            'superadmin',
+                            administrator:    'superadmin',
+                            masteradmin:      'masteradmin',
+                            institutionadmin: 'instadmin',
+                            instadmin:        'instadmin',
+                            departmentadmin:  'deptadmin',
+                            deptadmin:        'deptadmin',
+                            teacher:          'teacher',
+                            student:          'student',
+                        };
+                        mappedDbRole = map[dbRoleRaw] || 'student';
+
+                        // Sync user to Zustand store
+                        const userStore = useUserStore.getState();
+                        userStore.setUsers([{
+                            id: user.id,
+                            role: mappedDbRole as any,
+                            name: data.full_name || metaName || 'User',
+                            email: user.email || '',
+                            password: '',
+                            createdAt: new Date().toISOString(),
+                        }]);
                     }
                 }
+
+                // ── Handle role mismatch (after profile resolves) ──
+                if (mappedDbRole && mappedDbRole !== role) {
+                    console.log(`[DashboardLayoutClient] Role mismatch. Cookie: ${role}, DB: ${mappedDbRole}. Synchronizing...`);
+                    try {
+                        const syncRes = await fetch('/api/auth/set-role', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                        });
+                        if (syncRes.ok) {
+                            const syncData = await syncRes.json();
+                            if (syncData.role && syncData.role !== role) {
+                                console.log(`[DashboardLayoutClient] Cookie updated to ${syncData.role}. Reloading...`);
+                                window.location.reload();
+                                return;
+                            }
+                        }
+                    } catch (syncErr) {
+                        console.error('[DashboardLayoutClient] Failed to sync role cookie:', syncErr);
+                    }
+                }
+
+                // ── Handle subscription ──
+                let subData: any = null;
+                if (subResult.status === 'fulfilled' && subResult.value.ok) {
+                    subData = await subResult.value.json();
+                }
+
+                if (subData) {
+                    setSubscription({
+                        plan_tier: subData.plan_tier || 'free',
+                        billing_status: subData.billing_status || 'trialing',
+                        trial_end_date: subData.trial_end_date || new Date().toISOString(),
+                        ai_tokens_balance: subData.ai_tokens_balance ?? 10000,
+                        ai_tokens_allotment: subData.ai_tokens_allotment ?? 10000,
+                        bonus_tokens: subData.bonus_tokens ?? 0,
+                    });
+                    // Sync token balance to local store
+                    const balance = subData.ai_tokens_balance ?? 10000;
+                    const state = useTokenStore.getState();
+                    const w = state.getWallet(user.id);
+                    if (!w) {
+                        state.createWallet(user.id, { totalTokens: balance });
+                    } else {
+                        state.updateWallet(user.id, { totalTokens: balance });
+                    }
+                } else {
+                    // Fallback free state
+                    setSubscription({
+                        plan_tier: 'free',
+                        billing_status: 'active',
+                        trial_end_date: new Date().toISOString(),
+                        ai_tokens_balance: 0,
+                        ai_tokens_allotment: 0,
+                        bonus_tokens: 0,
+                    });
+                }
             } catch {
-                // Auth error — set fallback subscription silently
+                // Auth error — silent fallback
                 setSubscription({
                     plan_tier: 'free',
                     billing_status: 'active',

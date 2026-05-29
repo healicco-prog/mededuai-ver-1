@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { BlogPost, useBlogStore } from '../../store/blogStore';
 import { blogService } from '../../lib/blogService';
-import { Search, Image as ImageIcon, Clock, Calendar, ChevronRight } from 'lucide-react';
+import { Search, Image as ImageIcon, Clock, Calendar, ChevronRight, Home } from 'lucide-react';
 import Link from 'next/link';
 
 export default function BlogListClient({ initialBlogs }: { initialBlogs: BlogPost[] }) {
@@ -12,6 +12,14 @@ export default function BlogListClient({ initialBlogs }: { initialBlogs: BlogPos
     const [activeTag, setActiveTag] = useState('All');
     const storeBlogs = useBlogStore(state => state.blogs);
     const [displayBlogs, setDisplayBlogs] = useState<BlogPost[]>(initialBlogs);
+
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    };
 
     useEffect(() => {
         let mounted = true;
@@ -67,18 +75,30 @@ export default function BlogListClient({ initialBlogs }: { initialBlogs: BlogPos
         return matchesCategory && matchesTag && matchesSearch && blog.status === 'published';
     });
 
-    const trendingBlog = displayBlogs.reduce((max, blog) => max.views_count > blog.views_count ? max : blog, displayBlogs[0]);
+    const featuredBlog = displayBlogs[0];
 
     return (
         <div className="max-w-7xl mx-auto px-6 py-20 relative z-10">
             {/* Header Section */}
-            <div className="text-center mb-16 space-y-4">
+            <div className="text-center mb-16 space-y-4 relative">
+                <Link 
+                    href="/" 
+                    className="absolute top-0 right-0 hidden md:flex items-center gap-2 px-4 py-2 border border-slate-700 hover:border-slate-500 rounded-full text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-all"
+                >
+                    <Home className="w-4 h-4" /> Return to Home
+                </Link>
                 <h1 className="text-5xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-cyan-400 to-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.3)]">
                     The Pulse of MedEduAI
                 </h1>
                 <p className="text-xl text-slate-400 max-w-2xl mx-auto">
                     Dive into the architecture of modern medical learning. Exploring AI, cognitive science, and the future of healthcare education.
                 </p>
+                <Link 
+                    href="/" 
+                    className="mt-4 md:hidden inline-flex items-center gap-2 px-4 py-2 border border-slate-700 hover:border-slate-500 rounded-full text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-all"
+                >
+                    <Home className="w-4 h-4" /> Return to Home
+                </Link>
             </div>
 
             {/* Filter and Search Bar */}
@@ -130,15 +150,15 @@ export default function BlogListClient({ initialBlogs }: { initialBlogs: BlogPos
                 </div>
             </div>
 
-            {/* Trending / Featured Post */}
-            {trendingBlog && activeCategory === 'All' && !searchQuery && (
+            {/* Featured Post */}
+            {featuredBlog && activeCategory === 'All' && !searchQuery && (
                 <div className="mb-20 group relative rounded-3xl overflow-hidden glass-panel border border-white/10 bg-gradient-to-br from-slate-900/80 to-slate-950/80 p-1 block backdrop-blur-3xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] transition-transform duration-500 hover:scale-[1.01] hover:border-emerald-500/30">
                     <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/10 via-transparent to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
 
                     <div className="flex flex-col lg:flex-row gap-8 bg-slate-900/40 rounded-[22px] p-6 lg:p-8 backdrop-blur-xl">
                         <div className="w-full lg:w-1/2 h-64 lg:h-96 rounded-2xl overflow-hidden relative border border-white/5">
-                            {trendingBlog.featured_image ? (
-                                <img src={trendingBlog.featured_image} alt="Featured" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-80" />
+                            {featuredBlog.featured_image ? (
+                                <img src={featuredBlog.featured_image} alt="Featured" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-80" />
                             ) : (
                                 <div className="w-full h-full bg-slate-800 flex items-center justify-center">
                                     <ImageIcon className="w-12 h-12 text-slate-600" />
@@ -146,29 +166,39 @@ export default function BlogListClient({ initialBlogs }: { initialBlogs: BlogPos
                             )}
                             <div className="absolute top-4 left-4 bg-emerald-500/20 border border-emerald-400/30 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-emerald-300 uppercase tracking-widest flex items-center gap-2">
                                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                                Trending Now
+                                Newest Release
                             </div>
                         </div>
 
                         <div className="w-full lg:w-1/2 flex flex-col justify-center">
-                            <span className="text-cyan-400 font-bold uppercase tracking-widest text-sm mb-4">{trendingBlog.category}</span>
+                            <div className="flex items-center justify-between mb-4">
+                                <span className="text-cyan-400 font-bold uppercase tracking-widest text-sm">{featuredBlog.category}</span>
+                            </div>
                             <h2 className="text-3xl lg:text-5xl font-bold text-white mb-6 leading-tight group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-slate-300 transition-colors">
-                                {trendingBlog.title}
+                                {featuredBlog.title}
                             </h2>
                             <p className="text-lg text-slate-400 mb-8 line-clamp-3">
-                                {trendingBlog.excerpt}
+                                {featuredBlog.excerpt}
                             </p>
+
+                            <div className="flex items-center gap-3 mb-8">
+                                <img src={featuredBlog.author_image || `https://ui-avatars.com/api/?name=${(featuredBlog.author_name || 'Dr Narayana K').replace(' ', '+')}&background=0284c7&color=fff`} className="w-10 h-10 rounded-full border border-slate-700 object-cover" />
+                                <div>
+                                    <p className="text-white font-bold text-sm">{featuredBlog.author_name || 'Dr Narayana K'}</p>
+                                    <p className="text-emerald-400 font-medium text-xs">{featuredBlog.author_bio || 'Medical Educator'}</p>
+                                </div>
+                            </div>
 
                             <div className="flex items-center gap-6 mt-auto">
                                 <Link
-                                    href={`/blog/${trendingBlog.slug}`}
+                                    href={`/blog/${featuredBlog.slug}`}
                                     className="px-8 py-4 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white rounded-xl font-bold shadow-[0_0_20px_rgba(52,211,153,0.4)] flex items-center gap-3 transition-all transform hover:scale-105"
                                 >
                                     Read Article <ChevronRight className="w-5 h-5" />
                                 </Link>
                                 <div className="flex justify-center flex-col text-slate-400 text-sm">
-                                    <span className="flex items-center gap-2"><Clock className="w-4 h-4" /> {trendingBlog.reading_time} min read</span>
-                                    <span className="flex items-center gap-2 mt-1"><Calendar className="w-4 h-4" /> {new Date(trendingBlog.created_at).toLocaleDateString()}</span>
+                                    <span className="flex items-center gap-2"><Clock className="w-4 h-4" /> {featuredBlog.reading_time} min read</span>
+                                    <span suppressHydrationWarning className="flex items-center gap-2 mt-1"><Calendar className="w-4 h-4" /> {formatDate(featuredBlog.created_at)}</span>
                                 </div>
                             </div>
                         </div>
@@ -201,8 +231,16 @@ export default function BlogListClient({ initialBlogs }: { initialBlogs: BlogPos
                                 {blog.excerpt}
                             </p>
 
+                            <div className="flex items-center gap-3 mb-6">
+                                <img src={blog.author_image || `https://ui-avatars.com/api/?name=${(blog.author_name || 'Dr Narayana K').replace(' ', '+')}&background=0284c7&color=fff`} className="w-8 h-8 rounded-full border border-slate-700 object-cover" />
+                                <div>
+                                    <p className="text-white font-bold text-xs">{blog.author_name || 'Dr Narayana K'}</p>
+                                    <p className="text-emerald-400 font-medium text-[10px]">{blog.author_bio || 'Medical Educator'}</p>
+                                </div>
+                            </div>
+
                             <div className="flex items-center justify-between text-xs text-slate-500 pt-6 border-t border-white/5">
-                                <span className="flex items-center gap-1.5 font-medium"><Calendar className="w-3.5 h-3.5" /> {new Date(blog.created_at).toLocaleDateString()}</span>
+                                <span suppressHydrationWarning className="flex items-center gap-1.5 font-medium"><Calendar className="w-3.5 h-3.5" /> {formatDate(blog.created_at)}</span>
                                 <span className="flex items-center gap-1.5 font-medium"><Clock className="w-3.5 h-3.5" /> {blog.reading_time} min read</span>
                             </div>
                         </div>

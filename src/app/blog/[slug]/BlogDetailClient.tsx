@@ -196,6 +196,14 @@ export default function BlogDetailClient({ initialBlog, slug, related }: { initi
                         {blog.title}
                     </h1>
 
+                    <div className="flex items-center justify-center gap-4 mb-8">
+                        <img src={authorImage} alt={authorName} className="w-12 h-12 rounded-full border-2 border-slate-700 shadow-md object-cover" />
+                        <div className="text-left">
+                            <p className="text-white font-bold text-sm">{authorName}</p>
+                            <p className="text-emerald-400 font-medium text-xs">{blog.author_bio || 'Medical Educator'}</p>
+                        </div>
+                    </div>
+
                     <div className="flex flex-wrap items-center justify-center gap-6 text-sm font-semibold text-slate-300">
                         <div className="flex items-center gap-2"><Calendar className="w-4 h-4 text-emerald-400" /> {new Date(blog.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
                         <div className="flex items-center gap-2"><Clock className="w-4 h-4 text-cyan-400" /> {blog.reading_time} min read</div>

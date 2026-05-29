@@ -29,7 +29,7 @@ Example structure:
   "topics": [
     {
       "title": "Click-Optimized Blog Post Title",
-      "category": "One of the provided categories",
+      "category": "A highly relevant dynamically determined category based on the title",
       "primary_keyword": "Primary SEO keyword to target",
       "secondary_keywords": "comma, separated, secondary, keywords"
     }

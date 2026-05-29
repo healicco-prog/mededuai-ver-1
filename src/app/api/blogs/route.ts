@@ -2,6 +2,7 @@ import { checkSecurity } from '@/lib/apiSecurity';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
 // GET - Retrieve blogs.
 //   /api/blogs              → only status='published' (public homepage + reader)
 //   /api/blogs?admin=true   → ALL blogs (drafts + published) when caller is admin

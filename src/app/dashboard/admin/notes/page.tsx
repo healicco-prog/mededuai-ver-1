@@ -673,6 +673,8 @@ export default function TeacherLMSNotes() {
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
     const [completedTopics, setCompletedTopics] = useState<Record<string, boolean>>({});
     const [topicSearchQuery, setTopicSearchQuery] = useState<string>('');
+    const [globalSearchQuery, setGlobalSearchQuery] = useState<string>('');
+    const [isGlobalSearchFocused, setIsGlobalSearchFocused] = useState<boolean>(false);
 
     const [activeTab, setActiveTab] = useState<string>('introduction');
     const [showAIPanel, setShowAIPanel] = useState<boolean>(false);
@@ -811,6 +813,42 @@ export default function TeacherLMSNotes() {
     // Computed selections — derive from state
     const currentCourse = coursesList.find((c: any) => c.id === selectedCourseId) || coursesList[0];
     const currentSubject = currentCourse?.subjects?.find((s: any) => s.id === selectedSubjectId) || currentCourse?.subjects?.[0];
+    
+    const [debouncedGlobalQuery, setDebouncedGlobalQuery] = useState<string>('');
+    const [globalSearchResults, setGlobalSearchResults] = useState<any[]>([]);
+    const [isSearching, setIsSearching] = useState<boolean>(false);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedGlobalQuery(globalSearchQuery), 400);
+        return () => clearTimeout(timer);
+    }, [globalSearchQuery]);
+
+    useEffect(() => {
+        if (!debouncedGlobalQuery.trim() || !currentCourse) {
+            setGlobalSearchResults([]);
+            return;
+        }
+        setIsSearching(true);
+        fetch(`/api/lms/search?q=${encodeURIComponent(debouncedGlobalQuery)}&course=${encodeURIComponent(currentCourse.name)}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.results) {
+                    const sortedResults = [...data.results].sort((a: any, b: any) => {
+                        const isACurrent = a.subject?.toLowerCase() === currentSubject?.name?.toLowerCase();
+                        const isBCurrent = b.subject?.toLowerCase() === currentSubject?.name?.toLowerCase();
+                        if (isACurrent && !isBCurrent) return -1;
+                        if (!isACurrent && isBCurrent) return 1;
+                        return 0; // maintain remaining order
+                    });
+                    setGlobalSearchResults(sortedResults);
+                } else {
+                    setGlobalSearchResults([]);
+                }
+            })
+            .catch(() => setGlobalSearchResults([]))
+            .finally(() => setIsSearching(false));
+    }, [debouncedGlobalQuery, currentCourse, currentSubject]);
+
     const availableSections = currentSubject?.sections || [];
     const currentSection = availableSections.find((s: any) => s.id === selectedSectionId) || availableSections[0];
     // Search ALL sections so a stale sectionId never hides the selected topic
@@ -1137,13 +1175,84 @@ export default function TeacherLMSNotes() {
                         <button onClick={() => setShowSidebar(true)} className="md:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">
                             <Menu className="w-6 h-6" />
                         </button>
-                        <div className="relative group flex-1">
+                        <div className="relative group flex-1" onFocus={() => setIsGlobalSearchFocused(true)} onBlur={() => setTimeout(() => setIsGlobalSearchFocused(false), 200)}>
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500" />
                             <input
                                 type="text"
-                                placeholder="Search..."
+                                placeholder="Search course topics..."
+                                value={globalSearchQuery}
+                                onChange={(e) => setGlobalSearchQuery(e.target.value)}
                                 className="w-full bg-slate-100/50 border border-slate-200 rounded-full pl-11 pr-4 py-2.5 text-sm font-medium text-slate-700 outline-none focus:bg-white focus:border-emerald-300 focus:ring-4 focus:ring-emerald-100/50 transition-all"
                             />
+                            <AnimatePresence>
+                                {isGlobalSearchFocused && globalSearchQuery.trim() && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: 10 }}
+                                        className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-[120]"
+                                    >
+                                        <div className="max-h-80 overflow-y-auto custom-scrollbar">
+                                            {isSearching ? (
+                                                <div className="px-4 py-8 text-center flex flex-col items-center">
+                                                    <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+                                                    <p className="text-sm font-bold text-slate-500">Searching all notes...</p>
+                                                </div>
+                                            ) : globalSearchResults.length > 0 ? (
+                                                globalSearchResults.map((res, idx) => (
+                                                    <button
+                                                        key={`search-res-${idx}`}
+                                                        onClick={() => {
+                                                            const matchSubject = currentCourse?.subjects?.find((s: any) => s.name.toLowerCase() === res.subject?.toLowerCase());
+                                                            if (matchSubject) {
+                                                                setSelectedSubjectId(matchSubject.id);
+                                                                
+                                                                let foundSectionId = '';
+                                                                let foundTopicId = '';
+                                                                
+                                                                if (matchSubject.sections) {
+                                                                    for (const sec of matchSubject.sections) {
+                                                                        const match = sec.topics.find((t:any) => t.id === res.topic_id || t.name.toLowerCase() === res.topic?.toLowerCase());
+                                                                        if (match) {
+                                                                            foundSectionId = sec.id;
+                                                                            foundTopicId = match.id;
+                                                                            break;
+                                                                        }
+                                                                    }
+                                                                }
+                                                                
+                                                                if (foundSectionId) setSelectedSectionId(foundSectionId);
+                                                                if (foundTopicId) setSelectedTopicId(foundTopicId);
+                                                            }
+                                                            setGlobalSearchQuery('');
+                                                            setIsGlobalSearchFocused(false);
+                                                            setActiveTab('introduction');
+                                                        }}
+                                                        className="w-full text-left px-4 py-3 border-b border-slate-100 hover:bg-emerald-50 focus:bg-emerald-50 outline-none transition-colors group flex items-center justify-between"
+                                                    >
+                                                        <div className="flex items-start gap-3">
+                                                            <div className="mt-0.5">
+                                                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                                            </div>
+                                                            <div>
+                                                                <div className="text-sm font-bold text-slate-900 group-hover:text-emerald-700">{res.topic}</div>
+                                                                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{res.subject} • {res.version || 'Standard Curriculum'}</div>
+                                                            </div>
+                                                        </div>
+                                                        <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-emerald-500" />
+                                                    </button>
+                                                ))
+                                            ) : (
+                                                <div className="px-4 py-6 text-center">
+                                                    <Search className="w-8 h-8 text-slate-200 mx-auto mb-2" />
+                                                    <p className="text-sm font-bold text-slate-500">No matching notes found</p>
+                                                    <p className="text-xs text-slate-400 mt-1">Try another keyword</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
                     </div>
 

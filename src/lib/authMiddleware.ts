@@ -214,10 +214,7 @@ export async function verifyAuthAndRole(req: Request) {
     const user = await verifyAuth(req);
     if (!user) return { user: null, role: null };
 
-    // ── 1. Check for system/mock admin ──
-    if (user.id === 'system-admin') {
-        return { user, role: 'superadmin' };
-    }
+
 
     // ── 2. Try DB lookups with admin override privileges ──
     try {

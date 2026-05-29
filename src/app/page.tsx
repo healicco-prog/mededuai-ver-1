@@ -354,9 +354,9 @@ export default function LandingPage() {
 
                   <div className="p-6 flex flex-col flex-1">
                     <div className="flex items-center gap-4 text-[11px] text-slate-500 mb-3 font-semibold">
-                      <span className="flex items-center gap-1">
+                      <span suppressHydrationWarning className="flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5 text-slate-600" />
-                        {new Date(blog.created_at || Date.now()).toLocaleDateString(undefined, {
+                        {new Date(blog.created_at || Date.now()).toLocaleDateString('en-US', {
                           month: 'short',
                           day: 'numeric',
                           year: 'numeric',

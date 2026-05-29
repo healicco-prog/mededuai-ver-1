@@ -12,7 +12,7 @@ export default function McqGeneratorPage() {
     const [numMcqs, setNumMcqs] = useState(10);
     const [loading, setLoading] = useState(false);
     const [generatedPapers, setGeneratedPapers] = useState<{ id: string; name: string; mcqs: any[] }[]>([]);
-    const [savedExams, setSavedExams] = useState<{ id: string; subject: string; date: string; numMcqs: number; papers: { id: string; name: string; mcqs: any[] }[] }[]>([]);
+    const [savedExams, setSavedExams] = useState<any[]>([]);
     const [expandedExamId, setExpandedExamId] = useState<string | null>(null);
     const [answers, setAnswers] = useState<Record<string, string>>({});
 

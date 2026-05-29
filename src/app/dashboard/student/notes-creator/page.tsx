@@ -284,6 +284,12 @@ th,td{border:1px solid #ccc;padding:6pt 8pt;text-align:left;}th{background:#ecfd
         }
     };
 
+    const filteredSavedNotes = savedNotes.filter(note => {
+        if (!savedSearchQuery) return true;
+        const q = savedSearchQuery.toLowerCase();
+        return (note.topic || '').toLowerCase().includes(q) || (note.content || '').toLowerCase().includes(q) || (note.subject || '').toLowerCase().includes(q);
+    });
+
     return (
         <div className="max-w-5xl mx-auto flex flex-col h-[calc(100vh-7rem)]">
             {/* Premium Header */}

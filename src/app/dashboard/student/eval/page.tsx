@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ClipboardCheck, Sparkles, SlidersHorizontal, Loader2, Save, Copy, Download, CheckCircle, RefreshCcw, History, Search } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -76,9 +76,10 @@ export default function SelfEvaluationPage() {
         }
     };
 
-    const handleCopy = () => {
-        if (!result) return;
-        navigator.clipboard.writeText(result);
+    const handleCopy = (textToCopy?: string) => {
+        const text = typeof textToCopy === 'string' ? textToCopy : result;
+        if (!text) return;
+        navigator.clipboard.writeText(text);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
@@ -229,11 +230,11 @@ export default function SelfEvaluationPage() {
                                         {saved ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
                                         {saved ? 'Saved!' : 'Save'}
                                     </button>
-                                    <button onClick={handleDownloadPDF}
+                                    <button onClick={() => handleDownloadPDF()}
                                         className="bg-white text-slate-700 font-bold h-10 px-5 rounded-xl border border-slate-200 hover:bg-blue-50 hover:border-blue-300 transition-all flex items-center gap-2 text-sm shadow-sm">
                                         <Download className="w-4 h-4 text-blue-600" /> Download PDF
                                     </button>
-                                    <button onClick={handleCopy}
+                                    <button onClick={() => handleCopy()}
                                         className="bg-white text-slate-700 font-bold h-10 px-5 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all flex items-center gap-2 text-sm shadow-sm">
                                         {copied ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
                                         {copied ? 'Copied!' : 'Copy'}

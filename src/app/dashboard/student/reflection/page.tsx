@@ -88,9 +88,10 @@ export default function ReflectionGeneratorPage() {
             if (data.success && data.reflection) {
                 setCurrentReflectionDraft({
                     id: Date.now().toString(),
-                    date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                    created_at: new Date().toISOString(),
                     subject: subject.trim(),
                     topic: topic.trim(),
+                    competency: competency,
                     content: data.reflection
                 });
                 if (data.geminiTokens) {
